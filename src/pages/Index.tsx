@@ -4,8 +4,18 @@ import TacticalCard from "@/components/TacticalCard";
 import FeatureIcon from "@/components/FeatureIcon";
 import { MapPin, Users, Radio, Gamepad2, Target, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
+  const { user, profile } = useAuth();
+  
+  // Determine where to navigate based on auth state
+  const getAppLink = () => {
+    if (!user) return "/auth";
+    if (profile && !profile.is_onboarded) return "/onboarding";
+    return "/dashboard";
+  };
+
   return (
     <div className="min-h-screen bg-background tactical-grid relative overflow-hidden">
       {/* Background gradient overlay */}
@@ -30,16 +40,26 @@ const Index = () => {
           </nav>
           
           <div className="flex items-center gap-3">
-            <Link to="/auth">
-              <Button variant="ghost" size="sm" className="font-mono">
-                Login
-              </Button>
-            </Link>
-            <Link to="/auth">
-              <Button variant="neonCyan" size="sm">
-                Deploy
-              </Button>
-            </Link>
+            {user ? (
+              <Link to={getAppLink()}>
+                <Button variant="neonCyan" size="sm">
+                  Dashboard
+                </Button>
+              </Link>
+            ) : (
+              <>
+                <Link to="/auth">
+                  <Button variant="ghost" size="sm" className="font-mono">
+                    Login
+                  </Button>
+                </Link>
+                <Link to="/auth">
+                  <Button variant="neonCyan" size="sm">
+                    Deploy
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -72,7 +92,7 @@ const Index = () => {
             </p>
             
             <div className="flex flex-wrap gap-4">
-              <Link to="/auth">
+              <Link to={getAppLink()}>
                 <Button variant="solidCyan" size="xl" className="group">
                   <MapPin className="w-5 h-5 group-hover:animate-pulse" />
                   Enter The Map
@@ -174,9 +194,9 @@ const Index = () => {
           <p className="text-muted-foreground mb-8 max-w-md mx-auto">
             Join the tactical network. Find real people for real activities.
           </p>
-          <Link to="/auth">
+          <Link to={getAppLink()}>
             <Button variant="solidCyan" size="xl">
-              Create Your Character
+              {user ? "Go to Dashboard" : "Create Your Character"}
             </Button>
           </Link>
         </TacticalCard>
