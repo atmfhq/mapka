@@ -148,15 +148,7 @@ const MissionLog = ({ currentUserId, onMissionCreated, onOpenMission }: MissionL
     setLoading(true);
 
     try {
-      // 1. Update invitation status
-      const { error: updateError } = await supabase
-        .from('invitations')
-        .update({ status: 'accepted' })
-        .eq('id', invitation.id);
-
-      if (updateError) throw updateError;
-
-      // 2. Get location data for both users
+      // Get location data for both users
       const senderLat = invitation.sender?.base_lat || 40.7128;
       const senderLng = invitation.sender?.base_lng || -74.006;
       const receiverLat = invitation.receiver?.base_lat || 40.7128;
@@ -171,33 +163,17 @@ const MissionLog = ({ currentUserId, onMissionCreated, onOpenMission }: MissionL
         emoji: '📍',
       };
 
-      // 3. Create private megaphone - current user (receiver) becomes host
-      const { data: megaphone, error: megaphoneError } = await supabase
-        .from('megaphones')
-        .insert({
-          title: `${activityInfo.emoji} ${activityInfo.label} Meetup`,
-          category: 'Other',
-          start_time: new Date(Date.now() + 30 * 60 * 1000).toISOString(), // 30 mins from now
-          duration_minutes: 120,
-          max_participants: 2,
-          lat: midLat,
-          lng: midLng,
-          host_id: currentUserId, // Current user (accepter) becomes host
-          is_private: true,
-        })
-        .select()
-        .single();
+      // Use secure RPC function to handle acceptance
+      const { data: megaphoneId, error: rpcError } = await supabase
+        .rpc('accept_invitation', {
+          p_invitation_id: invitation.id,
+          p_title: `${activityInfo.emoji} ${activityInfo.label} Meetup`,
+          p_category: 'Other',
+          p_lat: midLat,
+          p_lng: midLng,
+        });
 
-      if (megaphoneError) throw megaphoneError;
-
-      // 4. Add the invitation sender to participants (receiver is already host)
-      const { error: participantError } = await supabase
-        .from('event_participants')
-        .insert([
-          { event_id: megaphone.id, user_id: invitation.sender_id, status: 'joined' },
-        ]);
-
-      if (participantError) throw participantError;
+      if (rpcError) throw rpcError;
 
       toast({
         title: "Invitation Accepted!",
@@ -209,8 +185,8 @@ const MissionLog = ({ currentUserId, onMissionCreated, onOpenMission }: MissionL
       onMissionCreated?.();
 
       // Open the new mission
-      if (onOpenMission) {
-        onOpenMission(megaphone.id);
+      if (onOpenMission && megaphoneId) {
+        onOpenMission(megaphoneId);
         setOpen(false);
       }
     } catch (error: any) {

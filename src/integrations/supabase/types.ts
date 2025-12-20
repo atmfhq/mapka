@@ -199,6 +199,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_invitation: {
+        Args: {
+          p_category: string
+          p_invitation_id: string
+          p_lat: number
+          p_lng: number
+          p_title: string
+        }
+        Returns: string
+      }
       can_view_megaphone: {
         Args: {
           megaphone_row: Database["public"]["Tables"]["megaphones"]["Row"]
