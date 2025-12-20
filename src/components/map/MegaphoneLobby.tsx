@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { Clock, Users, Trash2, UserPlus, X } from 'lucide-react';
+import { Clock, Users, Trash2, UserPlus, X, Lock, Shield } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,6 +20,7 @@ interface Megaphone {
   lat: number;
   lng: number;
   host_id: string;
+  is_private?: boolean;
 }
 
 interface Profile {
@@ -228,13 +229,27 @@ const MegaphoneLobby = ({
         className="bg-card border-t border-primary/30 rounded-t-2xl max-h-[85vh] overflow-y-auto"
       >
         <SheetHeader className="space-y-4 pb-4 border-b border-border/50">
+          {/* Private Mission Banner */}
+          {megaphone.is_private && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/30">
+              <Shield className="w-5 h-5 text-warning" />
+              <span className="font-orbitron text-sm text-warning tracking-wider">
+                SECURE CHANNEL
+              </span>
+              <Lock className="w-4 h-4 text-warning ml-auto" />
+            </div>
+          )}
+
           {/* Category Badge */}
           <div className="flex items-center justify-between">
             <Badge 
               variant="outline" 
-              className={CATEGORY_COLORS[megaphone.category] || CATEGORY_COLORS.Other}
+              className={megaphone.is_private 
+                ? 'bg-warning/20 text-warning border-warning/40' 
+                : (CATEGORY_COLORS[megaphone.category] || CATEGORY_COLORS.Other)
+              }
             >
-              {megaphone.category}
+              {megaphone.is_private ? 'Private Mission' : megaphone.category}
             </Badge>
             {isHost && (
               <Badge variant="outline" className="bg-success/20 text-success border-success/40">
