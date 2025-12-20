@@ -66,31 +66,47 @@ const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
 
   // Initialize map
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
+    if (!mapContainer.current) return;
+    
+    // Clean up existing map if any
+    if (map.current) {
+      map.current.remove();
+      map.current = null;
+    }
+
+    // Check if token is valid
+    if (!MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN_HERE') {
+      console.error('Mapbox token not configured. Please set VITE_MAPBOX_TOKEN in your environment.');
+      return;
+    }
 
     mapboxgl.accessToken = MAPBOX_TOKEN;
 
-    map.current = new mapboxgl.Map({
-      container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/dark-v11',
-      center: [userLng, userLat],
-      zoom: 14,
-      pitch: 45,
-    });
+    try {
+      map.current = new mapboxgl.Map({
+        container: mapContainer.current,
+        style: 'mapbox://styles/mapbox/dark-v11',
+        center: [userLng, userLat],
+        zoom: 14,
+        pitch: 45,
+      });
 
-    map.current.addControl(
-      new mapboxgl.NavigationControl({ visualizePitch: true }),
-      'bottom-right'
-    );
+      map.current.addControl(
+        new mapboxgl.NavigationControl({ visualizePitch: true }),
+        'bottom-right'
+      );
 
-    map.current.addControl(
-      new mapboxgl.GeolocateControl({
-        positionOptions: { enableHighAccuracy: true },
-        trackUserLocation: true,
-        showUserHeading: true,
-      }),
-      'bottom-right'
-    );
+      map.current.addControl(
+        new mapboxgl.GeolocateControl({
+          positionOptions: { enableHighAccuracy: true },
+          trackUserLocation: true,
+          showUserHeading: true,
+        }),
+        'bottom-right'
+      );
+    } catch (error) {
+      console.error('Failed to initialize map:', error);
+    }
 
     return () => {
       map.current?.remove();
@@ -157,6 +173,8 @@ const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
     };
   }, []);
 
+  const isTokenMissing = !MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN_HERE';
+
   return (
     <>
       <style>{`
@@ -192,6 +210,19 @@ const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
       `}</style>
       
       <div ref={mapContainer} className="absolute inset-0" />
+      
+      {isTokenMissing && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="text-center p-6 rounded-lg border border-destructive/50 bg-card max-w-md">
+            <h3 className="font-orbitron text-lg font-bold text-destructive mb-2">
+              Map Token Required
+            </h3>
+            <p className="text-muted-foreground text-sm">
+              Please configure your Mapbox token. The page may need a refresh after the token is added.
+            </p>
+          </div>
+        </div>
+      )}
       
       {selectedUser && popupPosition && (
         <UserPopup 
