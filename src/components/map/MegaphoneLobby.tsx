@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { format } from 'date-fns';
-import { Megaphone, Clock, Users, MapPin, Trash2, Edit, UserPlus, Check, X } from 'lucide-react';
+import { Clock, Users, Trash2, UserPlus, X } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import LobbyChatMessages from './LobbyChatMessages';
 
 interface Megaphone {
   id: string;
@@ -60,12 +62,17 @@ const MegaphoneLobby = ({
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
+  const [activeTab, setActiveTab] = useState('info');
 
   const isHost = megaphone?.host_id === currentUserId;
+  const canAccessChat = isHost || hasJoined;
 
   // Fetch host profile and participants
   useEffect(() => {
     if (!megaphone) return;
+    
+    // Reset state when megaphone changes
+    setActiveTab('info');
 
     const fetchData = async () => {
       // Fetch host
@@ -104,6 +111,30 @@ const MegaphoneLobby = ({
     fetchData();
   }, [megaphone, currentUserId]);
 
+  const refreshParticipants = async () => {
+    if (!megaphone) return;
+    
+    const { data } = await supabase
+      .from('event_participants')
+      .select('id, user_id, status')
+      .eq('event_id', megaphone.id);
+    
+    if (data) {
+      const userIds = data.map(p => p.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, nick, avatar_url')
+        .in('id', userIds);
+
+      const participantsWithProfiles = data.map(p => ({
+        ...p,
+        profile: profiles?.find(pr => pr.id === p.user_id),
+      }));
+
+      setParticipants(participantsWithProfiles);
+    }
+  };
+
   const handleJoin = async () => {
     if (!megaphone) return;
     setLoading(true);
@@ -128,12 +159,9 @@ const MegaphoneLobby = ({
     toast({ title: "Mission joined!", description: "You're now part of the squad." });
     setHasJoined(true);
     
-    // Refresh participants
-    const { data } = await supabase
-      .from('event_participants')
-      .select('id, user_id, status')
-      .eq('event_id', megaphone.id);
-    if (data) setParticipants(data);
+    // Refresh participants and switch to comms tab
+    await refreshParticipants();
+    setActiveTab('comms');
   };
 
   const handleLeave = async () => {
@@ -197,7 +225,7 @@ const MegaphoneLobby = ({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
         side="bottom" 
-        className="bg-card border-t border-primary/30 rounded-t-2xl max-h-[80vh] overflow-y-auto"
+        className="bg-card border-t border-primary/30 rounded-t-2xl max-h-[85vh] overflow-y-auto"
       >
         <SheetHeader className="space-y-4 pb-4 border-b border-border/50">
           {/* Category Badge */}
@@ -211,6 +239,11 @@ const MegaphoneLobby = ({
             {isHost && (
               <Badge variant="outline" className="bg-success/20 text-success border-success/40">
                 HOST
+              </Badge>
+            )}
+            {hasJoined && !isHost && (
+              <Badge variant="outline" className="bg-primary/20 text-primary border-primary/40">
+                JOINED
               </Badge>
             )}
           </div>
@@ -238,94 +271,119 @@ const MegaphoneLobby = ({
           </div>
         </SheetHeader>
 
-        <div className="py-6 space-y-6">
-          {/* Host */}
-          <div className="space-y-3">
-            <h4 className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-              Mission Commander
-            </h4>
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
-              <Avatar className="w-10 h-10 border-2 border-warning">
-                <AvatarImage src={host?.avatar_url || undefined} />
-                <AvatarFallback className="bg-warning/20 text-warning">
-                  {host?.nick?.[0]?.toUpperCase() || 'H'}
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <p className="font-semibold">{host?.nick || 'Unknown'}</p>
-                <p className="text-xs text-muted-foreground">Host</p>
-              </div>
-            </div>
-          </div>
+        {/* Tabs: Info / Comms */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
+          <TabsList className="grid w-full grid-cols-2 bg-muted/30">
+            <TabsTrigger value="info" className="font-mono text-xs">
+              INTEL
+            </TabsTrigger>
+            <TabsTrigger 
+              value="comms" 
+              disabled={!canAccessChat}
+              className="font-mono text-xs"
+            >
+              COMMS {!canAccessChat && '🔒'}
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Participants */}
-          {participants.length > 0 && (
+          <TabsContent value="info" className="py-4 space-y-6">
+            {/* Host */}
             <div className="space-y-3">
               <h4 className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-                Squad Members ({participants.length})
+                Mission Commander
               </h4>
-              <div className="grid grid-cols-2 gap-2">
-                {participants.map((p) => (
-                  <div 
-                    key={p.id}
-                    className="flex items-center gap-2 p-2 rounded-lg bg-muted/20 border border-border/30"
-                  >
-                    <Avatar className="w-8 h-8 border border-primary/50">
-                      <AvatarImage src={p.profile?.avatar_url || undefined} />
-                      <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                        {p.profile?.nick?.[0]?.toUpperCase() || '?'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm truncate">
-                      {p.profile?.nick || 'Anonymous'}
-                    </span>
-                  </div>
-                ))}
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+                <Avatar className="w-10 h-10 border-2 border-warning">
+                  <AvatarImage src={host?.avatar_url || undefined} />
+                  <AvatarFallback className="bg-warning/20 text-warning">
+                    {host?.nick?.[0]?.toUpperCase() || 'H'}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-semibold">{host?.nick || 'Unknown'}</p>
+                  <p className="text-xs text-muted-foreground">Host</p>
+                </div>
               </div>
             </div>
-          )}
 
-          {/* Actions */}
-          <div className="space-y-3 pt-4 border-t border-border/50">
-            {isHost ? (
-              <div className="flex gap-2">
+            {/* Participants */}
+            {participants.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+                  Squad Members ({participants.length})
+                </h4>
+                <div className="grid grid-cols-2 gap-2">
+                  {participants.map((p) => (
+                    <div 
+                      key={p.id}
+                      className="flex items-center gap-2 p-2 rounded-lg bg-muted/20 border border-border/30"
+                    >
+                      <Avatar className="w-8 h-8 border border-primary/50">
+                        <AvatarImage src={p.profile?.avatar_url || undefined} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                          {p.profile?.nick?.[0]?.toUpperCase() || '?'}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm truncate">
+                        {p.profile?.nick || 'Anonymous'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="space-y-3 pt-4 border-t border-border/50">
+              {isHost ? (
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 border-destructive/50 text-destructive hover:bg-destructive/10"
+                    onClick={handleDelete}
+                    disabled={loading}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
+                </div>
+              ) : hasJoined ? (
                 <Button 
-                  variant="outline" 
-                  className="flex-1 border-destructive/50 text-destructive hover:bg-destructive/10"
-                  onClick={handleDelete}
+                  variant="outline"
+                  className="w-full border-destructive/50 text-destructive hover:bg-destructive/10"
+                  onClick={handleLeave}
                   disabled={loading}
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
+                  <X className="w-4 h-4 mr-2" />
+                  Leave Mission
                 </Button>
-              </div>
-            ) : hasJoined ? (
-              <Button 
-                variant="outline"
-                className="w-full border-destructive/50 text-destructive hover:bg-destructive/10"
-                onClick={handleLeave}
-                disabled={loading}
-              >
-                <X className="w-4 h-4 mr-2" />
-                Leave Mission
-              </Button>
-            ) : spotsLeft > 0 ? (
-              <Button 
-                className="w-full bg-success hover:bg-success/90 text-success-foreground font-orbitron"
-                onClick={handleJoin}
-                disabled={loading}
-              >
-                <UserPlus className="w-4 h-4 mr-2" />
-                JOIN MISSION
-              </Button>
-            ) : (
-              <Button disabled className="w-full">
-                <Users className="w-4 h-4 mr-2" />
-                Mission Full
-              </Button>
+              ) : spotsLeft > 0 ? (
+                <Button 
+                  className="w-full bg-success hover:bg-success/90 text-success-foreground font-orbitron"
+                  onClick={handleJoin}
+                  disabled={loading}
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  JOIN MISSION
+                </Button>
+              ) : (
+                <Button disabled className="w-full">
+                  <Users className="w-4 h-4 mr-2" />
+                  Mission Full
+                </Button>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="comms" className="py-4">
+            {canAccessChat && megaphone && (
+              <LobbyChatMessages 
+                eventId={megaphone.id} 
+                currentUserId={currentUserId} 
+              />
             )}
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   );

@@ -84,15 +84,22 @@ const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
     fetchProfiles();
   }, []);
 
-  // Fetch megaphones
+  // Fetch megaphones (only active/future events)
   const fetchMegaphones = useCallback(async () => {
-    const now = new Date().toISOString();
     const { data, error } = await supabase
       .from('megaphones')
-      .select('*')
-      .gte('start_time', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()); // Last 24hrs or future
+      .select('*');
     
-    if (!error && data) setMegaphones(data);
+    if (!error && data) {
+      // Filter to only show events that haven't expired
+      const now = Date.now();
+      const activeMegaphones = data.filter(m => {
+        const startTime = new Date(m.start_time).getTime();
+        const endTime = startTime + (m.duration_minutes * 60 * 1000);
+        return endTime > now;
+      });
+      setMegaphones(activeMegaphones);
+    }
   }, []);
 
   useEffect(() => {
