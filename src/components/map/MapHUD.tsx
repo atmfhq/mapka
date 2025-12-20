@@ -1,23 +1,28 @@
-import { Target, LogOut, Menu } from 'lucide-react';
+import { Target, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import CategoryFilter from './CategoryFilter';
+import MissionLog from './MissionLog';
 
 interface MapHUDProps {
   nick: string;
   avatarUrl: string | null;
   activeFilters: string[];
+  currentUserId: string;
   onToggleFilter: (categoryId: string) => void;
   onSignOut: () => void;
-  onMenuToggle?: () => void;
+  onMissionCreated?: () => void;
+  onOpenMission?: (missionId: string) => void;
 }
 
 const MapHUD = ({ 
   nick, 
   avatarUrl, 
   activeFilters, 
+  currentUserId,
   onToggleFilter, 
   onSignOut,
-  onMenuToggle 
+  onMissionCreated,
+  onOpenMission,
 }: MapHUDProps) => {
   return (
     <header className="absolute top-0 left-0 right-0 z-20 pointer-events-none">
@@ -43,7 +48,14 @@ const MapHUD = ({
             </div>
 
             {/* User Controls */}
-            <div className="flex items-center gap-3 flex-shrink-0">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Mission Log */}
+              <MissionLog 
+                currentUserId={currentUserId}
+                onMissionCreated={onMissionCreated}
+                onOpenMission={onOpenMission}
+              />
+
               <div className="flex items-center gap-2">
                 {avatarUrl && (
                   <img

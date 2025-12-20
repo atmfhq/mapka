@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
@@ -28,12 +28,18 @@ interface Megaphone {
   lat: number;
   lng: number;
   host_id: string;
+  is_private?: boolean;
 }
 
 interface TacticalMapProps {
   userLat: number;
   userLng: number;
   currentUserId: string;
+}
+
+export interface TacticalMapHandle {
+  fetchMegaphones: () => void;
+  openMissionById: (id: string) => void;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -44,6 +50,8 @@ const CATEGORY_COLORS: Record<string, string> = {
   Other: '215, 20%, 55%',
 };
 
+const PRIVATE_COLOR = '45, 100%, 60%'; // Gold/warning color
+
 // Apply random jitter for privacy (100-400m)
 const applyPrivacyJitter = (lat: number, lng: number): [number, number] => {
   const distance = 100 + Math.random() * 300;
@@ -53,7 +61,7 @@ const applyPrivacyJitter = (lat: number, lng: number): [number, number] => {
   return [lat + latOffset, lng + lngOffset];
 };
 
-const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
+const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, userLng, currentUserId }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarkersRef = useRef<mapboxgl.Marker[]>([]);
@@ -101,6 +109,26 @@ const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
       setMegaphones(activeMegaphones);
     }
   }, []);
+
+  // Function to open a mission by ID
+  const openMissionById = useCallback(async (missionId: string) => {
+    const { data } = await supabase
+      .from('megaphones')
+      .select('*')
+      .eq('id', missionId)
+      .maybeSingle();
+    
+    if (data) {
+      setSelectedMegaphone(data);
+      setLobbyOpen(true);
+    }
+  }, []);
+
+  // Expose methods via ref
+  useImperativeHandle(ref, () => ({
+    fetchMegaphones,
+    openMissionById,
+  }), [fetchMegaphones, openMissionById]);
 
   useEffect(() => {
     fetchMegaphones();
@@ -216,19 +244,29 @@ const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
     megaphoneMarkersRef.current = [];
 
     megaphones.forEach(megaphone => {
-      const categoryColor = CATEGORY_COLORS[megaphone.category] || CATEGORY_COLORS.Other;
+      const isPrivate = megaphone.is_private;
+      const categoryColor = isPrivate ? PRIVATE_COLOR : (CATEGORY_COLORS[megaphone.category] || CATEGORY_COLORS.Other);
 
       const el = document.createElement('div');
       el.className = 'megaphone-marker';
+      
+      // Use lock icon for private events, megaphone for public
+      const iconSvg = isPrivate
+        ? `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+             <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+             <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+           </svg>`
+        : `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+             <path d="m3 11 18-5v12L3 13v-2z"/>
+             <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
+           </svg>`;
+
       el.innerHTML = `
-        <div class="megaphone-container" style="--category-color: ${categoryColor}">
+        <div class="megaphone-container ${isPrivate ? 'private' : ''}" style="--category-color: ${categoryColor}">
           <div class="megaphone-pulse"></div>
           <div class="megaphone-pulse delay-1"></div>
           <div class="megaphone-icon">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m3 11 18-5v12L3 13v-2z"/>
-              <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
-            </svg>
+            ${iconSvg}
           </div>
         </div>
       `;
@@ -348,6 +386,7 @@ const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
         <UserPopup 
           user={selectedUser} 
           position={popupPosition}
+          currentUserId={currentUserId}
           onClose={() => {
             setSelectedUser(null);
             setPopupPosition(null);
@@ -372,6 +411,8 @@ const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
       />
     </>
   );
-};
+});
+
+TacticalMap.displayName = 'TacticalMap';
 
 export default TacticalMap;
