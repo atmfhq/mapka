@@ -171,7 +171,7 @@ const MissionLog = ({ currentUserId, onMissionCreated, onOpenMission }: MissionL
         emoji: '📍',
       };
 
-      // 3. Create private megaphone
+      // 3. Create private megaphone - current user (receiver) becomes host
       const { data: megaphone, error: megaphoneError } = await supabase
         .from('megaphones')
         .insert({
@@ -182,7 +182,7 @@ const MissionLog = ({ currentUserId, onMissionCreated, onOpenMission }: MissionL
           max_participants: 2,
           lat: midLat,
           lng: midLng,
-          host_id: invitation.sender_id,
+          host_id: currentUserId, // Current user (accepter) becomes host
           is_private: true,
         })
         .select()
@@ -190,11 +190,11 @@ const MissionLog = ({ currentUserId, onMissionCreated, onOpenMission }: MissionL
 
       if (megaphoneError) throw megaphoneError;
 
-      // 4. Add both users to participants
+      // 4. Add the invitation sender to participants (receiver is already host)
       const { error: participantError } = await supabase
         .from('event_participants')
         .insert([
-          { event_id: megaphone.id, user_id: invitation.receiver_id, status: 'joined' },
+          { event_id: megaphone.id, user_id: invitation.sender_id, status: 'joined' },
         ]);
 
       if (participantError) throw participantError;
