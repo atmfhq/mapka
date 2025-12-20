@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import TacticalMap from "@/components/map/TacticalMap";
@@ -9,6 +9,7 @@ const Dashboard = () => {
   const { user, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  const mapRef = useRef<{ fetchMegaphones: () => void; openMissionById: (id: string) => void } | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -32,6 +33,14 @@ const Dashboard = () => {
     );
   };
 
+  const handleMissionCreated = () => {
+    mapRef.current?.fetchMegaphones();
+  };
+
+  const handleOpenMission = (missionId: string) => {
+    mapRef.current?.openMissionById(missionId);
+  };
+
   if (loading || !profile) {
     return <LoadingScreen />;
   }
@@ -44,6 +53,7 @@ const Dashboard = () => {
     <div className="relative h-screen w-screen overflow-hidden bg-background">
       {/* Map Layer */}
       <TacticalMap 
+        ref={mapRef}
         userLat={userLat}
         userLng={userLng}
         currentUserId={user!.id}
@@ -54,8 +64,11 @@ const Dashboard = () => {
         nick={profile.nick || "Operative"}
         avatarUrl={profile.avatar_url}
         activeFilters={activeFilters}
+        currentUserId={user!.id}
         onToggleFilter={handleToggleFilter}
         onSignOut={handleSignOut}
+        onMissionCreated={handleMissionCreated}
+        onOpenMission={handleOpenMission}
       />
 
       {/* Status indicator */}

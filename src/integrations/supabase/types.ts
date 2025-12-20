@@ -78,6 +78,33 @@ export type Database = {
           },
         ]
       }
+      invitations: {
+        Row: {
+          activity_type: string
+          created_at: string
+          id: string
+          receiver_id: string
+          sender_id: string
+          status: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          id?: string
+          receiver_id: string
+          sender_id: string
+          status?: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          id?: string
+          receiver_id?: string
+          sender_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       megaphones: {
         Row: {
           category: string
@@ -85,6 +112,7 @@ export type Database = {
           duration_minutes: number
           host_id: string
           id: string
+          is_private: boolean
           lat: number
           lng: number
           max_participants: number | null
@@ -97,6 +125,7 @@ export type Database = {
           duration_minutes?: number
           host_id: string
           id?: string
+          is_private?: boolean
           lat: number
           lng: number
           max_participants?: number | null
@@ -109,6 +138,7 @@ export type Database = {
           duration_minutes?: number
           host_id?: string
           id?: string
+          is_private?: boolean
           lat?: number
           lng?: number
           max_participants?: number | null
@@ -169,6 +199,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_view_megaphone: {
+        Args: {
+          megaphone_row: Database["public"]["Tables"]["megaphones"]["Row"]
+        }
+        Returns: boolean
+      }
       is_event_member: {
         Args: { event_uuid: string; user_uuid: string }
         Returns: boolean
