@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { supabase } from '@/integrations/supabase/client';
-import UserMarker from './UserMarker';
 import UserPopup from './UserPopup';
+import DeployMegaphoneModal from './DeployMegaphoneModal';
+import MegaphoneLobby from './MegaphoneLobby';
 
-// Placeholder - replace with your Mapbox token or use VITE_MAPBOX_TOKEN env
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HERE';
 
 interface Profile {
@@ -18,36 +18,59 @@ interface Profile {
   bio: string | null;
 }
 
+interface Megaphone {
+  id: string;
+  title: string;
+  category: string;
+  start_time: string;
+  duration_minutes: number;
+  max_participants: number | null;
+  lat: number;
+  lng: number;
+  host_id: string;
+}
+
 interface TacticalMapProps {
   userLat: number;
   userLng: number;
   currentUserId: string;
 }
 
+const CATEGORY_COLORS: Record<string, string> = {
+  Sport: '15, 100%, 55%',
+  Gaming: '180, 100%, 50%',
+  Food: '45, 100%, 55%',
+  Party: '320, 100%, 60%',
+  Other: '215, 20%, 55%',
+};
+
 // Apply random jitter for privacy (100-400m)
 const applyPrivacyJitter = (lat: number, lng: number): [number, number] => {
-  // Random distance between 100-400 meters
   const distance = 100 + Math.random() * 300;
-  // Random angle
   const angle = Math.random() * 2 * Math.PI;
-  
-  // Convert meters to degrees (approximate)
   const latOffset = (distance * Math.cos(angle)) / 111320;
   const lngOffset = (distance * Math.sin(angle)) / (111320 * Math.cos(lat * (Math.PI / 180)));
-  
   return [lat + latOffset, lng + lngOffset];
 };
 
 const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<mapboxgl.Marker[]>([]);
+  const userMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const megaphoneMarkersRef = useRef<mapboxgl.Marker[]>([]);
   
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [megaphones, setMegaphones] = useState<Megaphone[]>([]);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
+  
+  // Megaphone states
+  const [deployModalOpen, setDeployModalOpen] = useState(false);
+  const [clickedCoords, setClickedCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [selectedMegaphone, setSelectedMegaphone] = useState<Megaphone | null>(null);
+  const [lobbyOpen, setLobbyOpen] = useState(false);
 
-  // Fetch all profiles
+  // Fetch profiles
   useEffect(() => {
     const fetchProfiles = async () => {
       const { data, error } = await supabase
@@ -56,27 +79,36 @@ const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
         .not('base_lat', 'is', null)
         .not('base_lng', 'is', null);
       
-      if (!error && data) {
-        setProfiles(data);
-      }
+      if (!error && data) setProfiles(data);
     };
-
     fetchProfiles();
   }, []);
+
+  // Fetch megaphones
+  const fetchMegaphones = useCallback(async () => {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('megaphones')
+      .select('*')
+      .gte('start_time', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()); // Last 24hrs or future
+    
+    if (!error && data) setMegaphones(data);
+  }, []);
+
+  useEffect(() => {
+    fetchMegaphones();
+  }, [fetchMegaphones]);
 
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current) return;
-    
-    // Clean up existing map if any
     if (map.current) {
       map.current.remove();
       map.current = null;
     }
 
-    // Check if token is valid
     if (!MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN_HERE') {
-      console.error('Mapbox token not configured. Please set VITE_MAPBOX_TOKEN in your environment.');
+      console.error('Mapbox token not configured');
       return;
     }
 
@@ -104,6 +136,20 @@ const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
         }),
         'bottom-right'
       );
+
+      // Click on map to deploy megaphone
+      map.current.on('click', (e) => {
+        // Check if clicked on a marker (propagation should be stopped)
+        const target = e.originalEvent.target as HTMLElement;
+        if (target.closest('.user-marker') || target.closest('.megaphone-marker')) {
+          return;
+        }
+        
+        setClickedCoords({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+        setDeployModalOpen(true);
+        setSelectedUser(null);
+        setPopupPosition(null);
+      });
     } catch (error) {
       console.error('Failed to initialize map:', error);
     }
@@ -114,22 +160,19 @@ const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
     };
   }, [userLat, userLng]);
 
-  // Render markers for other users
+  // Render user markers
   useEffect(() => {
     if (!map.current) return;
 
-    // Clear existing markers
-    markersRef.current.forEach(marker => marker.remove());
-    markersRef.current = [];
+    userMarkersRef.current.forEach(marker => marker.remove());
+    userMarkersRef.current = [];
 
     profiles.forEach(profile => {
       if (!profile.base_lat || !profile.base_lng) return;
-      if (profile.id === currentUserId) return; // Skip current user
+      if (profile.id === currentUserId) return;
 
-      // Apply privacy jitter
       const [jitteredLat, jitteredLng] = applyPrivacyJitter(profile.base_lat, profile.base_lng);
 
-      // Create marker element
       const el = document.createElement('div');
       el.className = 'user-marker';
       el.innerHTML = `
@@ -154,24 +197,48 @@ const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
         .setLngLat([jitteredLng, jitteredLat])
         .addTo(map.current!);
 
-      markersRef.current.push(marker);
+      userMarkersRef.current.push(marker);
     });
   }, [profiles, currentUserId]);
 
-  // Close popup when clicking on map
+  // Render megaphone markers
   useEffect(() => {
     if (!map.current) return;
 
-    const handleClick = () => {
-      setSelectedUser(null);
-      setPopupPosition(null);
-    };
+    megaphoneMarkersRef.current.forEach(marker => marker.remove());
+    megaphoneMarkersRef.current = [];
 
-    map.current.on('click', handleClick);
-    return () => {
-      map.current?.off('click', handleClick);
-    };
-  }, []);
+    megaphones.forEach(megaphone => {
+      const categoryColor = CATEGORY_COLORS[megaphone.category] || CATEGORY_COLORS.Other;
+
+      const el = document.createElement('div');
+      el.className = 'megaphone-marker';
+      el.innerHTML = `
+        <div class="megaphone-container" style="--category-color: ${categoryColor}">
+          <div class="megaphone-pulse"></div>
+          <div class="megaphone-pulse delay-1"></div>
+          <div class="megaphone-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m3 11 18-5v12L3 13v-2z"/>
+              <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
+            </svg>
+          </div>
+        </div>
+      `;
+
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        setSelectedMegaphone(megaphone);
+        setLobbyOpen(true);
+      });
+
+      const marker = new mapboxgl.Marker({ element: el })
+        .setLngLat([megaphone.lng, megaphone.lat])
+        .addTo(map.current!);
+
+      megaphoneMarkersRef.current.push(marker);
+    });
+  }, [megaphones]);
 
   const isTokenMissing = !MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN_HERE';
 
@@ -207,6 +274,52 @@ const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
           0%, 100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.7; transform: scale(1.1); }
         }
+
+        /* Megaphone Marker Styles */
+        .megaphone-marker {
+          cursor: pointer;
+        }
+        .megaphone-container {
+          position: relative;
+          width: 56px;
+          height: 56px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .megaphone-pulse {
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          border: 2px solid hsl(var(--category-color));
+          animation: megaphone-expand 2s ease-out infinite;
+        }
+        .megaphone-pulse.delay-1 {
+          animation-delay: 1s;
+        }
+        @keyframes megaphone-expand {
+          0% {
+            transform: scale(0.5);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(1.5);
+            opacity: 0;
+          }
+        }
+        .megaphone-icon {
+          position: relative;
+          z-index: 1;
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          background: hsl(var(--category-color));
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: hsl(var(--background));
+          box-shadow: 0 0 20px hsl(var(--category-color) / 0.6);
+        }
       `}</style>
       
       <div ref={mapContainer} className="absolute inset-0" />
@@ -218,7 +331,7 @@ const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
               Map Token Required
             </h3>
             <p className="text-muted-foreground text-sm">
-              Please configure your Mapbox token. The page may need a refresh after the token is added.
+              Please configure your Mapbox token in the .env file.
             </p>
           </div>
         </div>
@@ -234,6 +347,22 @@ const TacticalMap = ({ userLat, userLng, currentUserId }: TacticalMapProps) => {
           }}
         />
       )}
+
+      <DeployMegaphoneModal
+        open={deployModalOpen}
+        onOpenChange={setDeployModalOpen}
+        coordinates={clickedCoords}
+        userId={currentUserId}
+        onSuccess={fetchMegaphones}
+      />
+
+      <MegaphoneLobby
+        open={lobbyOpen}
+        onOpenChange={setLobbyOpen}
+        megaphone={selectedMegaphone}
+        currentUserId={currentUserId}
+        onDelete={fetchMegaphones}
+      />
     </>
   );
 };
