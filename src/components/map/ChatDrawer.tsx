@@ -54,7 +54,7 @@ const ChatDrawer = ({
   
   const { connectedUsers, getMissionIdForUser, loading, refetch: refetchConnections, getInvitationIdForUser } = useConnectedUsers(currentUserId);
   const { pendingInvitations, pendingCount, refetch: refetchPending } = useInvitationRealtime(currentUserId);
-  const { unreadCount, markInvitationAsRead, markEventAsRead, refetch: refetchUnread } = useUnreadMessages(currentUserId);
+  const { unreadCount, markInvitationAsRead, markEventAsRead, silentRefetch, optimisticClearForChat } = useUnreadMessages(currentUserId);
 
   // Combine internal and external open states
   const isOpen = externalOpen || internalOpen;
@@ -65,6 +65,8 @@ const ChatDrawer = ({
     if (!value) {
       setSelectedUser(null);
       setMessages([]);
+      // Silent refetch when drawer closes to ensure consistency
+      silentRefetch();
     }
   };
 
@@ -219,16 +221,19 @@ const ChatDrawer = ({
   };
 
   const handleSelectUser = (userId: string) => {
+    // OPTIMISTIC: Immediately clear unread for this chat (assume reading all)
+    // We estimate based on current unread - in reality this clears for this specific chat
+    optimisticClearForChat(unreadCount > 0 ? Math.max(1, Math.floor(unreadCount / Math.max(1, connectedUsers.length))) : 0);
+    
     setSelectedUser(userId);
     setMessages([]);
     
-    // Mark chat as read when opening
+    // Background sync: Mark chat as read (fire and forget)
     const invitationId = getInvitationIdForUser(userId);
     if (invitationId) {
       markInvitationAsRead(invitationId);
     }
     
-    // Also mark via missionId for event_participants
     const userMissionId = getMissionIdForUser(userId);
     if (userMissionId) {
       markEventAsRead(userMissionId);
@@ -236,7 +241,10 @@ const ChatDrawer = ({
   };
 
   const handleOpenMission = (missionId: string) => {
-    // Mark mission as read when opening
+    // OPTIMISTIC: Immediately clear unread for this mission
+    optimisticClearForChat(unreadCount > 0 ? Math.max(1, Math.floor(unreadCount / Math.max(1, activeMissions.length + connectedUsers.length))) : 0);
+    
+    // Background sync: Mark mission as read (fire and forget)
     markEventAsRead(missionId);
     
     handleOpenChange(false);

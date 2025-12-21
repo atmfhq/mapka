@@ -65,47 +65,66 @@ export const useUnreadMessages = (currentUserId: string | null) => {
     };
   }, [currentUserId]);
 
-  // Mark invitation chat as read
-  const markInvitationAsRead = useCallback(async (invitationId: string) => {
+  // Optimistic: immediately clear unread for a conversation
+  const optimisticClearForChat = useCallback((estimatedCount: number = 0) => {
+    // If we know the count, subtract it; otherwise assume clearing all for this chat
+    if (estimatedCount > 0) {
+      setUnreadCount(prev => Math.max(0, prev - estimatedCount));
+    }
+  }, []);
+
+  // Mark invitation chat as read (fire and forget - background sync)
+  const markInvitationAsRead = useCallback((invitationId: string) => {
     if (!currentUserId) return;
 
-    const { error } = await supabase
+    // Fire and forget - don't await
+    supabase
       .from('invitations')
       .update({ last_read_at: new Date().toISOString() })
-      .eq('id', invitationId);
+      .eq('id', invitationId)
+      .then(({ error }) => {
+        if (error) {
+          console.error('Error marking invitation as read:', error);
+        }
+      });
+  }, [currentUserId]);
 
-    if (error) {
-      console.error('Error marking invitation as read:', error);
-      return;
-    }
-
-    // Refetch the count
-    fetchUnreadCount();
-  }, [currentUserId, fetchUnreadCount]);
-
-  // Mark event chat as read (for participants)
-  const markEventAsRead = useCallback(async (eventId: string) => {
+  // Mark event chat as read (fire and forget - background sync)
+  const markEventAsRead = useCallback((eventId: string) => {
     if (!currentUserId) return;
 
-    // First try to update event_participants
-    const { error: participantError } = await supabase
+    // Fire and forget - don't await
+    supabase
       .from('event_participants')
       .update({ last_read_at: new Date().toISOString() })
       .eq('event_id', eventId)
-      .eq('user_id', currentUserId);
+      .eq('user_id', currentUserId)
+      .then(({ error }) => {
+        if (error) {
+          console.error('Error marking event as read:', error);
+        }
+      });
+  }, [currentUserId]);
 
-    if (participantError) {
-      console.error('Error marking event as read:', participantError);
-    }
+  // Silent refetch for data consistency (called when drawer closes)
+  const silentRefetch = useCallback(() => {
+    if (!currentUserId) return;
 
-    // Refetch the count
-    fetchUnreadCount();
-  }, [currentUserId, fetchUnreadCount]);
+    supabase.rpc('get_unread_message_count', {
+      p_user_id: currentUserId,
+    }).then(({ data, error }) => {
+      if (!error && data !== null) {
+        setUnreadCount(data);
+      }
+    });
+  }, [currentUserId]);
 
   return {
     unreadCount,
     loading,
     refetch: fetchUnreadCount,
+    silentRefetch,
+    optimisticClearForChat,
     markInvitationAsRead,
     markEventAsRead,
   };
