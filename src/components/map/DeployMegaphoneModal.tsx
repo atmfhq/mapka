@@ -100,7 +100,7 @@ const DeployMegaphoneModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-primary/30 max-w-md">
+      <DialogContent className="bg-card border-primary/30 max-w-md max-h-[90vh] overflow-y-auto">
         {/* Tactical header */}
         <DialogHeader className="space-y-4">
           <div className="flex items-center gap-3">
@@ -256,13 +256,13 @@ const DeployMegaphoneModal = ({
           <Button 
             onClick={handleSubmit}
             disabled={loading}
-            className="w-full bg-warning hover:bg-warning/90 text-warning-foreground font-orbitron tracking-wider"
+            className="w-full bg-warning hover:bg-warning/90 text-warning-foreground font-orbitron tracking-wider min-h-[52px]"
           >
             {loading ? (
               <span className="animate-pulse">DEPLOYING...</span>
             ) : (
               <>
-                <Megaphone className="w-4 h-4 mr-2" />
+                <Megaphone className="w-5 h-5 mr-2" />
                 DEPLOY MEGAPHONE
               </>
             )}

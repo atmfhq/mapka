@@ -22,7 +22,7 @@ interface CategoryFilterProps {
 
 const CategoryFilter = ({ activeFilters, onToggle }: CategoryFilterProps) => {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1.5 sm:gap-2">
       {categories.map((category) => {
         const isActive = activeFilters.includes(category.id);
         const Icon = category.icon;
@@ -32,15 +32,17 @@ const CategoryFilter = ({ activeFilters, onToggle }: CategoryFilterProps) => {
             key={category.id}
             onClick={() => onToggle(category.id)}
             className={cn(
-              "relative flex items-center gap-2 px-3 py-2 rounded-lg border transition-all duration-300",
-              "font-rajdhani text-sm font-medium",
+              "relative flex items-center justify-center gap-1.5 sm:gap-2",
+              "min-w-[44px] min-h-[44px] px-2 sm:px-3 py-2",
+              "rounded-lg border transition-all duration-300",
+              "font-rajdhani text-sm font-medium touch-manipulation",
               isActive
                 ? "bg-primary/20 border-primary text-primary shadow-[0_0_12px_hsl(var(--primary)/0.4)]"
-                : "bg-card/50 border-border/50 text-muted-foreground hover:border-primary/50 hover:text-primary/80"
+                : "bg-card/50 border-border/50 text-muted-foreground hover:border-primary/50 hover:text-primary/80 active:bg-primary/10"
             )}
           >
             <Icon className={cn(
-              "w-4 h-4 transition-all",
+              "w-5 h-5 sm:w-4 sm:h-4 transition-all flex-shrink-0",
               isActive && "drop-shadow-[0_0_6px_hsl(var(--primary))]"
             )} />
             <span className="hidden sm:inline">{category.label}</span>

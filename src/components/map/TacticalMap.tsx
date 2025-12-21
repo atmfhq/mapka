@@ -158,10 +158,18 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
         pitch: 45,
       });
 
+      // Navigation controls - positioned to avoid HUD and status indicator
       map.current.addControl(
         new mapboxgl.NavigationControl({ visualizePitch: true }),
         'bottom-right'
       );
+
+      // Position the controls with custom CSS to avoid overlap
+      const navControl = document.querySelector('.mapboxgl-ctrl-bottom-right');
+      if (navControl) {
+        (navControl as HTMLElement).style.bottom = '100px';
+        (navControl as HTMLElement).style.right = '16px';
+      }
 
       map.current.addControl(
         new mapboxgl.GeolocateControl({

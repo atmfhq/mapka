@@ -237,17 +237,17 @@ const MissionLog = ({ currentUserId, onMissionCreated, onOpenMission }: MissionL
         <Button
           variant="ghost"
           size="icon"
-          className="relative text-muted-foreground hover:text-foreground"
+          className="relative min-w-[44px] min-h-[44px] text-muted-foreground hover:text-foreground"
         >
           <Bell className="w-5 h-5" />
           {pendingCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-warning text-warning-foreground text-xs font-bold flex items-center justify-center animate-pulse">
+            <span className="absolute top-1 right-1 w-5 h-5 rounded-full bg-warning text-warning-foreground text-xs font-bold flex items-center justify-center animate-pulse">
               {pendingCount}
             </span>
           )}
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-md bg-card border-l border-primary/30">
+      <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh] bg-card border-t border-primary/30 sm:max-h-none sm:rounded-none sm:border-l sm:border-t-0" data-side="bottom">
         <SheetHeader>
           <SheetTitle className="font-orbitron text-xl flex items-center gap-2">
             <Bell className="w-5 h-5 text-primary" />
