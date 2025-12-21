@@ -63,12 +63,12 @@ export const useInvitationRealtime = (currentUserId: string | null) => {
     fetchPendingInvitations();
   }, [fetchPendingInvitations]);
 
-  // Realtime subscription
+  // Realtime subscription for RECEIVER (incoming invitations)
   useEffect(() => {
     if (!currentUserId) return;
 
     const channel = supabase
-      .channel('invitations-realtime')
+      .channel('invitations-receiver-realtime')
       .on(
         'postgres_changes',
         {
@@ -116,13 +116,53 @@ export const useInvitationRealtime = (currentUserId: string | null) => {
           filter: `receiver_id=eq.${currentUserId}`,
         },
         (payload) => {
-          console.log('Invitation updated:', payload);
+          console.log('Invitation updated (receiver):', payload);
           
           // Remove from pending if status changed from pending
           if (payload.new.status !== 'pending') {
             setPendingInvitations(prev => 
               prev.filter(inv => inv.id !== payload.new.id)
             );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId]);
+
+  // Realtime subscription for SENDER (invitation accepted notifications)
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const channel = supabase
+      .channel('invitations-sender-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'invitations',
+          filter: `sender_id=eq.${currentUserId}`,
+        },
+        async (payload) => {
+          console.log('Invitation updated (sender):', payload);
+          
+          // Check if the invitation was just accepted
+          if (payload.new.status === 'accepted' && payload.old?.status === 'pending') {
+            // Fetch receiver profile for the notification
+            const { data: receiverProfile } = await supabase
+              .from('profiles')
+              .select('nick')
+              .eq('id', payload.new.receiver_id)
+              .single();
+
+            toast({
+              title: '✅ Signal Accepted!',
+              description: `You are now connected with ${receiverProfile?.nick || 'an operative'}.`,
+            });
           }
         }
       )
