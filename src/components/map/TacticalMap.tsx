@@ -141,25 +141,26 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     });
   }, [megaphones, activeActivity, activeActivityLabel]);
 
-  // Fetch profiles
-  useEffect(() => {
-    const fetchProfiles = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, nick, avatar_url, avatar_config, tags, base_lat, base_lng, bio')
-        .not('base_lat', 'is', null)
-        .not('base_lng', 'is', null);
-      
-      if (!error && data) {
-        const mappedProfiles = data.map(p => ({
-          ...p,
-          avatar_config: p.avatar_config as AvatarConfig | null
-        }));
-        setProfiles(mappedProfiles);
-      }
-    };
-    fetchProfiles();
+  // Fetch profiles - refetch when location changes to get users in new area
+  const fetchProfiles = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, nick, avatar_url, avatar_config, tags, base_lat, base_lng, bio')
+      .not('base_lat', 'is', null)
+      .not('base_lng', 'is', null);
+    
+    if (!error && data) {
+      const mappedProfiles = data.map(p => ({
+        ...p,
+        avatar_config: p.avatar_config as AvatarConfig | null
+      }));
+      setProfiles(mappedProfiles);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchProfiles();
+  }, [fetchProfiles, locationLat, locationLng]);
 
   // Fetch megaphones
   const fetchMegaphones = useCallback(async () => {
@@ -208,9 +209,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     flyTo,
   }), [fetchMegaphones, openMissionById, flyTo]);
 
+  // Refetch megaphones when location changes
   useEffect(() => {
     fetchMegaphones();
-  }, [fetchMegaphones]);
+  }, [fetchMegaphones, locationLat, locationLng]);
 
   // Realtime subscription for megaphones (INSERT, UPDATE, DELETE)
   useEffect(() => {
@@ -272,6 +274,51 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
     return () => {
       console.log('Cleaning up megaphones realtime subscription');
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Realtime subscription for profile location updates
+  useEffect(() => {
+    console.log('Setting up profiles realtime subscription...');
+    
+    const channel = supabase
+      .channel('profiles-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+        },
+        (payload) => {
+          console.log('🔔 Realtime: Profile updated:', payload.new);
+          const updatedProfile = payload.new as Profile & { base_lat: number | null; base_lng: number | null };
+          
+          // Update the profile in state if it has valid coordinates
+          if (updatedProfile.base_lat !== null && updatedProfile.base_lng !== null) {
+            setProfiles(prev => {
+              const exists = prev.some(p => p.id === updatedProfile.id);
+              if (exists) {
+                return prev.map(p => 
+                  p.id === updatedProfile.id 
+                    ? { ...p, ...updatedProfile, avatar_config: updatedProfile.avatar_config as AvatarConfig | null }
+                    : p
+                );
+              } else {
+                // New user with coordinates, add them
+                return [...prev, { ...updatedProfile, avatar_config: updatedProfile.avatar_config as AvatarConfig | null }];
+              }
+            });
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('Profiles realtime subscription status:', status);
+      });
+
+    return () => {
+      console.log('Cleaning up profiles realtime subscription');
       supabase.removeChannel(channel);
     };
   }, []);
