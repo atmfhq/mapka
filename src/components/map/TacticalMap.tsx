@@ -87,6 +87,33 @@ const applyPrivacyJitter = (lat: number, lng: number): [number, number] => {
   return [lat + latOffset, lng + lngOffset];
 };
 
+// Generate a GeoJSON circle polygon (approximated with 64 points)
+const createCirclePolygon = (centerLng: number, centerLat: number, radiusMeters: number): GeoJSON.Feature<GeoJSON.Polygon> => {
+  const points = 64;
+  const coords: [number, number][] = [];
+  
+  for (let i = 0; i <= points; i++) {
+    const angle = (i / points) * 2 * Math.PI;
+    const dx = radiusMeters * Math.cos(angle);
+    const dy = radiusMeters * Math.sin(angle);
+    
+    // Convert meters to degrees
+    const latOffset = dy / 111320;
+    const lngOffset = dx / (111320 * Math.cos(centerLat * (Math.PI / 180)));
+    
+    coords.push([centerLng + lngOffset, centerLat + latOffset]);
+  }
+  
+  return {
+    type: 'Feature',
+    properties: {},
+    geometry: {
+      type: 'Polygon',
+      coordinates: [coords]
+    }
+  };
+};
+
 const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ 
   userLat, 
   userLng, 
@@ -414,6 +441,66 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       map.current = null;
     };
   }, [userLat, userLng]);
+
+  // Add/Update the 5km range indicator circle
+  useEffect(() => {
+    if (!map.current) return;
+
+    const centerLat = locationLat ?? userLat;
+    const centerLng = locationLng ?? userLng;
+    const RANGE_RADIUS = 5000; // 5km in meters
+
+    const addRangeCircle = () => {
+      const circleData = createCirclePolygon(centerLng, centerLat, RANGE_RADIUS);
+
+      // Check if source already exists
+      if (map.current?.getSource('range-circle')) {
+        // Update existing source
+        (map.current.getSource('range-circle') as mapboxgl.GeoJSONSource).setData(circleData);
+      } else {
+        // Add new source and layers
+        map.current?.addSource('range-circle', {
+          type: 'geojson',
+          data: circleData
+        });
+
+        // Fill layer with very low opacity
+        map.current?.addLayer({
+          id: 'range-circle-fill',
+          type: 'fill',
+          source: 'range-circle',
+          paint: {
+            'fill-color': 'hsl(180, 100%, 50%)', // Primary cyan
+            'fill-opacity': 0.05
+          }
+        });
+
+        // Border/stroke layer
+        map.current?.addLayer({
+          id: 'range-circle-border',
+          type: 'line',
+          source: 'range-circle',
+          paint: {
+            'line-color': 'hsl(180, 100%, 50%)', // Primary cyan
+            'line-width': 2,
+            'line-dasharray': [4, 2] // Dashed line for tactical feel
+          }
+        });
+      }
+    };
+
+    // If map is already loaded, add immediately
+    if (map.current.isStyleLoaded()) {
+      addRangeCircle();
+    } else {
+      // Wait for style to load
+      map.current.on('load', addRangeCircle);
+    }
+
+    return () => {
+      // Cleanup is handled by map removal in the init effect
+    };
+  }, [locationLat, locationLng, userLat, userLng]);
 
   // Render user markers with connected status
   useEffect(() => {
