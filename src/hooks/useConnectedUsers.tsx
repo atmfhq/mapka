@@ -170,11 +170,17 @@ export const useConnectedUsers = (currentUserId: string) => {
     return user?.missionId || null;
   };
 
+  const getInvitationIdForUser = (userId: string): string | undefined => {
+    const user = connectedUsers.find(u => u.id === userId);
+    return user?.invitationId;
+  };
+
   return {
     connectedUsers,
     connectedUserIds,
     disconnectUser,
     getMissionIdForUser,
+    getInvitationIdForUser,
     loading,
     refetch: fetchConnectedUsers,
   };

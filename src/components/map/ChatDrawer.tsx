@@ -200,7 +200,7 @@ const ChatDrawer = ({ currentUserId, externalOpen, externalUserId, onOpenChange 
         <SheetHeader>
           <SheetTitle className="font-orbitron text-xl flex items-center gap-2">
             {selectedUser ? (
-              <>
+              <div className="flex items-center gap-2 flex-1">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -218,8 +218,18 @@ const ChatDrawer = ({ currentUserId, externalOpen, externalUserId, onOpenChange 
                     {selectedUserData?.nick?.[0]?.toUpperCase() || '?'}
                   </AvatarFallback>
                 </Avatar>
-                <span>{selectedUserData?.nick || 'Unknown'}</span>
-              </>
+                <span className="flex-1">{selectedUserData?.nick || 'Unknown'}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-8 h-8 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    toast({ title: 'Profile view coming soon' });
+                  }}
+                >
+                  <User className="w-4 h-4" />
+                </Button>
+              </div>
             ) : (
               <>
                 <MessageCircle className="w-5 h-5 text-success" />
@@ -338,28 +348,6 @@ const ChatDrawer = ({ currentUserId, externalOpen, externalUserId, onOpenChange 
                 </Button>
               </div>
             )}
-
-            {/* Actions */}
-            <div className="flex gap-2 mt-4">
-              <Button
-                variant="outline"
-                className="flex-1 gap-2"
-                onClick={() => {
-                  toast({ title: 'Profile view coming soon' });
-                }}
-              >
-                <User className="w-4 h-4" />
-                View Profile
-              </Button>
-              <Button
-                variant="outline"
-                className="flex-1 gap-2 border-destructive/50 text-destructive hover:bg-destructive/10"
-                onClick={handleDisconnect}
-              >
-                <X className="w-4 h-4" />
-                Disconnect
-              </Button>
-            </div>
           </div>
         )}
       </SheetContent>
