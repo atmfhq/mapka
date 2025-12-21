@@ -87,8 +87,53 @@ const applyPrivacyJitter = (lat: number, lng: number): [number, number] => {
   return [lat + latOffset, lng + lngOffset];
 };
 
-// Generate a GeoJSON circle polygon (approximated with 64 points)
-const createCirclePolygon = (centerLng: number, centerLat: number, radiusMeters: number): GeoJSON.Feature<GeoJSON.Polygon> => {
+// Generate circle coordinates (approximated with 64 points)
+const generateCircleCoords = (centerLng: number, centerLat: number, radiusMeters: number): [number, number][] => {
+  const points = 64;
+  const coords: [number, number][] = [];
+  
+  // Go counter-clockwise for the hole (interior ring)
+  for (let i = points; i >= 0; i--) {
+    const angle = (i / points) * 2 * Math.PI;
+    const dx = radiusMeters * Math.cos(angle);
+    const dy = radiusMeters * Math.sin(angle);
+    
+    // Convert meters to degrees
+    const latOffset = dy / 111320;
+    const lngOffset = dx / (111320 * Math.cos(centerLat * (Math.PI / 180)));
+    
+    coords.push([centerLng + lngOffset, centerLat + latOffset]);
+  }
+  
+  return coords;
+};
+
+// Generate a "Fog of War" mask - covers the world EXCEPT the circle (donut technique)
+const createFogOfWarMask = (centerLng: number, centerLat: number, radiusMeters: number): GeoJSON.Feature<GeoJSON.Polygon> => {
+  // Exterior ring: covers the entire world (clockwise for exterior)
+  const worldBounds: [number, number][] = [
+    [-180, -90],
+    [-180, 90],
+    [180, 90],
+    [180, -90],
+    [-180, -90]
+  ];
+  
+  // Interior ring: the 5km circle (counter-clockwise for hole)
+  const circleHole = generateCircleCoords(centerLng, centerLat, radiusMeters);
+  
+  return {
+    type: 'Feature',
+    properties: {},
+    geometry: {
+      type: 'Polygon',
+      coordinates: [worldBounds, circleHole]
+    }
+  };
+};
+
+// Generate just the circle for the border (simple polygon)
+const createCircleBorder = (centerLng: number, centerLat: number, radiusMeters: number): GeoJSON.Feature<GeoJSON.Polygon> => {
   const points = 64;
   const coords: [number, number][] = [];
   
@@ -97,7 +142,6 @@ const createCirclePolygon = (centerLng: number, centerLat: number, radiusMeters:
     const dx = radiusMeters * Math.cos(angle);
     const dy = radiusMeters * Math.sin(angle);
     
-    // Convert meters to degrees
     const latOffset = dy / 111320;
     const lngOffset = dx / (111320 * Math.cos(centerLat * (Math.PI / 180)));
     
@@ -451,35 +495,42 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     const RANGE_RADIUS = 5000; // 5km in meters
 
     const addRangeCircle = () => {
-      const circleData = createCirclePolygon(centerLng, centerLat, RANGE_RADIUS);
+      const fogMaskData = createFogOfWarMask(centerLng, centerLat, RANGE_RADIUS);
+      const circleBorderData = createCircleBorder(centerLng, centerLat, RANGE_RADIUS);
 
-      // Check if source already exists
-      if (map.current?.getSource('range-circle')) {
-        // Update existing source
-        (map.current.getSource('range-circle') as mapboxgl.GeoJSONSource).setData(circleData);
+      // Check if sources already exist - update them
+      if (map.current?.getSource('fog-of-war')) {
+        (map.current.getSource('fog-of-war') as mapboxgl.GeoJSONSource).setData(fogMaskData);
+        (map.current.getSource('range-border') as mapboxgl.GeoJSONSource).setData(circleBorderData);
       } else {
-        // Add new source and layers
-        map.current?.addSource('range-circle', {
+        // Add fog of war mask source and layer
+        map.current?.addSource('fog-of-war', {
           type: 'geojson',
-          data: circleData
+          data: fogMaskData
         });
 
-        // Fill layer with very low opacity
+        // Dark fill covering everything EXCEPT the circle
         map.current?.addLayer({
-          id: 'range-circle-fill',
+          id: 'fog-of-war-fill',
           type: 'fill',
-          source: 'range-circle',
+          source: 'fog-of-war',
           paint: {
-            'fill-color': 'hsl(180, 100%, 50%)', // Primary cyan
-            'fill-opacity': 0.05
+            'fill-color': '#000000',
+            'fill-opacity': 0.7
           }
         });
 
-        // Border/stroke layer
+        // Add separate source for the border (circle only)
+        map.current?.addSource('range-border', {
+          type: 'geojson',
+          data: circleBorderData
+        });
+
+        // Border/stroke layer on the circle edge
         map.current?.addLayer({
           id: 'range-circle-border',
           type: 'line',
-          source: 'range-circle',
+          source: 'range-border',
           paint: {
             'line-color': 'hsl(180, 100%, 50%)', // Primary cyan
             'line-width': 2,
