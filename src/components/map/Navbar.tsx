@@ -55,6 +55,7 @@ const Navbar = ({
 
               {/* Chats (Active Connections) */}
               <ChatDrawer 
+                key={`chat-drawer-${currentUserId}`}
                 currentUserId={currentUserId}
                 externalOpen={!!chatOpenUserId}
                 externalUserId={chatOpenUserId}
