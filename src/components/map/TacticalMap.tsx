@@ -429,16 +429,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     
     const root = createRoot(container);
     root.render(
-      <div className="my-avatar-wrapper">
-        <div className="my-avatar-pulse" />
-        <div className="my-avatar-pulse delay-1" />
-        <div className="my-avatar-ring">
-          <AvatarDisplay 
-            config={currentUserAvatarConfig} 
-            size={48} 
-            showGlow={false}
-          />
-        </div>
+      <div className="my-avatar-ring">
+        <AvatarDisplay 
+          config={currentUserAvatarConfig} 
+          size={48} 
+          showGlow={false}
+        />
       </div>
     );
     myMarkerRootRef.current = root;
@@ -515,50 +511,20 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           height: 40px;
         }
         .my-marker {
-          z-index: 1000 !important;
+          cursor: pointer;
         }
         .my-marker-container {
           position: relative;
-          width: 64px;
-          height: 64px;
-        }
-        .my-avatar-wrapper {
-          position: relative;
-          width: 64px;
-          height: 64px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .my-avatar-pulse {
-          position: absolute;
-          inset: 0;
-          border-radius: 50%;
-          border: 2px solid #fbbf24;
-          animation: my-pulse-expand 2s ease-out infinite;
-        }
-        .my-avatar-pulse.delay-1 {
-          animation-delay: 1s;
-        }
-        @keyframes my-pulse-expand {
-          0% {
-            transform: scale(0.75);
-            opacity: 1;
-          }
-          100% {
-            transform: scale(1.5);
-            opacity: 0;
-          }
-        }
-        .my-avatar-ring {
-          position: relative;
-          z-index: 2;
           width: 52px;
           height: 52px;
+        }
+        .my-avatar-ring {
+          width: 48px;
+          height: 48px;
           border-radius: 50%;
           overflow: hidden;
           border: 3px solid #fbbf24;
-          box-shadow: 0 0 20px rgba(251, 191, 36, 0.6), 0 0 40px rgba(251, 191, 36, 0.3);
+          box-shadow: 0 0 12px rgba(251, 191, 36, 0.5);
           background: hsl(var(--background));
         }
         .megaphone-marker {
