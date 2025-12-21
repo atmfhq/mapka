@@ -9,11 +9,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import LobbyChatMessages from './LobbyChatMessages';
+import { ACTIVITIES, ACTIVITY_CATEGORIES, getCategoryForActivity } from '@/constants/activities';
 
 interface Megaphone {
   id: string;
   title: string;
-  category: string;
+  category: string; // Now stores activity label like "Basketball"
   start_time: string;
   duration_minutes: number;
   max_participants: number | null;
@@ -44,12 +45,34 @@ interface MegaphoneLobbyProps {
   onDelete: () => void;
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  Sport: 'bg-orange-500/20 text-orange-400 border-orange-500/40',
-  Gaming: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40',
-  Food: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40',
-  Party: 'bg-pink-500/20 text-pink-400 border-pink-500/40',
-  Other: 'bg-slate-500/20 text-slate-400 border-slate-500/40',
+// Get activity data by label (case insensitive)
+const getActivityByLabel = (label: string) => {
+  return ACTIVITIES.find(a => a.label.toLowerCase() === label.toLowerCase());
+};
+
+// Get category color classes
+const getCategoryColorClasses = (category: string): string => {
+  const activityData = getActivityByLabel(category);
+  if (activityData) {
+    const categoryInfo = ACTIVITY_CATEGORIES.find(c => c.id === activityData.category);
+    if (categoryInfo) {
+      switch (activityData.category) {
+        case 'sport': return 'bg-orange-500/20 text-orange-400 border-orange-500/40';
+        case 'tabletop': return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40';
+        case 'social': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40';
+        case 'outdoor': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
+      }
+    }
+  }
+  // Fallback to legacy category colors
+  const LEGACY_COLORS: Record<string, string> = {
+    Sport: 'bg-orange-500/20 text-orange-400 border-orange-500/40',
+    Gaming: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40',
+    Food: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40',
+    Party: 'bg-pink-500/20 text-pink-400 border-pink-500/40',
+    Other: 'bg-slate-500/20 text-slate-400 border-slate-500/40',
+  };
+  return LEGACY_COLORS[category] || LEGACY_COLORS.Other;
 };
 
 const MegaphoneLobby = ({ 
@@ -240,17 +263,29 @@ const MegaphoneLobby = ({
             </div>
           )}
 
-          {/* Category Badge */}
+          {/* Activity Badge */}
           <div className="flex items-center justify-between">
-            <Badge 
-              variant="outline" 
-              className={megaphone.is_private 
-                ? 'bg-warning/20 text-warning border-warning/40' 
-                : (CATEGORY_COLORS[megaphone.category] || CATEGORY_COLORS.Other)
-              }
-            >
-              {megaphone.is_private ? 'Private Mission' : megaphone.category}
-            </Badge>
+            {(() => {
+              const activityData = getActivityByLabel(megaphone.category);
+              return (
+                <Badge 
+                  variant="outline" 
+                  className={megaphone.is_private 
+                    ? 'bg-warning/20 text-warning border-warning/40' 
+                    : getCategoryColorClasses(megaphone.category)
+                  }
+                >
+                  {megaphone.is_private ? (
+                    'Private Mission'
+                  ) : (
+                    <span className="flex items-center gap-1.5">
+                      {activityData && <span>{activityData.icon}</span>}
+                      {megaphone.category}
+                    </span>
+                  )}
+                </Badge>
+              );
+            })()}
             {isHost && (
               <Badge variant="outline" className="bg-success/20 text-success border-success/40">
                 HOST

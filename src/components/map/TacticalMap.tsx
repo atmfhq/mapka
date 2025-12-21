@@ -8,7 +8,7 @@ import DeployMegaphoneModal from './DeployMegaphoneModal';
 import MegaphoneLobby from './MegaphoneLobby';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Json } from '@/integrations/supabase/types';
-import { ActivityCategory, userTagsMatchCategory, ACTIVITY_CATEGORIES } from '@/constants/activities';
+import { getActivityById } from '@/constants/activities';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HERE';
 
@@ -47,7 +47,7 @@ interface TacticalMapProps {
   userLat: number;
   userLng: number;
   currentUserId: string;
-  activeCategory: ActivityCategory | null;
+  activeActivity: string | null; // Activity ID like "basketball", "chess"
 }
 
 export interface TacticalMapHandle {
@@ -55,25 +55,18 @@ export interface TacticalMapHandle {
   openMissionById: (id: string) => void;
 }
 
-// Map activity category to megaphone category names
-const CATEGORY_MAP: Record<ActivityCategory, string> = {
-  sport: 'Sport',
-  tabletop: 'Gaming', // Tabletop maps to Gaming in megaphone categories
-  social: 'Food',     // Social maps to Food for now
-  outdoor: 'Other',   // Outdoor maps to Other
-};
-
 const CATEGORY_COLORS: Record<string, string> = {
+  // Activity categories
+  sport: '15, 100%, 55%',
+  tabletop: '180, 100%, 50%',
+  social: '45, 100%, 55%',
+  outdoor: '120, 60%, 45%',
+  // Legacy megaphone categories
   Sport: '15, 100%, 55%',
   Gaming: '180, 100%, 50%',
   Food: '45, 100%, 55%',
   Party: '320, 100%, 60%',
   Other: '215, 20%, 55%',
-  // Add colors for new activity categories
-  sport: '15, 100%, 55%',
-  tabletop: '180, 100%, 50%',
-  social: '45, 100%, 55%',
-  outdoor: '120, 60%, 45%',
 };
 
 const PRIVATE_COLOR = '45, 100%, 60%'; // Gold/warning color
@@ -87,7 +80,7 @@ const applyPrivacyJitter = (lat: number, lng: number): [number, number] => {
   return [lat + latOffset, lng + lngOffset];
 };
 
-const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, userLng, currentUserId, activeCategory }, ref) => {
+const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, userLng, currentUserId, activeActivity }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarkersRef = useRef<mapboxgl.Marker[]>([]);
@@ -105,24 +98,31 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
   const [selectedMegaphone, setSelectedMegaphone] = useState<Megaphone | null>(null);
   const [lobbyOpen, setLobbyOpen] = useState(false);
 
-  // Filter profiles based on active category
-  const filteredProfiles = useMemo(() => {
-    if (!activeCategory) return profiles;
-    return profiles.filter(profile => userTagsMatchCategory(profile.tags, activeCategory));
-  }, [profiles, activeCategory]);
+  // Get the active activity label for filtering
+  const activeActivityData = activeActivity ? getActivityById(activeActivity) : null;
+  const activeActivityLabel = activeActivityData?.label?.toLowerCase();
 
-  // Filter megaphones based on active category
-  const filteredMegaphones = useMemo(() => {
-    if (!activeCategory) return megaphones;
-    const categoryInfo = ACTIVITY_CATEGORIES.find(c => c.id === activeCategory);
-    if (!categoryInfo) return megaphones;
+  // Filter profiles based on active activity
+  const filteredProfiles = useMemo(() => {
+    if (!activeActivity || !activeActivityLabel) return profiles;
     
-    // Match both the capitalized label and lowercase id
+    return profiles.filter(profile => {
+      if (!profile.tags || profile.tags.length === 0) return false;
+      // Check if any tag matches the activity label (case insensitive)
+      return profile.tags.some(tag => tag.toLowerCase() === activeActivityLabel);
+    });
+  }, [profiles, activeActivity, activeActivityLabel]);
+
+  // Filter megaphones based on active activity
+  const filteredMegaphones = useMemo(() => {
+    if (!activeActivity || !activeActivityLabel) return megaphones;
+    
+    // Match megaphone category against the activity label
     return megaphones.filter(m => {
       const megaCat = m.category.toLowerCase();
-      return megaCat === activeCategory || megaCat === categoryInfo.label.toLowerCase();
+      return megaCat === activeActivityLabel || megaCat === activeActivity;
     });
-  }, [megaphones, activeCategory]);
+  }, [megaphones, activeActivity, activeActivityLabel]);
 
   // Fetch profiles
   useEffect(() => {
