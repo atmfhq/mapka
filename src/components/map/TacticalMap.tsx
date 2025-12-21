@@ -694,7 +694,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       const el = document.createElement('div');
       el.className = 'quest-marker';
-      el.style.zIndex = '50';
+      el.style.zIndex = '20';
 
       el.innerHTML = `
         <div class="quest-container" style="--category-color: ${categoryColor}">
@@ -765,40 +765,34 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         }
         .quest-container {
           position: relative;
-          width: 52px;
-          height: 52px;
+          width: 56px;
+          height: 56px;
           display: flex;
           align-items: center;
           justify-content: center;
-          animation: quest-breathe 3s ease-in-out infinite;
-        }
-        @keyframes quest-breathe {
-          0%, 100% {
-            transform: scale(1);
-          }
-          50% {
-            transform: scale(1.1);
-          }
         }
         .quest-icon {
           position: relative;
           z-index: 1;
-          width: 48px;
-          height: 48px;
-          border-radius: 12px;
-          background: hsl(var(--category-color));
+          width: 56px;
+          height: 56px;
+          border-radius: 14px;
+          background: rgba(0, 0, 0, 0.9);
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 26px;
-          box-shadow: 
-            0 0 16px hsl(var(--category-color) / 0.7),
-            0 4px 8px rgba(0, 0, 0, 0.3);
-          color: white;
-          filter: grayscale(100%) brightness(10);
+          font-size: 36px;
+          line-height: 1;
+          animation: quest-glow-pulse 3s ease-in-out infinite;
+          box-shadow: 0 0 8px hsl(var(--category-color) / 0.6);
         }
-        .quest-icon > * {
-          filter: brightness(0) invert(1);
+        @keyframes quest-glow-pulse {
+          0%, 100% {
+            box-shadow: 0 0 5px hsl(var(--category-color) / 0.5);
+          }
+          50% {
+            box-shadow: 0 0 15px hsl(var(--category-color) / 0.8);
+          }
         }
       `}</style>
       
