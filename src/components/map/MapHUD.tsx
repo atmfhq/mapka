@@ -3,16 +3,17 @@ import { Link } from 'react-router-dom';
 import { Target, LogOut, Settings, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import CategoryFilter from './CategoryFilter';
+import FilterBar from './FilterBar';
 import MissionLog from './MissionLog';
 import InstallPrompt from '@/components/InstallPrompt';
+import { ActivityCategory } from '@/constants/activities';
 
 interface MapHUDProps {
   nick: string;
   avatarUrl: string | null;
-  activeFilters: string[];
+  activeCategory: ActivityCategory | null;
   currentUserId: string;
-  onToggleFilter: (categoryId: string) => void;
+  onCategoryChange: (category: ActivityCategory | null) => void;
   onSignOut: () => void;
   onMissionCreated?: () => void;
   onOpenMission?: (missionId: string) => void;
@@ -21,9 +22,9 @@ interface MapHUDProps {
 const MapHUD = ({ 
   nick, 
   avatarUrl, 
-  activeFilters, 
+  activeCategory, 
   currentUserId,
-  onToggleFilter, 
+  onCategoryChange, 
   onSignOut,
   onMissionCreated,
   onOpenMission,
@@ -45,11 +46,11 @@ const MapHUD = ({
               </span>
             </div>
 
-            {/* Category Filters - Center (hidden on mobile) */}
+            {/* Category Filters - Center (desktop only) */}
             <div className="flex-1 justify-center overflow-x-auto scrollbar-hide hidden md:flex">
-              <CategoryFilter 
-                activeFilters={activeFilters} 
-                onToggle={onToggleFilter} 
+              <FilterBar 
+                activeCategory={activeCategory} 
+                onCategoryChange={onCategoryChange} 
               />
             </div>
 
@@ -134,10 +135,10 @@ const MapHUD = ({
           </div>
           
           {/* Mobile Category Filters - Below header */}
-          <div className="flex justify-start overflow-x-auto scrollbar-hide mt-2 -mx-3 px-3 pb-1 md:hidden">
-            <CategoryFilter 
-              activeFilters={activeFilters} 
-              onToggle={onToggleFilter} 
+          <div className="flex justify-start mt-2 md:hidden">
+            <FilterBar 
+              activeCategory={activeCategory} 
+              onCategoryChange={onCategoryChange} 
             />
           </div>
         </div>

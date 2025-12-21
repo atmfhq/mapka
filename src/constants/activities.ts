@@ -101,5 +101,28 @@ export const getCategoryInfo = (categoryId: ActivityCategory): CategoryInfo | un
   return ACTIVITY_CATEGORIES.find((cat) => cat.id === categoryId);
 };
 
+// Helper function to check if any user tags belong to a specific category
+export const userTagsMatchCategory = (userTags: string[] | null, category: ActivityCategory): boolean => {
+  if (!userTags || userTags.length === 0) return false;
+  
+  const categoryActivities = getActivitiesByCategory(category);
+  const categoryActivityLabels = categoryActivities.map(a => a.label.toLowerCase());
+  const categoryActivityIds = categoryActivities.map(a => a.id.toLowerCase());
+  
+  return userTags.some(tag => {
+    const lowerTag = tag.toLowerCase();
+    return categoryActivityLabels.includes(lowerTag) || categoryActivityIds.includes(lowerTag);
+  });
+};
+
+// Helper function to get category from activity label or id
+export const getCategoryForActivity = (activityLabelOrId: string): ActivityCategory | null => {
+  const lowerInput = activityLabelOrId.toLowerCase();
+  const activity = ACTIVITIES.find(
+    a => a.label.toLowerCase() === lowerInput || a.id.toLowerCase() === lowerInput
+  );
+  return activity?.category || null;
+};
+
 // Total count for reference
 export const TOTAL_ACTIVITIES = ACTIVITIES.length; // 42 activities
