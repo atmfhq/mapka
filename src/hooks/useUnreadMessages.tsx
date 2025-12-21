@@ -38,6 +38,8 @@ export const useUnreadMessages = (currentUserId: string | null) => {
   }, [fetchUnreadCount]);
 
   // Subscribe to new messages in real-time
+  // Instead of blindly incrementing, we refetch the accurate count from the database
+  // This ensures we only count messages the user should see and hasn't read
   useEffect(() => {
     if (!currentUserId) return;
 
@@ -51,10 +53,11 @@ export const useUnreadMessages = (currentUserId: string | null) => {
           table: 'event_chat_messages',
         },
         (payload) => {
-          // If the message is from someone else, increment the count
+          // If the message is from someone else, refetch the accurate count
+          // This avoids false positives from messages in chats the user isn't part of
           if (payload.new.user_id !== currentUserId) {
-            console.log('New message from another user, incrementing unread count');
-            setUnreadCount(prev => prev + 1);
+            console.log('New message detected, refetching unread count');
+            fetchUnreadCount();
           }
         }
       )
@@ -63,7 +66,7 @@ export const useUnreadMessages = (currentUserId: string | null) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUserId]);
+  }, [currentUserId, fetchUnreadCount]);
 
   // Optimistic: immediately clear unread for a conversation
   const optimisticClearForChat = useCallback((estimatedCount: number = 0) => {
