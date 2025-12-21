@@ -17,20 +17,12 @@ export const useChatUnreadCounts = (currentUserId: string | null, eventIds: stri
     }
 
     try {
-      // Get user's last_read_at for each event they participate in
+      // Get user's last_read_at for each event they participate in (includes hosts via upsert)
       const { data: participations } = await supabase
         .from('event_participants')
         .select('event_id, last_read_at')
         .eq('user_id', currentUserId)
-        .eq('status', 'joined')
         .in('event_id', eventIds);
-
-      // Also check for events user is hosting
-      const { data: hostedMegaphones } = await supabase
-        .from('megaphones')
-        .select('id, created_at')
-        .eq('host_id', currentUserId)
-        .in('id', eventIds);
 
       // Build a map of event_id -> last_read_at
       const lastReadMap: { [eventId: string]: string } = {};
@@ -38,28 +30,23 @@ export const useChatUnreadCounts = (currentUserId: string | null, eventIds: stri
       for (const p of participations || []) {
         lastReadMap[p.event_id] = p.last_read_at || '1970-01-01T00:00:00Z';
       }
-      
-      // For hosted events where user isn't a participant, use their participation record or megaphone created_at
-      for (const m of hostedMegaphones || []) {
-        if (!lastReadMap[m.id]) {
-          // Check if there's a participant record for the host
-          const existing = participations?.find(p => p.event_id === m.id);
-          lastReadMap[m.id] = existing?.last_read_at || m.created_at || '1970-01-01T00:00:00Z';
-        }
-      }
 
       // Now count unread messages for each event
       const counts: UnreadCounts = {};
       
       for (const eventId of eventIds) {
-        const lastReadAt = lastReadMap[eventId] || '1970-01-01T00:00:00Z';
+        const lastReadAt = lastReadMap[eventId];
+        
+        // If no participation record, they haven't read any messages yet
+        // Use a very old date to count all messages
+        const cutoffTime = lastReadAt || '1970-01-01T00:00:00Z';
         
         const { count, error } = await supabase
           .from('event_chat_messages')
           .select('id', { count: 'exact', head: true })
           .eq('event_id', eventId)
           .neq('user_id', currentUserId)
-          .gt('created_at', lastReadAt);
+          .gt('created_at', cutoffTime);
 
         if (!error && count !== null) {
           counts[eventId] = count;

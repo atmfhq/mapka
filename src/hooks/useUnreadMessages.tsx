@@ -93,15 +93,24 @@ export const useUnreadMessages = (currentUserId: string | null) => {
   }, [currentUserId]);
 
   // Mark event chat as read (fire and forget - background sync)
+  // Uses upsert to handle hosts who may not have a participant record
   const markEventAsRead = useCallback((eventId: string) => {
     if (!currentUserId) return;
 
     // Fire and forget - don't await
     supabase
       .from('event_participants')
-      .update({ last_read_at: new Date().toISOString() })
-      .eq('event_id', eventId)
-      .eq('user_id', currentUserId)
+      .upsert(
+        {
+          event_id: eventId,
+          user_id: currentUserId,
+          status: 'joined',
+          last_read_at: new Date().toISOString(),
+        },
+        {
+          onConflict: 'event_id,user_id',
+        }
+      )
       .then(({ error }) => {
         if (error) {
           console.error('Error marking event as read:', error);
