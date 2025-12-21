@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Target, LogOut, Settings, UserCog } from 'lucide-react';
+import { Target, LogOut, Settings, UserCog, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AlertsDrawer from './AlertsDrawer';
 import ChatDrawer from './ChatDrawer';
 import InstallPrompt from '@/components/InstallPrompt';
@@ -16,6 +17,7 @@ interface NavbarProps {
   onOpenMission?: (missionId: string) => void;
   chatOpenUserId?: string | null;
   onChatOpenChange?: (open: boolean) => void;
+  onRelocateClick?: () => void;
 }
 
 const Navbar = ({ 
@@ -27,6 +29,7 @@ const Navbar = ({
   onOpenMission,
   chatOpenUserId,
   onChatOpenChange,
+  onRelocateClick,
 }: NavbarProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -62,6 +65,23 @@ const Navbar = ({
                 onOpenChange={onChatOpenChange}
                 onOpenMission={onOpenMission}
               />
+
+              {/* Relocate Base */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onRelocateClick}
+                    className="min-w-[44px] min-h-[44px] text-muted-foreground hover:text-foreground"
+                  >
+                    <MapPin className="w-5 h-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Relocate Base</p>
+                </TooltipContent>
+              </Tooltip>
 
               {/* Settings Menu */}
               <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>

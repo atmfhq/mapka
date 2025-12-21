@@ -4,7 +4,6 @@ import { useAuth } from "@/hooks/useAuth";
 import TacticalMap, { TacticalMapHandle } from "@/components/map/TacticalMap";
 import Navbar from "@/components/map/Navbar";
 import MapFilterHUD from "@/components/map/MapFilterHUD";
-import MapHUDControls from "@/components/map/MapHUDControls";
 import RelocateModal from "@/components/map/RelocateModal";
 import LoadingScreen from "@/components/LoadingScreen";
 import { getActivityById } from "@/constants/activities";
@@ -125,6 +124,7 @@ const Dashboard = () => {
         onOpenMission={handleOpenMission}
         chatOpenUserId={chatOpenUserId}
         onChatOpenChange={handleChatOpenChange}
+        onRelocateClick={() => setRelocateModalOpen(true)}
       />
 
       {/* Map Filter HUD - Floating below navbar */}
@@ -132,9 +132,6 @@ const Dashboard = () => {
         activeActivity={activeActivity}
         onActivityChange={handleActivityChange}
       />
-
-      {/* Map HUD Controls - Relocate button */}
-      <MapHUDControls onRelocateClick={() => setRelocateModalOpen(true)} />
 
       {/* Relocate Modal */}
       <RelocateModal
