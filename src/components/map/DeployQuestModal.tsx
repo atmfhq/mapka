@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { format, startOfDay, isToday } from 'date-fns';
-import { CalendarIcon, Megaphone, Users, Clock, MapPin, AlertTriangle, ChevronRight } from 'lucide-react';
+import { CalendarIcon, Compass, Users, Clock, MapPin, AlertTriangle, ChevronRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -49,7 +49,7 @@ const calculateDistanceMeters = (
 
 const MAX_RANGE_METERS = 5000; // 5km range limit
 
-interface DeployMegaphoneModalProps {
+interface DeployQuestModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   coordinates: { lat: number; lng: number } | null;
@@ -59,7 +59,7 @@ interface DeployMegaphoneModalProps {
   onSuccess: () => void;
 }
 
-const DeployMegaphoneModal = ({ 
+const DeployQuestModal = ({ 
   open, 
   onOpenChange, 
   coordinates, 
@@ -67,7 +67,7 @@ const DeployMegaphoneModal = ({
   userBaseLat,
   userBaseLng,
   onSuccess 
-}: DeployMegaphoneModalProps) => {
+}: DeployQuestModalProps) => {
   const [title, setTitle] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ActivityCategory | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
@@ -193,8 +193,8 @@ const DeployMegaphoneModal = ({
     }
 
     toast({
-      title: "Megaphone Deployed!",
-      description: "Your event is now live on the tactical map.",
+      title: "Quest Deployed!",
+      description: "Your quest is now live on the tactical map.",
     });
 
     // Reset form
@@ -216,14 +216,14 @@ const DeployMegaphoneModal = ({
         <DialogHeader className="space-y-4">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-warning/20 border border-warning/40">
-              <Megaphone className="w-6 h-6 text-warning" />
+              <Compass className="w-6 h-6 text-warning" />
             </div>
             <div>
               <DialogTitle className="font-orbitron text-xl tracking-wide">
-                DEPLOY MEGAPHONE
+                DEPLOY QUEST
               </DialogTitle>
               <p className="text-xs text-muted-foreground font-mono mt-1">
-                TACTICAL EVENT BROADCAST
+                CREATE A NEW ADVENTURE
               </p>
             </div>
           </div>
@@ -465,8 +465,8 @@ const DeployMegaphoneModal = ({
               </>
             ) : (
               <>
-                <Megaphone className="w-5 h-5 mr-2" />
-                DEPLOY MEGAPHONE
+                <Compass className="w-5 h-5 mr-2" />
+                DEPLOY QUEST
               </>
             )}
           </Button>
@@ -476,4 +476,4 @@ const DeployMegaphoneModal = ({
   );
 };
 
-export default DeployMegaphoneModal;
+export default DeployQuestModal;

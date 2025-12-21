@@ -63,7 +63,7 @@ const Dashboard = () => {
   };
 
   const handleMissionCreated = () => {
-    mapRef.current?.fetchMegaphones();
+    mapRef.current?.fetchQuests();
   };
 
   const handleOpenMission = (missionId: string) => {
