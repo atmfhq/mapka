@@ -55,6 +55,7 @@ interface TacticalMapProps {
   currentUserAvatarConfig?: AvatarConfig | null;
   locationLat?: number | null;
   locationLng?: number | null;
+  isGhostMode?: boolean;
   onOpenChatWithUser?: (userId: string) => void;
   onCloseChat?: () => void;
 }
@@ -94,6 +95,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   currentUserAvatarConfig,
   locationLat,
   locationLng,
+  isGhostMode = false,
   onOpenChatWithUser,
   onCloseChat
 }, ref) => {
@@ -492,7 +494,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     if (!myLat || !myLng) return;
 
     const el = document.createElement('div');
-    el.className = 'my-marker';
+    el.className = `my-marker ${isGhostMode ? 'ghost-mode' : ''}`;
     
     const container = document.createElement('div');
     container.className = 'my-marker-container';
@@ -500,7 +502,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     
     const root = createRoot(container);
     root.render(
-      <div className="my-avatar-ring">
+      <div className={`my-avatar-ring ${isGhostMode ? 'ghost' : ''}`}>
         <AvatarDisplay 
           config={currentUserAvatarConfig} 
           size={48} 
@@ -522,7 +524,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         myMarkerRootRef.current = null;
       }
     };
-  }, [locationLat, locationLng, userLat, userLng, currentUserAvatarConfig]);
+  }, [locationLat, locationLng, userLat, userLng, currentUserAvatarConfig, isGhostMode]);
 
   // Render megaphone markers (public only)
   useEffect(() => {
@@ -597,6 +599,16 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           border: 3px solid #fbbf24;
           box-shadow: 0 0 12px rgba(251, 191, 36, 0.5);
           background: hsl(var(--background));
+          transition: all 0.3s ease;
+        }
+        .my-avatar-ring.ghost {
+          opacity: 0.5;
+          filter: grayscale(100%);
+          border-color: #6b7280;
+          box-shadow: 0 0 8px rgba(107, 114, 128, 0.4);
+        }
+        .my-marker.ghost-mode {
+          opacity: 0.6;
         }
         .megaphone-marker {
           cursor: pointer;

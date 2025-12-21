@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Target, LogOut, Settings, UserCog, MapPin } from 'lucide-react';
+import { Target, LogOut, Settings, UserCog, MapPin, Ghost, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import AlertsDrawer from './AlertsDrawer';
 import ChatDrawer from './ChatDrawer';
 import InstallPrompt from '@/components/InstallPrompt';
@@ -12,6 +14,8 @@ interface NavbarProps {
   nick: string;
   avatarUrl: string | null;
   currentUserId: string;
+  isActive: boolean;
+  onActiveChange: (active: boolean) => void;
   onSignOut: () => void;
   onMissionCreated?: () => void;
   onOpenMission?: (missionId: string) => void;
@@ -24,6 +28,8 @@ const Navbar = ({
   nick, 
   avatarUrl, 
   currentUserId,
+  isActive,
+  onActiveChange,
   onSignOut,
   onMissionCreated,
   onOpenMission,
@@ -131,6 +137,34 @@ const Navbar = ({
                         <span className="font-medium">Edit Profile</span>
                       </Button>
                     </Link>
+
+                    {/* Ghost Mode Toggle */}
+                    <div className={`flex items-center justify-between p-4 rounded-lg border ${
+                      isActive 
+                        ? 'border-border/50 bg-card/50' 
+                        : 'border-muted-foreground/30 bg-muted/20'
+                    }`}>
+                      <div className="flex items-center gap-3">
+                        {isActive ? (
+                          <Eye className="w-5 h-5 text-primary" />
+                        ) : (
+                          <Ghost className="w-5 h-5 text-muted-foreground" />
+                        )}
+                        <div>
+                          <Label htmlFor="ghost-mode" className="font-medium cursor-pointer">
+                            {isActive ? 'Visible' : 'Ghost Mode'}
+                          </Label>
+                          <p className="text-xs text-muted-foreground">
+                            {isActive ? 'Others can see you on the map' : 'You are hidden from others'}
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        id="ghost-mode"
+                        checked={isActive}
+                        onCheckedChange={onActiveChange}
+                      />
+                    </div>
                     
                     <InstallPrompt />
                     

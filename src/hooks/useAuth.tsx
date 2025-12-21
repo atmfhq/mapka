@@ -22,6 +22,7 @@ interface Profile {
   location_lng: number | null;
   location_name: string | null;
   is_onboarded: boolean | null;
+  is_active: boolean;
 }
 
 interface AuthContextType {
@@ -69,6 +70,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       location_lng: data.location_lng,
       location_name: data.location_name,
       is_onboarded: data.is_onboarded,
+      is_active: data.is_active ?? true,
     };
   };
 
