@@ -5,15 +5,24 @@ import FeatureIcon from "@/components/FeatureIcon";
 import { MapPin, Users, Radio, Gamepad2, Target, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const { user, profile } = useAuth();
+  const { toast } = useToast();
   
   // Determine where to navigate based on auth state
   const getAppLink = () => {
     if (!user) return "/auth";
     if (profile && !profile.is_onboarded) return "/onboarding";
     return "/dashboard";
+  };
+  
+  const handleWatchDemo = () => {
+    toast({
+      title: "Coming Soon",
+      description: "Demo video is under production. Stay tuned!",
+    });
   };
 
   return (
@@ -98,7 +107,11 @@ const Index = () => {
                   Enter The Map
                 </Button>
               </Link>
-              <Button variant="outline" size="xl">
+              <Button 
+                variant="outline" 
+                size="xl"
+                onClick={handleWatchDemo}
+              >
                 <Gamepad2 className="w-5 h-5" />
                 Watch Demo
               </Button>

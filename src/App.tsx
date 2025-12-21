@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
+import EditProfile from "./pages/EditProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,16 @@ const App = () => (
                 <ProtectedRoute>
                   <OnboardingGuard>
                     <Dashboard />
+                  </OnboardingGuard>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile/edit"
+              element={
+                <ProtectedRoute>
+                  <OnboardingGuard>
+                    <EditProfile />
                   </OnboardingGuard>
                 </ProtectedRoute>
               }
