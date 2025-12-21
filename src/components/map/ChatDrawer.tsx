@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
-import { MessageCircle, User, Send, ChevronLeft, Loader2, Users, Megaphone } from 'lucide-react';
+import { MessageCircle, User, Send, ChevronLeft, Loader2, Users, Megaphone, Radio } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useConnectedUsers } from '@/hooks/useConnectedUsers';
+import { useInvitationRealtime } from '@/hooks/useInvitationRealtime';
 
 interface ChatMessage {
   id: string;
@@ -50,7 +51,8 @@ const ChatDrawer = ({
   const [loadingMissions, setLoadingMissions] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  const { connectedUsers, getMissionIdForUser, loading } = useConnectedUsers(currentUserId);
+  const { connectedUsers, getMissionIdForUser, loading, refetch: refetchConnections } = useConnectedUsers(currentUserId);
+  const { pendingInvitations, pendingCount, refetch: refetchPending } = useInvitationRealtime(currentUserId);
 
   // Combine internal and external open states
   const isOpen = externalOpen || internalOpen;
@@ -224,7 +226,63 @@ const ChatDrawer = ({
     onOpenMission?.(missionId);
   };
 
-  const totalCount = connectedUsers.length + activeMissions.length;
+  const handleAcceptInvitation = async (invitationId: string, senderId: string, activityType: string) => {
+    // Get current user's location from their profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('base_lat, base_lng')
+      .eq('id', currentUserId)
+      .single();
+
+    const lat = profile?.base_lat || 0;
+    const lng = profile?.base_lng || 0;
+
+    const { data, error } = await supabase.rpc('accept_invitation', {
+      p_invitation_id: invitationId,
+      p_title: `Signal: ${activityType}`,
+      p_category: activityType.toLowerCase(),
+      p_lat: lat,
+      p_lng: lng,
+    });
+
+    if (error) {
+      toast({
+        title: 'Failed to accept signal',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    toast({
+      title: 'Signal Accepted!',
+      description: 'You are now connected.',
+    });
+
+    refetchPending();
+    refetchConnections();
+  };
+
+  const handleDeclineInvitation = async (invitationId: string) => {
+    const { error } = await supabase
+      .from('invitations')
+      .update({ status: 'declined' })
+      .eq('id', invitationId);
+
+    if (error) {
+      toast({
+        title: 'Failed to decline signal',
+        description: error.message,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    refetchPending();
+  };
+
+  // Badge shows pending invitations + active connections + missions
+  const totalBadgeCount = pendingCount + connectedUsers.length + activeMissions.length;
 
   return (
     <Sheet open={isOpen} onOpenChange={handleOpenChange}>
@@ -236,9 +294,13 @@ const ChatDrawer = ({
           onClick={() => setInternalOpen(true)}
         >
           <MessageCircle className="w-5 h-5" />
-          {totalCount > 0 && (
-            <span className="absolute top-1 right-1 w-5 h-5 rounded-full bg-success text-success-foreground text-xs font-bold flex items-center justify-center">
-              {totalCount}
+          {totalBadgeCount > 0 && (
+            <span className={`absolute top-1 right-1 w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center ${
+              pendingCount > 0 
+                ? 'bg-warning text-warning-foreground animate-pulse' 
+                : 'bg-success text-success-foreground'
+            }`}>
+              {totalBadgeCount}
             </span>
           )}
         </Button>
@@ -289,6 +351,60 @@ const ChatDrawer = ({
         {!selectedUser ? (
           <ScrollArea className="h-[60vh] mt-4">
             <div className="space-y-6">
+              {/* Section: Pending Signals (Incoming Invitations) */}
+              {pendingInvitations.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Radio className="w-4 h-4 text-warning animate-pulse" />
+                    <h3 className="font-orbitron text-sm font-semibold text-warning">
+                      INCOMING SIGNALS
+                    </h3>
+                    <Badge variant="outline" className="text-xs bg-warning/20 text-warning border-warning/40 animate-pulse">
+                      {pendingInvitations.length}
+                    </Badge>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {pendingInvitations.map((inv) => (
+                      <div
+                        key={inv.id}
+                        className="p-3 rounded-lg bg-warning/10 border border-warning/30 space-y-3"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-10 h-10 border-2 border-warning">
+                            <AvatarImage src={inv.sender?.avatar_url || undefined} />
+                            <AvatarFallback className="bg-warning/20 text-warning">
+                              {inv.sender?.nick?.[0]?.toUpperCase() || '?'}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1">
+                            <p className="font-semibold text-sm">{inv.sender?.nick || 'Unknown'}</p>
+                            <p className="text-xs text-warning">{inv.activity_type}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="flex-1 bg-success hover:bg-success/90 text-success-foreground"
+                            onClick={() => handleAcceptInvitation(inv.id, inv.sender_id, inv.activity_type)}
+                          >
+                            Accept
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 border-destructive/50 text-destructive hover:bg-destructive/10"
+                            onClick={() => handleDeclineInvitation(inv.id)}
+                          >
+                            Decline
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Section A: Direct Signals (Private Chats) */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
