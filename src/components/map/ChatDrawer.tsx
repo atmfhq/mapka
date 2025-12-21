@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
-import { MessageCircle, User, X, Send, ChevronLeft, Loader2 } from 'lucide-react';
+import { MessageCircle, User, Send, ChevronLeft, Loader2, Users, Megaphone } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -18,29 +18,50 @@ interface ChatMessage {
   created_at: string;
 }
 
+interface ActiveMission {
+  id: string;
+  title: string;
+  category: string;
+  host_id: string;
+}
+
 interface ChatDrawerProps {
   currentUserId: string;
   externalOpen?: boolean;
   externalUserId?: string | null;
   onOpenChange?: (open: boolean) => void;
+  onOpenMission?: (missionId: string) => void;
 }
 
-const ChatDrawer = ({ currentUserId, externalOpen, externalUserId, onOpenChange }: ChatDrawerProps) => {
+const ChatDrawer = ({ 
+  currentUserId, 
+  externalOpen, 
+  externalUserId, 
+  onOpenChange,
+  onOpenMission 
+}: ChatDrawerProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
+  const [activeMissions, setActiveMissions] = useState<ActiveMission[]>([]);
+  const [loadingMissions, setLoadingMissions] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  const { connectedUsers, disconnectUser, getMissionIdForUser, loading } = useConnectedUsers(currentUserId);
+  const { connectedUsers, getMissionIdForUser, loading } = useConnectedUsers(currentUserId);
 
-  // Use external open state if provided
-  const open = externalOpen !== undefined ? externalOpen : internalOpen;
-  const setOpen = (value: boolean) => {
+  // Combine internal and external open states
+  const isOpen = externalOpen || internalOpen;
+  
+  const handleOpenChange = (value: boolean) => {
     setInternalOpen(value);
     onOpenChange?.(value);
+    if (!value) {
+      setSelectedUser(null);
+      setMessages([]);
+    }
   };
 
   // Handle external user selection (from map click)
@@ -51,41 +72,81 @@ const ChatDrawer = ({ currentUserId, externalOpen, externalUserId, onOpenChange 
     }
   }, [externalUserId, externalOpen]);
 
-  const handleOpenChange = (isOpen: boolean) => {
-    setOpen(isOpen);
-    if (!isOpen) {
-      setSelectedUser(null);
-      setMessages([]);
+  // Fetch active missions (public megaphones where user is a participant)
+  const fetchActiveMissions = useCallback(async () => {
+    if (!currentUserId) return;
+    
+    setLoadingMissions(true);
+    
+    // Get megaphones where user is host
+    const { data: hostedMissions } = await supabase
+      .from('megaphones')
+      .select('id, title, category, host_id')
+      .eq('host_id', currentUserId)
+      .eq('is_private', false);
+
+    // Get megaphones where user is participant
+    const { data: participations } = await supabase
+      .from('event_participants')
+      .select('event_id')
+      .eq('user_id', currentUserId)
+      .eq('status', 'joined');
+
+    const participatedEventIds = participations?.map(p => p.event_id) || [];
+    
+    let participatedMissions: ActiveMission[] = [];
+    if (participatedEventIds.length > 0) {
+      const { data } = await supabase
+        .from('megaphones')
+        .select('id, title, category, host_id')
+        .in('id', participatedEventIds)
+        .eq('is_private', false);
+      participatedMissions = data || [];
     }
-  };
+
+    // Combine and dedupe
+    const allMissions = [...(hostedMissions || []), ...participatedMissions];
+    const uniqueMissions = allMissions.filter((m, i, arr) => 
+      arr.findIndex(x => x.id === m.id) === i
+    );
+
+    // Filter active (not expired)
+    const now = Date.now();
+    const { data: fullMegaphones } = await supabase
+      .from('megaphones')
+      .select('id, start_time, duration_minutes')
+      .in('id', uniqueMissions.map(m => m.id));
+
+    const activeMissionIds = new Set(
+      (fullMegaphones || [])
+        .filter(m => {
+          const endTime = new Date(m.start_time).getTime() + (m.duration_minutes * 60 * 1000);
+          return endTime > now;
+        })
+        .map(m => m.id)
+    );
+
+    setActiveMissions(uniqueMissions.filter(m => activeMissionIds.has(m.id)));
+    setLoadingMissions(false);
+  }, [currentUserId]);
+
+  useEffect(() => {
+    fetchActiveMissions();
+  }, [fetchActiveMissions]);
 
   const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
   const missionId = selectedUser ? getMissionIdForUser(selectedUser) : null;
 
-  console.log('ChatDrawer state:', { 
-    selectedUser, 
-    missionId, 
-    connectedUsers: connectedUsers.length,
-    selectedUserData 
-  });
-
   // Fetch messages for the mission
   const fetchMessages = useCallback(async () => {
-    if (!missionId) {
-      console.log('ChatDrawer: No missionId, skipping message fetch');
-      return;
-    }
+    if (!missionId) return;
 
     setLoadingMessages(true);
-    console.log('ChatDrawer: Fetching messages for mission:', missionId);
-
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('event_chat_messages')
       .select('id, content, user_id, created_at')
       .eq('event_id', missionId)
       .order('created_at', { ascending: true });
-
-    console.log('ChatDrawer: Messages fetched:', data, 'Error:', error);
 
     if (data) {
       setMessages(data);
@@ -132,10 +193,7 @@ const ChatDrawer = ({ currentUserId, externalOpen, externalUserId, onOpenChange 
   }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !missionId) {
-      console.log('ChatDrawer: Cannot send - no message or no missionId');
-      return;
-    }
+    if (!newMessage.trim() || !missionId) return;
 
     setSending(true);
     const { error } = await supabase.from('event_chat_messages').insert({
@@ -146,7 +204,6 @@ const ChatDrawer = ({ currentUserId, externalOpen, externalUserId, onOpenChange 
 
     setSending(false);
     if (error) {
-      console.error('ChatDrawer: Send error:', error);
       toast({
         title: 'Failed to send message',
         description: error.message,
@@ -157,41 +214,31 @@ const ChatDrawer = ({ currentUserId, externalOpen, externalUserId, onOpenChange 
     }
   };
 
-  const handleDisconnect = async () => {
-    const user = connectedUsers.find(u => u.id === selectedUser);
-    if (!user) return;
-
-    const { error } = await disconnectUser(user.invitationId);
-    if (error) {
-      toast({
-        title: 'Failed to disconnect',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
-      toast({ title: 'Connection terminated' });
-      setSelectedUser(null);
-    }
-  };
-
   const handleSelectUser = (userId: string) => {
-    console.log('ChatDrawer: Selecting user:', userId);
     setSelectedUser(userId);
     setMessages([]);
   };
 
+  const handleOpenMission = (missionId: string) => {
+    handleOpenChange(false);
+    onOpenMission?.(missionId);
+  };
+
+  const totalCount = connectedUsers.length + activeMissions.length;
+
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange}>
+    <Sheet open={isOpen} onOpenChange={handleOpenChange}>
       <SheetTrigger asChild>
         <Button
           variant="ghost"
           size="icon"
           className="relative min-w-[44px] min-h-[44px] text-muted-foreground hover:text-foreground"
+          onClick={() => setInternalOpen(true)}
         >
           <MessageCircle className="w-5 h-5" />
-          {connectedUsers.length > 0 && (
+          {totalCount > 0 && (
             <span className="absolute top-1 right-1 w-5 h-5 rounded-full bg-success text-success-foreground text-xs font-bold flex items-center justify-center">
-              {connectedUsers.length}
+              {totalCount}
             </span>
           )}
         </Button>
@@ -233,57 +280,120 @@ const ChatDrawer = ({ currentUserId, externalOpen, externalUserId, onOpenChange 
             ) : (
               <>
                 <MessageCircle className="w-5 h-5 text-success" />
-                Active Connections
+                Comms Center
               </>
             )}
           </SheetTitle>
         </SheetHeader>
 
         {!selectedUser ? (
-          // Connection list
           <ScrollArea className="h-[60vh] mt-4">
-            <div className="space-y-2">
-              {loading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
-                </div>
-              ) : connectedUsers.length === 0 ? (
-                <div className="text-center py-12">
-                  <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
-                  <p className="text-muted-foreground text-sm">No active connections</p>
-                  <p className="text-muted-foreground/60 text-xs mt-1">
-                    Signal operatives on the map to connect
-                  </p>
-                </div>
-              ) : (
-                connectedUsers.map((user) => (
-                  <button
-                    key={user.id}
-                    onClick={() => handleSelectUser(user.id)}
-                    className="w-full p-3 rounded-lg bg-success/10 border border-success/30 hover:border-success/60 transition-colors flex items-center gap-3"
-                  >
-                    <Avatar className="w-12 h-12 border-2 border-success">
-                      <AvatarImage src={user.avatar_url || undefined} />
-                      <AvatarFallback className="bg-success/20 text-success">
-                        {user.nick?.[0]?.toUpperCase() || '?'}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 text-left">
-                      <p className="font-semibold">{user.nick || 'Unknown'}</p>
-                      <p className="text-xs text-success">Connected</p>
-                    </div>
-                    <Badge variant="outline" className="bg-success/20 text-success border-success/40">
-                      Active
+            <div className="space-y-6">
+              {/* Section A: Direct Signals (Private Chats) */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Users className="w-4 h-4 text-success" />
+                  <h3 className="font-orbitron text-sm font-semibold text-success">
+                    OPERATIVES
+                  </h3>
+                  {connectedUsers.length > 0 && (
+                    <Badge variant="outline" className="text-xs bg-success/20 text-success border-success/40">
+                      {connectedUsers.length}
                     </Badge>
-                  </button>
-                ))
-              )}
+                  )}
+                </div>
+                
+                {loading ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : connectedUsers.length === 0 ? (
+                  <div className="text-center py-6 border border-dashed border-border/50 rounded-lg">
+                    <Users className="w-8 h-8 mx-auto text-muted-foreground/30 mb-2" />
+                    <p className="text-muted-foreground/60 text-xs">
+                      No active signals
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {connectedUsers.map((user) => (
+                      <button
+                        key={user.id}
+                        onClick={() => handleSelectUser(user.id)}
+                        className="w-full p-3 rounded-lg bg-success/10 border border-success/30 hover:border-success/60 transition-colors flex items-center gap-3"
+                      >
+                        <Avatar className="w-10 h-10 border-2 border-success">
+                          <AvatarImage src={user.avatar_url || undefined} />
+                          <AvatarFallback className="bg-success/20 text-success">
+                            {user.nick?.[0]?.toUpperCase() || '?'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 text-left">
+                          <p className="font-semibold text-sm">{user.nick || 'Unknown'}</p>
+                          <p className="text-xs text-success">Direct Signal</p>
+                        </div>
+                        <Badge variant="outline" className="bg-success/20 text-success border-success/40 text-xs">
+                          Active
+                        </Badge>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Section B: Active Missions (Event Chats) */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <Megaphone className="w-4 h-4 text-primary" />
+                  <h3 className="font-orbitron text-sm font-semibold text-primary">
+                    SQUAD MISSIONS
+                  </h3>
+                  {activeMissions.length > 0 && (
+                    <Badge variant="outline" className="text-xs bg-primary/20 text-primary border-primary/40">
+                      {activeMissions.length}
+                    </Badge>
+                  )}
+                </div>
+                
+                {loadingMissions ? (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : activeMissions.length === 0 ? (
+                  <div className="text-center py-6 border border-dashed border-border/50 rounded-lg">
+                    <Megaphone className="w-8 h-8 mx-auto text-muted-foreground/30 mb-2" />
+                    <p className="text-muted-foreground/60 text-xs">
+                      No active missions
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {activeMissions.map((mission) => (
+                      <button
+                        key={mission.id}
+                        onClick={() => handleOpenMission(mission.id)}
+                        className="w-full p-3 rounded-lg bg-primary/10 border border-primary/30 hover:border-primary/60 transition-colors flex items-center gap-3"
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
+                          <Megaphone className="w-5 h-5 text-primary" />
+                        </div>
+                        <div className="flex-1 text-left">
+                          <p className="font-semibold text-sm">{mission.title}</p>
+                          <p className="text-xs text-primary capitalize">{mission.category}</p>
+                        </div>
+                        <Badge variant="outline" className="bg-primary/20 text-primary border-primary/40 text-xs">
+                          Live
+                        </Badge>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </ScrollArea>
         ) : (
           // Chat view
           <div className="flex flex-col h-[60vh] mt-4">
-            {/* Messages */}
             <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
               <div className="space-y-3">
                 {loadingMessages ? (
@@ -329,7 +439,6 @@ const ChatDrawer = ({ currentUserId, externalOpen, externalUserId, onOpenChange 
               </div>
             </ScrollArea>
 
-            {/* Input */}
             {missionId && (
               <div className="flex gap-2 mt-4 pt-4 border-t border-border/50">
                 <Input
