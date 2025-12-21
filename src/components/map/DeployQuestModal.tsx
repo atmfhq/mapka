@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { format, startOfDay, isToday } from 'date-fns';
-import { CalendarIcon, Compass, Users, Clock, MapPin, AlertTriangle, ChevronRight } from 'lucide-react';
+import { CalendarIcon, Compass, Clock, MapPin, AlertTriangle, ChevronRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -69,11 +70,11 @@ const DeployQuestModal = ({
   onSuccess 
 }: DeployQuestModalProps) => {
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ActivityCategory | null>(null);
   const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
   const [date, setDate] = useState<Date>();
   const [time, setTime] = useState('18:00');
-  const [maxParticipants, setMaxParticipants] = useState(4);
   const [duration, setDuration] = useState(2);
   const [loading, setLoading] = useState(false);
 
@@ -172,10 +173,10 @@ const DeployQuestModal = ({
     
     const { error } = await supabase.from('megaphones').insert({
       title,
+      description: description.trim() || null,
       category: activityData?.label || selectedActivity, // Store activity label
       start_time: startTime.toISOString(),
       duration_minutes: duration * 60,
-      max_participants: maxParticipants,
       lat: coordinates.lat,
       lng: coordinates.lng,
       host_id: userId,
@@ -199,11 +200,11 @@ const DeployQuestModal = ({
 
     // Reset form
     setTitle('');
+    setDescription('');
     setSelectedCategory(null);
     setSelectedActivity(null);
     setDate(undefined);
     setTime('18:00');
-    setMaxParticipants(4);
     setDuration(2);
     onSuccess();
     onOpenChange(false);
@@ -403,36 +404,37 @@ const DeployQuestModal = ({
             </div>
           </div>
 
-          {/* Participants and Duration Row */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                <Users className="w-3 h-3" /> Max Squad
-              </Label>
-              <Input
-                type="number"
-                min={2}
-                max={50}
-                value={maxParticipants}
-                onChange={(e) => setMaxParticipants(Number(e.target.value))}
-                className="bg-muted/50 border-border/50"
-              />
-            </div>
+          {/* Duration */}
+          <div className="space-y-2">
+            <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <Clock className="w-3 h-3" /> Duration (hrs)
+            </Label>
+            <Input
+              type="number"
+              min={0.5}
+              max={24}
+              step={0.5}
+              value={duration}
+              onChange={(e) => setDuration(Number(e.target.value))}
+              className="bg-muted/50 border-border/50"
+            />
+          </div>
 
-            <div className="space-y-2">
-              <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                <Clock className="w-3 h-3" /> Duration (hrs)
-              </Label>
-              <Input
-                type="number"
-                min={0.5}
-                max={24}
-                step={0.5}
-                value={duration}
-                onChange={(e) => setDuration(Number(e.target.value))}
-                className="bg-muted/50 border-border/50"
-              />
-            </div>
+          {/* Description */}
+          <div className="space-y-2">
+            <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+              Description (optional)
+            </Label>
+            <Textarea
+              placeholder="Add details about your quest..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="bg-muted/50 border-border/50 min-h-[80px] resize-none"
+              maxLength={500}
+            />
+            <p className="text-[10px] text-muted-foreground text-right">
+              {description.length}/500
+            </p>
           </div>
 
           {/* Warning - only show if in range */}

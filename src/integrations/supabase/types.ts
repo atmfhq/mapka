@@ -147,6 +147,7 @@ export type Database = {
         Row: {
           category: string
           created_at: string | null
+          description: string | null
           duration_minutes: number
           host_id: string
           id: string
@@ -160,6 +161,7 @@ export type Database = {
         Insert: {
           category: string
           created_at?: string | null
+          description?: string | null
           duration_minutes?: number
           host_id: string
           id?: string
@@ -173,6 +175,7 @@ export type Database = {
         Update: {
           category?: string
           created_at?: string | null
+          description?: string | null
           duration_minutes?: number
           host_id?: string
           id?: string
