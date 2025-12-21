@@ -9,6 +9,7 @@ import TacticalCard from "@/components/TacticalCard";
 import TacticalStepper from "@/components/TacticalStepper";
 import InterestSelector from "@/components/InterestSelector";
 import AvatarBuilder from "@/components/avatar/AvatarBuilder";
+import LocationSearch from "@/components/LocationSearch";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +18,6 @@ import {
   User, 
   MapPin, 
   Target, 
-  Crosshair, 
   Shield, 
   AlertTriangle,
   ChevronRight,
@@ -37,7 +37,6 @@ interface AvatarConfig {
 const Onboarding = () => {
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [locating, setLocating] = useState(false);
   
   // Form state
   const [nick, setNick] = useState("");
@@ -50,6 +49,7 @@ const Onboarding = () => {
     mouth: "smile",
   });
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationName, setLocationName] = useState<string>("");
   
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const navigate = useNavigate();
@@ -69,39 +69,9 @@ const Onboarding = () => {
     { label: "Base", icon: <MapPin className="w-5 h-5" /> },
   ];
 
-  const handleLocate = () => {
-    if (!navigator.geolocation) {
-      toast({
-        title: "Geolocation Not Supported",
-        description: "Your browser doesn't support location services",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setCoords({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-        setLocating(false);
-        toast({
-          title: "Coordinates Acquired",
-          description: "Base location locked in",
-        });
-      },
-      (error) => {
-        setLocating(false);
-        toast({
-          title: "Location Failed",
-          description: error.message || "Could not get your location",
-          variant: "destructive",
-        });
-      },
-      { enableHighAccuracy: true }
-    );
+  const handleLocationSelect = (location: { lat: number; lng: number; name: string }) => {
+    setCoords({ lat: location.lat, lng: location.lng });
+    setLocationName(location.name);
   };
 
   const handleNextStep = () => {
@@ -158,6 +128,9 @@ const Onboarding = () => {
           tags: tagLabels,
           base_lat: coords.lat,
           base_lng: coords.lng,
+          location_lat: coords.lat,
+          location_lng: coords.lng,
+          location_name: locationName || null,
           is_onboarded: true,
         })
         .eq("id", user.id);
@@ -290,60 +263,32 @@ const Onboarding = () => {
           {step === 3 && (
             <div className="space-y-6 animate-fade-in-up">
               <div className="flex items-center gap-2 mb-4">
-                <Crosshair className="w-5 h-5 text-primary" />
-                <h2 className="font-orbitron text-lg font-semibold">Establish Base Coordinates</h2>
+                <MapPin className="w-5 h-5 text-primary" />
+                <h2 className="font-orbitron text-lg font-semibold">Where is your Base?</h2>
               </div>
 
-              {/* Location visualization */}
-              <div className="relative bg-muted/30 rounded-lg border border-border p-8 text-center">
-                {/* Radar effect */}
-                <div className="relative w-40 h-40 mx-auto mb-6">
-                  <div className="absolute inset-0 rounded-full border-2 border-primary/30" />
-                  <div className="absolute inset-4 rounded-full border border-primary/20" />
-                  <div className="absolute inset-8 rounded-full border border-primary/15" />
-                  
-                  {coords ? (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-6 h-6 rounded-full bg-success shadow-[0_0_20px_hsl(120_100%_50%)] animate-pulse" />
-                    </div>
-                  ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-6 h-6 rounded-full bg-muted-foreground/30" />
-                    </div>
-                  )}
-                </div>
+              <p className="text-sm text-muted-foreground mb-4">
+                Search for your city, neighborhood, or address. This helps you find people nearby.
+              </p>
 
-                {coords ? (
-                  <div className="space-y-2">
-                    <div className="font-mono text-sm text-success">
-                      ✓ COORDINATES LOCKED
-                    </div>
-                    <div className="font-mono text-xs text-muted-foreground">
-                      LAT: {coords.lat.toFixed(6)} | LNG: {coords.lng.toFixed(6)}
-                    </div>
+              {/* Location Search */}
+              <LocationSearch 
+                onLocationSelect={handleLocationSelect}
+                initialValue={locationName}
+              />
+
+              {/* Coordinates display when selected */}
+              {coords && (
+                <div className="mt-4 p-4 bg-muted/30 rounded-lg border border-border">
+                  <div className="font-mono text-sm text-success mb-2">
+                    ✓ Location Set
                   </div>
-                ) : (
-                  <Button
-                    variant="neonCyan"
-                    size="lg"
-                    onClick={handleLocate}
-                    disabled={locating}
-                    className="mx-auto"
-                  >
-                    {locating ? (
-                      <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Acquiring Signal...
-                      </>
-                    ) : (
-                      <>
-                        <Crosshair className="w-5 h-5" />
-                        Locate Me
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
+                  <div className="font-mono text-xs text-muted-foreground">
+                    {locationName && <div className="mb-1 text-foreground">{locationName}</div>}
+                    LAT: {coords.lat.toFixed(6)} | LNG: {coords.lng.toFixed(6)}
+                  </div>
+                </div>
+              )}
 
               {/* Privacy warning */}
               <div className="flex items-start gap-3 p-4 rounded-lg bg-warning/10 border border-warning/30">
