@@ -66,11 +66,11 @@ const HeroRadar = () => {
       
       {/* Sweep line with trailing glow */}
       <div className="absolute inset-0 radar-sweep">
-        {/* Trailing fade effect */}
+        {/* Trailing fade effect - aligned with sweep line at 0deg (right) */}
         <div 
           className="absolute inset-0 rounded-full"
           style={{
-            background: "conic-gradient(from -90deg at 50% 50%, transparent 0deg, hsl(180 100% 50% / 0.15) 30deg, hsl(180 100% 50% / 0.05) 60deg, transparent 90deg)",
+            background: "conic-gradient(from 0deg at 50% 50%, hsl(180 100% 50% / 0.2) 0deg, hsl(180 100% 50% / 0.1) 15deg, hsl(180 100% 50% / 0.03) 45deg, transparent 60deg, transparent 360deg)",
           }}
         />
         {/* Main sweep line */}
