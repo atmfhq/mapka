@@ -49,6 +49,8 @@ interface Quest {
   is_private?: boolean;
 }
 
+export type DateFilter = 'today' | '3days' | '7days';
+
 interface TacticalMapProps {
   userLat: number;
   userLng: number;
@@ -56,6 +58,7 @@ interface TacticalMapProps {
   baseLng: number;
   currentUserId: string;
   activeActivity: string | null;
+  dateFilter: DateFilter;
   currentUserAvatarConfig?: AvatarConfig | null;
   locationLat?: number | null;
   locationLng?: number | null;
@@ -190,6 +193,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   baseLng,
   currentUserId, 
   activeActivity,
+  dateFilter,
   currentUserAvatarConfig,
   locationLat,
   locationLng,
@@ -239,18 +243,58 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     });
   }, [profiles, activeActivity, activeActivityLabel, currentUserId]);
 
-  // Filter quests - HIDE PRIVATE EVENTS from map
+  // Filter quests - HIDE PRIVATE EVENTS from map, apply date filter
   const filteredQuests = useMemo(() => {
+    const now = Date.now();
+    
+    // Calculate date filter cutoff
+    const getDateCutoff = (): number => {
+      switch (dateFilter) {
+        case 'today':
+          // End of today
+          const endOfToday = new Date();
+          endOfToday.setHours(23, 59, 59, 999);
+          return endOfToday.getTime();
+        case '3days':
+          return now + (3 * 24 * 60 * 60 * 1000);
+        case '7days':
+        default:
+          return now + (7 * 24 * 60 * 60 * 1000);
+      }
+    };
+    
+    const dateCutoff = getDateCutoff();
+    
     // First filter out private events - they should not appear on map
     const publicQuests = quests.filter(m => !m.is_private);
     
-    if (!activeActivity || !activeActivityLabel) return publicQuests;
+    // Apply date filter:
+    // Show quests that:
+    // 1. Start within the selected timeframe, OR
+    // 2. Are currently ongoing (started in past but end in future)
+    // AND exclude expired quests
+    const dateFilteredQuests = publicQuests.filter(q => {
+      const startTime = new Date(q.start_time).getTime();
+      const endTime = startTime + (q.duration_minutes * 60 * 1000);
+      
+      // Exclude expired quests
+      if (endTime < now) return false;
+      
+      // Include if currently ongoing (started but not ended)
+      if (startTime <= now && endTime > now) return true;
+      
+      // Include if starts within the date filter range
+      return startTime <= dateCutoff;
+    });
     
-    return publicQuests.filter(q => {
+    // Apply activity filter if active
+    if (!activeActivity || !activeActivityLabel) return dateFilteredQuests;
+    
+    return dateFilteredQuests.filter(q => {
       const questCat = q.category.toLowerCase();
       return questCat === activeActivityLabel || questCat === activeActivity;
     });
-  }, [quests, activeActivity, activeActivityLabel]);
+  }, [quests, activeActivity, activeActivityLabel, dateFilter]);
 
   // Fetch nearby profiles using spatial RPC - refetch when location changes
   const fetchProfiles = useCallback(async () => {

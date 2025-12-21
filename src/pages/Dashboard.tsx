@@ -22,6 +22,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [activeActivity, setActiveActivity] = useState<string | null>(null);
+  const [dateFilter, setDateFilter] = useState<'today' | '3days' | '7days'>('7days');
   const [chatOpenUserId, setChatOpenUserId] = useState<string | null>(null);
   const [relocateModalOpen, setRelocateModalOpen] = useState(false);
   const [isActive, setIsActive] = useState(true);
@@ -138,6 +139,7 @@ const Dashboard = () => {
         baseLng={profile.base_lng ?? userLng}
         currentUserId={user!.id}
         activeActivity={activeActivity}
+        dateFilter={dateFilter}
         currentUserAvatarConfig={profile.avatar_config as AvatarConfig | null}
         locationLat={currentLocation.lat}
         locationLng={currentLocation.lng}
@@ -166,6 +168,8 @@ const Dashboard = () => {
       <MapFilterHUD
         activeActivity={activeActivity}
         onActivityChange={handleActivityChange}
+        dateFilter={dateFilter}
+        onDateFilterChange={setDateFilter}
       />
 
       {/* Relocate Modal */}
