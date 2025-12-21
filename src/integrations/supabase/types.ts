@@ -51,6 +51,7 @@ export type Database = {
           event_id: string
           id: string
           joined_at: string
+          last_read_at: string | null
           status: string
           user_id: string
         }
@@ -58,6 +59,7 @@ export type Database = {
           event_id: string
           id?: string
           joined_at?: string
+          last_read_at?: string | null
           status?: string
           user_id: string
         }
@@ -65,6 +67,7 @@ export type Database = {
           event_id?: string
           id?: string
           joined_at?: string
+          last_read_at?: string | null
           status?: string
           user_id?: string
         }
@@ -83,6 +86,7 @@ export type Database = {
           activity_type: string
           created_at: string
           id: string
+          last_read_at: string | null
           receiver_id: string
           sender_id: string
           status: string
@@ -91,6 +95,7 @@ export type Database = {
           activity_type: string
           created_at?: string
           id?: string
+          last_read_at?: string | null
           receiver_id: string
           sender_id: string
           status?: string
@@ -99,6 +104,7 @@ export type Database = {
           activity_type?: string
           created_at?: string
           id?: string
+          last_read_at?: string | null
           receiver_id?: string
           sender_id?: string
           status?: string
@@ -218,6 +224,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      get_unread_message_count: { Args: { p_user_id: string }; Returns: number }
       is_event_member: {
         Args: { event_uuid: string; user_uuid: string }
         Returns: boolean
