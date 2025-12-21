@@ -1,17 +1,28 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
+import { createRoot, Root } from 'react-dom/client';
 import { supabase } from '@/integrations/supabase/client';
 import UserPopup from './UserPopup';
 import DeployMegaphoneModal from './DeployMegaphoneModal';
 import MegaphoneLobby from './MegaphoneLobby';
+import AvatarDisplay from '@/components/avatar/AvatarDisplay';
+import { Json } from '@/integrations/supabase/types';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HERE';
+
+interface AvatarConfig {
+  skinColor?: string;
+  shape?: string;
+  eyes?: string;
+  mouth?: string;
+}
 
 interface Profile {
   id: string;
   nick: string | null;
   avatar_url: string | null;
+  avatar_config: AvatarConfig | null;
   tags: string[] | null;
   base_lat: number | null;
   base_lng: number | null;
@@ -65,6 +76,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const userMarkerRootsRef = useRef<Root[]>([]);
   const megaphoneMarkersRef = useRef<mapboxgl.Marker[]>([]);
   
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -83,11 +95,17 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
     const fetchProfiles = async () => {
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, nick, avatar_url, tags, base_lat, base_lng, bio')
+        .select('id, nick, avatar_url, avatar_config, tags, base_lat, base_lng, bio')
         .not('base_lat', 'is', null)
         .not('base_lng', 'is', null);
       
-      if (!error && data) setProfiles(data);
+      if (!error && data) {
+        const mappedProfiles = data.map(p => ({
+          ...p,
+          avatar_config: p.avatar_config as AvatarConfig | null
+        }));
+        setProfiles(mappedProfiles);
+      }
     };
     fetchProfiles();
   }, []);
@@ -207,6 +225,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
   useEffect(() => {
     if (!map.current) return;
 
+    // Cleanup old markers and React roots
+    userMarkerRootsRef.current.forEach(root => root.unmount());
+    userMarkerRootsRef.current = [];
     userMarkersRef.current.forEach(marker => marker.remove());
     userMarkersRef.current = [];
 
@@ -218,16 +239,32 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
 
       const el = document.createElement('div');
       el.className = 'user-marker';
-      el.innerHTML = `
-        <div class="marker-container">
-          <div class="marker-ring"></div>
-          <img 
-            src="${profile.avatar_url || '/placeholder.svg'}" 
-            alt="${profile.nick || 'User'}"
-            class="marker-avatar"
+      
+      // Create container for React rendering
+      const container = document.createElement('div');
+      container.className = 'marker-container';
+      el.appendChild(container);
+      
+      // Create React root and render AvatarDisplay
+      const root = createRoot(container);
+      root.render(
+        <div className="relative w-12 h-12">
+          <div className="marker-ring absolute inset-0 rounded-full border-2 border-primary" 
+               style={{ 
+                 boxShadow: '0 0 12px hsl(var(--primary) / 0.6), inset 0 0 8px hsl(var(--primary) / 0.3)',
+                 animation: 'pulse-ring 2s ease-in-out infinite'
+               }} 
           />
+          <div className="absolute inset-1">
+            <AvatarDisplay 
+              config={profile.avatar_config} 
+              size={40} 
+              showGlow={false}
+            />
+          </div>
         </div>
-      `;
+      );
+      userMarkerRootsRef.current.push(root);
 
       el.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -242,6 +279,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
 
       userMarkersRef.current.push(marker);
     });
+
+    // Cleanup on unmount
+    return () => {
+      userMarkerRootsRef.current.forEach(root => root.unmount());
+      userMarkerRootsRef.current = [];
+    };
   }, [profiles, currentUserId]);
 
   // Render megaphone markers
@@ -305,23 +348,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
           position: relative;
           width: 48px;
           height: 48px;
-        }
-        .marker-ring {
-          position: absolute;
-          inset: 0;
-          border-radius: 50%;
-          border: 2px solid hsl(var(--primary));
-          box-shadow: 0 0 12px hsl(var(--primary) / 0.6), inset 0 0 8px hsl(var(--primary) / 0.3);
-          animation: pulse-ring 2s ease-in-out infinite;
-        }
-        .marker-avatar {
-          position: absolute;
-          inset: 4px;
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          object-fit: cover;
-          background: hsl(var(--background));
         }
         @keyframes pulse-ring {
           0%, 100% { opacity: 1; transform: scale(1); }
