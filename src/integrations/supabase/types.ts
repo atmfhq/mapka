@@ -228,6 +228,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      delete_user_account: { Args: never; Returns: undefined }
       get_unread_message_count: { Args: { p_user_id: string }; Returns: number }
       is_event_member: {
         Args: { event_uuid: string; user_uuid: string }

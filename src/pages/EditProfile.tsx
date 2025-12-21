@@ -145,24 +145,23 @@ const EditProfile = () => {
     
     setDeletingAccount(true);
     try {
-      // Delete user data - profile deletion will be handled by cascade or manual cleanup
-      // First clean up user's data from various tables
-      await supabase.from('event_chat_messages').delete().eq('user_id', user.id);
-      await supabase.from('event_participants').delete().eq('user_id', user.id);
-      await supabase.from('invitations').delete().or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
-      await supabase.from('megaphones').delete().eq('host_id', user.id);
-      await supabase.from('profiles').delete().eq('id', user.id);
+      // Call the security definer RPC function to delete the account
+      // This handles deletion from auth.users and all related tables
+      const { error } = await supabase.rpc('delete_user_account');
       
-      // Sign out the user
+      if (error) throw error;
+      
+      // Clear local session
       await signOut();
       
       toast({
         title: "Account Deleted",
-        description: "Your account and data have been permanently removed.",
+        description: "Your account and all data have been permanently removed.",
       });
       
       navigate("/");
     } catch (error: any) {
+      console.error('Account deletion failed:', error);
       toast({
         title: "Deletion Failed",
         description: error.message || "Could not delete account. Please try again.",
