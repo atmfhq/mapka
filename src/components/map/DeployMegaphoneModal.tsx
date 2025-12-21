@@ -24,11 +24,38 @@ const getMinTimeForToday = (): string => {
   return `${hours}:${mins}`;
 };
 
+// Haversine formula to calculate distance between two points in meters
+const calculateDistanceMeters = (
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number => {
+  const R = 6371000; // Earth's radius in meters
+  const toRad = (deg: number) => deg * (Math.PI / 180);
+  
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  
+  return R * c;
+};
+
+const MAX_RANGE_METERS = 5000; // 5km range limit
+
 interface DeployMegaphoneModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   coordinates: { lat: number; lng: number } | null;
   userId: string;
+  userBaseLat: number;
+  userBaseLng: number;
   onSuccess: () => void;
 }
 
@@ -36,7 +63,9 @@ const DeployMegaphoneModal = ({
   open, 
   onOpenChange, 
   coordinates, 
-  userId, 
+  userId,
+  userBaseLat,
+  userBaseLng,
   onSuccess 
 }: DeployMegaphoneModalProps) => {
   const [title, setTitle] = useState('');
@@ -76,6 +105,14 @@ const DeployMegaphoneModal = ({
   const selectedActivityData = selectedActivity ? getActivityById(selectedActivity) : null;
   const selectedCategoryData = selectedCategory ? ACTIVITY_CATEGORIES.find(c => c.id === selectedCategory) : null;
 
+  // Calculate distance from user's base to clicked coordinates
+  const distanceToTarget = useMemo(() => {
+    if (!coordinates) return 0;
+    return calculateDistanceMeters(userBaseLat, userBaseLng, coordinates.lat, coordinates.lng);
+  }, [coordinates, userBaseLat, userBaseLng]);
+
+  const isOutOfRange = distanceToTarget > MAX_RANGE_METERS;
+
   const handleCategorySelect = (categoryId: ActivityCategory) => {
     setSelectedCategory(categoryId);
     setSelectedActivity(null); // Reset activity when category changes
@@ -98,6 +135,16 @@ const DeployMegaphoneModal = ({
       toast({
         title: "Missing fields",
         description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if location is within 5km range
+    if (isOutOfRange) {
+      toast({
+        title: "Out of Range!",
+        description: "You can only place signals within 5km of your Base.",
         variant: "destructive",
       });
       return;
@@ -183,11 +230,31 @@ const DeployMegaphoneModal = ({
           
           {/* Coordinates display */}
           {coordinates && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded bg-muted/50 border border-border/50">
-              <MapPin className="w-4 h-4 text-primary" />
-              <span className="font-mono text-xs text-muted-foreground">
+            <div className={cn(
+              "flex items-center gap-2 px-3 py-2 rounded border",
+              isOutOfRange 
+                ? "bg-destructive/10 border-destructive/50" 
+                : "bg-muted/50 border-border/50"
+            )}>
+              <MapPin className={cn("w-4 h-4", isOutOfRange ? "text-destructive" : "text-primary")} />
+              <span className={cn("font-mono text-xs", isOutOfRange ? "text-destructive" : "text-muted-foreground")}>
                 {coordinates.lat.toFixed(4)}, {coordinates.lng.toFixed(4)}
               </span>
+              {isOutOfRange && (
+                <span className="ml-auto text-xs font-semibold text-destructive">
+                  {(distanceToTarget / 1000).toFixed(1)}km away
+                </span>
+              )}
+            </div>
+          )}
+          
+          {/* Out of range warning */}
+          {isOutOfRange && (
+            <div className="flex items-start gap-2 p-3 rounded bg-destructive/10 border border-destructive/30">
+              <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+              <p className="text-xs text-destructive">
+                <strong>Out of Range!</strong> You can only deploy megaphones within 5km of your current location.
+              </p>
             </div>
           )}
         </DialogHeader>
@@ -368,22 +435,34 @@ const DeployMegaphoneModal = ({
             </div>
           </div>
 
-          {/* Warning */}
-          <div className="flex items-start gap-2 p-3 rounded bg-warning/10 border border-warning/30">
-            <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-            <p className="text-xs text-warning/80">
-              Once deployed, your megaphone will be visible to all operatives in the area.
-            </p>
-          </div>
+          {/* Warning - only show if in range */}
+          {!isOutOfRange && (
+            <div className="flex items-start gap-2 p-3 rounded bg-warning/10 border border-warning/30">
+              <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
+              <p className="text-xs text-warning/80">
+                Once deployed, your megaphone will be visible to all operatives in the area.
+              </p>
+            </div>
+          )}
 
           {/* Submit */}
           <Button 
             onClick={handleSubmit}
-            disabled={loading || !selectedActivity}
-            className="w-full bg-warning hover:bg-warning/90 text-warning-foreground font-orbitron tracking-wider min-h-[52px]"
+            disabled={loading || !selectedActivity || isOutOfRange}
+            className={cn(
+              "w-full font-orbitron tracking-wider min-h-[52px]",
+              isOutOfRange 
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : "bg-warning hover:bg-warning/90 text-warning-foreground"
+            )}
           >
             {loading ? (
               <span className="animate-pulse">DEPLOYING...</span>
+            ) : isOutOfRange ? (
+              <>
+                <AlertTriangle className="w-5 h-5 mr-2" />
+                OUT OF RANGE
+              </>
             ) : (
               <>
                 <Megaphone className="w-5 h-5 mr-2" />

@@ -785,6 +785,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         onOpenChange={setDeployModalOpen}
         coordinates={clickedCoords}
         userId={currentUserId}
+        userBaseLat={locationLat ?? userLat}
+        userBaseLng={locationLng ?? userLng}
         onSuccess={fetchMegaphones}
       />
 
