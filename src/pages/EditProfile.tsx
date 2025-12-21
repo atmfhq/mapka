@@ -13,6 +13,17 @@ import { useToast } from "@/hooks/use-toast";
 import { ACTIVITIES } from "@/constants/activities";
 import type { Json } from "@/integrations/supabase/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { 
   ChevronLeft,
   Loader2,
@@ -20,7 +31,9 @@ import {
   Target,
   Shield,
   Heart,
-  Sparkles
+  Sparkles,
+  Trash2,
+  AlertTriangle
 } from "lucide-react";
 
 interface AvatarConfig {
@@ -33,6 +46,7 @@ interface AvatarConfig {
 const EditProfile = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [deletingAccount, setDeletingAccount] = useState(false);
   
   // Form state
   const [nick, setNick] = useState("");
@@ -45,7 +59,7 @@ const EditProfile = () => {
     mouth: "smile",
   });
   
-  const { user, profile, refreshProfile } = useAuth();
+  const { user, profile, refreshProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -123,6 +137,39 @@ const EditProfile = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    
+    setDeletingAccount(true);
+    try {
+      // Delete user data - profile deletion will be handled by cascade or manual cleanup
+      // First clean up user's data from various tables
+      await supabase.from('event_chat_messages').delete().eq('user_id', user.id);
+      await supabase.from('event_participants').delete().eq('user_id', user.id);
+      await supabase.from('invitations').delete().or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
+      await supabase.from('megaphones').delete().eq('host_id', user.id);
+      await supabase.from('profiles').delete().eq('id', user.id);
+      
+      // Sign out the user
+      await signOut();
+      
+      toast({
+        title: "Account Deleted",
+        description: "Your account and data have been permanently removed.",
+      });
+      
+      navigate("/");
+    } catch (error: any) {
+      toast({
+        title: "Deletion Failed",
+        description: error.message || "Could not delete account. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -221,6 +268,62 @@ const EditProfile = () => {
               />
             </TabsContent>
           </Tabs>
+        </TacticalCard>
+
+        {/* Danger Zone */}
+        <TacticalCard className="mb-6 border-destructive/30 bg-destructive/5">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="w-5 h-5 text-destructive" />
+            <h3 className="font-orbitron text-sm font-semibold text-destructive">
+              DANGER ZONE
+            </h3>
+          </div>
+          
+          <p className="text-sm text-muted-foreground mb-4">
+            Once you delete your account, there is no going back. All your data, connections, and events will be permanently removed.
+          </p>
+          
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="destructive" 
+                className="w-full"
+                disabled={deletingAccount}
+              >
+                {deletingAccount ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete Account
+                  </>
+                )}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="bg-card border-destructive/30">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="font-orbitron flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-destructive" />
+                  Delete Account Permanently?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete your account, profile, all connections, events you've hosted, and remove all your data from our servers.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteAccount}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Yes, Delete My Account
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </TacticalCard>
 
         {/* Navigation */}

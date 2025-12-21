@@ -189,6 +189,61 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     fetchMegaphones();
   }, [fetchMegaphones]);
 
+  // Realtime subscription for megaphones (INSERT, UPDATE, DELETE)
+  useEffect(() => {
+    const channel = supabase
+      .channel('megaphones-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'megaphones',
+        },
+        (payload) => {
+          console.log('New megaphone inserted:', payload.new);
+          const newMegaphone = payload.new as Megaphone;
+          // Only add public megaphones
+          if (!newMegaphone.is_private) {
+            setMegaphones(prev => [...prev, newMegaphone]);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'megaphones',
+        },
+        (payload) => {
+          console.log('Megaphone updated:', payload.new);
+          const updatedMegaphone = payload.new as Megaphone;
+          setMegaphones(prev => 
+            prev.map(m => m.id === updatedMegaphone.id ? updatedMegaphone : m)
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'megaphones',
+        },
+        (payload) => {
+          console.log('Megaphone deleted:', payload.old);
+          const deletedId = (payload.old as { id: string }).id;
+          setMegaphones(prev => prev.filter(m => m.id !== deletedId));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   // Initialize map
   useEffect(() => {
     if (!mapContainer.current) return;
