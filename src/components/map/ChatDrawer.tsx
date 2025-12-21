@@ -36,6 +36,8 @@ interface ChatDrawerProps {
   onOpenMission?: (missionId: string) => void;
 }
 
+const MAX_MESSAGE_LENGTH = 2000;
+
 const ChatDrawer = ({ 
   currentUserId, 
   externalOpen, 
@@ -216,13 +218,24 @@ const ChatDrawer = ({
   }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !missionId) return;
+    const trimmedMessage = newMessage.trim();
+    if (!trimmedMessage || !missionId) return;
+    
+    // Client-side validation
+    if (trimmedMessage.length > MAX_MESSAGE_LENGTH) {
+      toast({
+        title: 'Message too long',
+        description: `Messages must be ${MAX_MESSAGE_LENGTH} characters or less.`,
+        variant: 'destructive',
+      });
+      return;
+    }
 
     setSending(true);
     const { error } = await supabase.from('event_chat_messages').insert({
       event_id: missionId,
       user_id: currentUserId,
-      content: newMessage.trim(),
+      content: trimmedMessage,
     });
 
     setSending(false);
@@ -655,9 +668,10 @@ const ChatDrawer = ({
               <div className="flex gap-2 mt-4 pt-4 border-t border-border/50">
                 <Input
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={(e) => setNewMessage(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
                   placeholder="Type a message..."
                   className="flex-1"
+                  maxLength={MAX_MESSAGE_LENGTH}
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                 />
                 <Button
