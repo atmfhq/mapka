@@ -31,6 +31,7 @@ interface Profile {
   location_lat: number | null;
   location_lng: number | null;
   bio: string | null;
+  is_active: boolean;
 }
 
 interface Megaphone {
@@ -120,15 +121,22 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const activeActivityData = activeActivity ? getActivityById(activeActivity) : null;
   const activeActivityLabel = activeActivityData?.label?.toLowerCase();
 
-  // Filter profiles based on active activity
+  // Filter profiles based on active activity AND is_active status
+  // Rule: Only show active users, EXCEPT always show current user (themselves)
   const filteredProfiles = useMemo(() => {
-    if (!activeActivity || !activeActivityLabel) return profiles;
+    // First filter by is_active (but always include current user)
+    const activeProfiles = profiles.filter(profile => 
+      profile.is_active || profile.id === currentUserId
+    );
     
-    return profiles.filter(profile => {
+    // Then filter by activity if one is selected
+    if (!activeActivity || !activeActivityLabel) return activeProfiles;
+    
+    return activeProfiles.filter(profile => {
       if (!profile.tags || profile.tags.length === 0) return false;
       return profile.tags.some(tag => tag.toLowerCase() === activeActivityLabel);
     });
-  }, [profiles, activeActivity, activeActivityLabel]);
+  }, [profiles, activeActivity, activeActivityLabel, currentUserId]);
 
   // Filter megaphones - HIDE PRIVATE EVENTS from map
   const filteredMegaphones = useMemo(() => {
@@ -147,7 +155,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const fetchProfiles = useCallback(async () => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, nick, avatar_url, avatar_config, tags, base_lat, base_lng, location_lat, location_lng, bio');
+      .select('id, nick, avatar_url, avatar_config, tags, base_lat, base_lng, location_lat, location_lng, bio, is_active');
     
     if (!error && data) {
       // Filter to only profiles with at least one set of coordinates
@@ -157,7 +165,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       );
       const mappedProfiles = profilesWithCoords.map(p => ({
         ...p,
-        avatar_config: p.avatar_config as AvatarConfig | null
+        avatar_config: p.avatar_config as AvatarConfig | null,
+        is_active: p.is_active ?? true
       }));
       setProfiles(mappedProfiles);
     }

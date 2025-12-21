@@ -170,6 +170,7 @@ export type Database = {
           bio: string | null
           created_at: string | null
           id: string
+          is_active: boolean
           is_onboarded: boolean | null
           location_lat: number | null
           location_lng: number | null
@@ -186,6 +187,7 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           id: string
+          is_active?: boolean
           is_onboarded?: boolean | null
           location_lat?: number | null
           location_lng?: number | null
@@ -202,6 +204,7 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           id?: string
+          is_active?: boolean
           is_onboarded?: boolean | null
           location_lat?: number | null
           location_lng?: number | null
