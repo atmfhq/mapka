@@ -1,12 +1,14 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import TacticalMap, { TacticalMapHandle } from "@/components/map/TacticalMap";
 import Navbar from "@/components/map/Navbar";
 import MapFilterHUD from "@/components/map/MapFilterHUD";
 import RelocateModal from "@/components/map/RelocateModal";
 import LoadingScreen from "@/components/LoadingScreen";
 import { getActivityById } from "@/constants/activities";
+import { useToast } from "@/hooks/use-toast";
 
 interface AvatarConfig {
   skinColor?: string;
@@ -18,9 +20,11 @@ interface AvatarConfig {
 const Dashboard = () => {
   const { user, profile, loading, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [activeActivity, setActiveActivity] = useState<string | null>(null);
   const [chatOpenUserId, setChatOpenUserId] = useState<string | null>(null);
   const [relocateModalOpen, setRelocateModalOpen] = useState(false);
+  const [isActive, setIsActive] = useState(true);
   const [currentLocation, setCurrentLocation] = useState<{
     lat: number | null;
     lng: number | null;
@@ -28,7 +32,7 @@ const Dashboard = () => {
   }>({ lat: null, lng: null, name: null });
   const mapRef = useRef<TacticalMapHandle | null>(null);
 
-  // Initialize location from profile
+  // Initialize location and active status from profile
   useEffect(() => {
     if (profile) {
       setCurrentLocation({
@@ -36,6 +40,7 @@ const Dashboard = () => {
         lng: profile.location_lng ?? profile.base_lng ?? null,
         name: profile.location_name ?? null,
       });
+      setIsActive(profile.is_active ?? true);
     }
   }, [profile]);
 
@@ -88,6 +93,30 @@ const Dashboard = () => {
     await refreshProfile();
   };
 
+  const handleActiveChange = async (active: boolean) => {
+    setIsActive(active);
+    
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_active: active })
+      .eq('id', user!.id);
+    
+    if (error) {
+      console.error('Failed to update active status:', error);
+      setIsActive(!active); // Revert on error
+      toast({
+        title: 'Failed to update visibility',
+        description: 'Please try again',
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: active ? 'You are now visible' : 'Ghost Mode activated',
+        description: active ? 'Others can see you on the map' : 'You are hidden from others',
+      });
+    }
+  };
+
   if (loading || !profile) {
     return <LoadingScreen />;
   }
@@ -110,6 +139,7 @@ const Dashboard = () => {
         currentUserAvatarConfig={profile.avatar_config as AvatarConfig | null}
         locationLat={currentLocation.lat}
         locationLng={currentLocation.lng}
+        isGhostMode={!isActive}
         onOpenChatWithUser={handleOpenChatWithUser}
         onCloseChat={handleCloseChat}
       />
@@ -119,6 +149,8 @@ const Dashboard = () => {
         nick={profile.nick || "Operative"}
         avatarUrl={profile.avatar_url}
         currentUserId={user!.id}
+        isActive={isActive}
+        onActiveChange={handleActiveChange}
         onSignOut={handleSignOut}
         onMissionCreated={handleMissionCreated}
         onOpenMission={handleOpenMission}
