@@ -50,6 +50,7 @@ interface TacticalMapProps {
   currentUserId: string;
   activeActivity: string | null;
   onOpenChatWithUser?: (userId: string) => void;
+  onCloseChat?: () => void;
 }
 
 export interface TacticalMapHandle {
@@ -83,7 +84,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   userLng, 
   currentUserId, 
   activeActivity,
-  onOpenChatWithUser 
+  onOpenChatWithUser,
+  onCloseChat
 }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -508,6 +510,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           }}
           onOpenChat={onOpenChatWithUser}
           onDisconnect={refetchConnections}
+          onCloseChat={onCloseChat}
         />
       )}
 

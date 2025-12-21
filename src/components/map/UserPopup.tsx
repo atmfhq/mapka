@@ -29,9 +29,10 @@ interface UserPopupProps {
   onClose: () => void;
   onOpenChat?: (userId: string) => void;
   onDisconnect?: () => void;
+  onCloseChat?: () => void;
 }
 
-const UserPopup = ({ user, position, currentUserId, isConnected, invitationId, onClose, onOpenChat, onDisconnect }: UserPopupProps) => {
+const UserPopup = ({ user, position, currentUserId, isConnected, invitationId, onClose, onOpenChat, onDisconnect, onCloseChat }: UserPopupProps) => {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
@@ -41,6 +42,10 @@ const UserPopup = ({ user, position, currentUserId, isConnected, invitationId, o
     if (!invitationId) return;
     
     setDisconnecting(true);
+    
+    // Immediately close any open chat drawer
+    onCloseChat?.();
+    
     const { error } = await supabase
       .from('invitations')
       .update({ status: 'cancelled' })
@@ -55,7 +60,7 @@ const UserPopup = ({ user, position, currentUserId, isConnected, invitationId, o
         variant: 'destructive',
       });
     } else {
-      toast({ title: 'Connection terminated' });
+      toast({ title: 'Connection terminated. You can send a new signal to reconnect.' });
       onDisconnect?.();
       onClose();
     }

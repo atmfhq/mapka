@@ -51,6 +51,10 @@ const Dashboard = () => {
     }
   };
 
+  const handleCloseChat = () => {
+    setChatOpenUserId(null);
+  };
+
   if (loading || !profile) {
     return <LoadingScreen />;
   }
@@ -71,6 +75,7 @@ const Dashboard = () => {
         currentUserId={user!.id}
         activeActivity={activeActivity}
         onOpenChatWithUser={handleOpenChatWithUser}
+        onCloseChat={handleCloseChat}
       />
 
       {/* Navbar - App Navigation */}
