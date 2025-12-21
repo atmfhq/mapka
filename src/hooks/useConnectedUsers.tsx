@@ -166,7 +166,8 @@ export const useConnectedUsers = (currentUserId: string) => {
           
           if (statusChanged) {
             console.log('useConnectedUsers: Status changed to', payload.new.status, '- refetching connections...');
-            fetchConnectedUsers();
+            // Small delay to ensure all related records (megaphone, participant) are created
+            setTimeout(() => fetchConnectedUsers(), 300);
           }
         }
       )
@@ -186,7 +187,7 @@ export const useConnectedUsers = (currentUserId: string) => {
                               payload.new.receiver_id === currentUserId;
             if (isInvolved) {
               console.log('useConnectedUsers: New accepted invitation - refetching...');
-              fetchConnectedUsers();
+              setTimeout(() => fetchConnectedUsers(), 300);
             }
           }
         }
