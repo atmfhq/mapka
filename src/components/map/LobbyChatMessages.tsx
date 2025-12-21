@@ -24,6 +24,8 @@ interface LobbyChatMessagesProps {
   currentUserId: string;
 }
 
+const MAX_MESSAGE_LENGTH = 2000;
+
 const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -104,13 +106,25 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
   }, [messages]);
 
   const handleSend = async () => {
-    if (!newMessage.trim()) return;
+    const trimmedMessage = newMessage.trim();
+    if (!trimmedMessage) return;
+    
+    // Client-side validation
+    if (trimmedMessage.length > MAX_MESSAGE_LENGTH) {
+      toast({
+        title: "Message too long",
+        description: `Messages must be ${MAX_MESSAGE_LENGTH} characters or less.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setSending(true);
 
     const { error } = await supabase.from('event_chat_messages').insert({
       event_id: eventId,
       user_id: currentUserId,
-      content: newMessage.trim(),
+      content: trimmedMessage,
     });
 
     setSending(false);
@@ -177,10 +191,11 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
       <div className="flex gap-2 flex-shrink-0 pb-safe">
         <Input
           value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
+          onChange={(e) => setNewMessage(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
           onKeyPress={handleKeyPress}
           placeholder="Type message..."
           className="flex-1 bg-background/50 border-border/50 font-mono text-sm min-h-[48px]"
+          maxLength={MAX_MESSAGE_LENGTH}
           disabled={sending}
         />
         <Button
