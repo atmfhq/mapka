@@ -11,10 +11,10 @@ import { toast } from '@/hooks/use-toast';
 import LobbyChatMessages from './LobbyChatMessages';
 import { ACTIVITIES, ACTIVITY_CATEGORIES, getCategoryForActivity } from '@/constants/activities';
 
-interface Megaphone {
+interface Quest {
   id: string;
   title: string;
-  category: string; // Now stores activity label like "Basketball"
+  category: string; // Stores activity label like "Basketball"
   start_time: string;
   duration_minutes: number;
   max_participants: number | null;
@@ -37,10 +37,10 @@ interface Participant {
   profile?: Profile;
 }
 
-interface MegaphoneLobbyProps {
+interface QuestLobbyProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  megaphone: Megaphone | null;
+  quest: Quest | null;
   currentUserId: string;
   onDelete: () => void;
 }
@@ -75,27 +75,27 @@ const getCategoryColorClasses = (category: string): string => {
   return LEGACY_COLORS[category] || LEGACY_COLORS.Other;
 };
 
-const MegaphoneLobby = ({ 
+const QuestLobby = ({ 
   open, 
   onOpenChange, 
-  megaphone, 
+  quest, 
   currentUserId,
   onDelete 
-}: MegaphoneLobbyProps) => {
+}: QuestLobbyProps) => {
   const [host, setHost] = useState<Profile | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
 
-  const isHost = megaphone?.host_id === currentUserId;
+  const isHost = quest?.host_id === currentUserId;
   const canAccessChat = isHost || hasJoined;
 
   // Fetch host profile and participants
   useEffect(() => {
-    if (!megaphone) return;
+    if (!quest) return;
     
-    // Reset state when megaphone changes
+    // Reset state when quest changes
     setActiveTab('info');
 
     const fetchData = async () => {
@@ -103,7 +103,7 @@ const MegaphoneLobby = ({
       const { data: hostData } = await supabase
         .from('profiles')
         .select('id, nick, avatar_url')
-        .eq('id', megaphone.host_id)
+        .eq('id', quest.host_id)
         .maybeSingle();
       
       if (hostData) setHost(hostData);
@@ -112,10 +112,9 @@ const MegaphoneLobby = ({
       const { data: participantsData } = await supabase
         .from('event_participants')
         .select('id, user_id, status')
-        .eq('event_id', megaphone.id);
+        .eq('event_id', quest.id);
 
       if (participantsData) {
-        // Fetch profiles for participants
         const userIds = participantsData.map(p => p.user_id);
         const { data: profiles } = await supabase
           .from('profiles')
@@ -133,15 +132,15 @@ const MegaphoneLobby = ({
     };
 
     fetchData();
-  }, [megaphone, currentUserId]);
+  }, [quest, currentUserId]);
 
   const refreshParticipants = async () => {
-    if (!megaphone) return;
+    if (!quest) return;
     
     const { data } = await supabase
       .from('event_participants')
       .select('id, user_id, status')
-      .eq('event_id', megaphone.id);
+      .eq('event_id', quest.id);
     
     if (data) {
       const userIds = data.map(p => p.user_id);
@@ -160,11 +159,11 @@ const MegaphoneLobby = ({
   };
 
   const handleJoin = async () => {
-    if (!megaphone) return;
+    if (!quest) return;
     setLoading(true);
 
     const { error } = await supabase.from('event_participants').insert({
-      event_id: megaphone.id,
+      event_id: quest.id,
       user_id: currentUserId,
       status: 'joined',
     });
@@ -180,22 +179,21 @@ const MegaphoneLobby = ({
       return;
     }
 
-    toast({ title: "Mission joined!", description: "You're now part of the squad." });
+    toast({ title: "Quest joined!", description: "You're now part of the squad." });
     setHasJoined(true);
     
-    // Refresh participants and switch to comms tab
     await refreshParticipants();
     setActiveTab('comms');
   };
 
   const handleLeave = async () => {
-    if (!megaphone) return;
+    if (!quest) return;
     setLoading(true);
 
     const { error } = await supabase
       .from('event_participants')
       .delete()
-      .eq('event_id', megaphone.id)
+      .eq('event_id', quest.id)
       .eq('user_id', currentUserId);
 
     setLoading(false);
@@ -209,19 +207,19 @@ const MegaphoneLobby = ({
       return;
     }
 
-    toast({ title: "Left mission" });
+    toast({ title: "Left quest" });
     setHasJoined(false);
     setParticipants(prev => prev.filter(p => p.user_id !== currentUserId));
   };
 
   const handleDelete = async () => {
-    if (!megaphone) return;
+    if (!quest) return;
     setLoading(true);
 
     const { error } = await supabase
       .from('megaphones')
       .delete()
-      .eq('id', megaphone.id);
+      .eq('id', quest.id);
 
     setLoading(false);
 
@@ -234,16 +232,16 @@ const MegaphoneLobby = ({
       return;
     }
 
-    toast({ title: "Megaphone deleted" });
+    toast({ title: "Quest deleted" });
     onDelete();
     onOpenChange(false);
   };
 
-  if (!megaphone) return null;
+  if (!quest) return null;
 
-  const startTime = new Date(megaphone.start_time);
-  const endTime = new Date(startTime.getTime() + megaphone.duration_minutes * 60000);
-  const spotsLeft = (megaphone.max_participants || 10) - participants.length - 1; // -1 for host
+  const startTime = new Date(quest.start_time);
+  const endTime = new Date(startTime.getTime() + quest.duration_minutes * 60000);
+  const spotsLeft = (quest.max_participants || 10) - participants.length - 1;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -253,7 +251,7 @@ const MegaphoneLobby = ({
       >
         <SheetHeader className="space-y-4 pb-4 border-b border-border/50">
           {/* Private Mission Banner */}
-          {megaphone.is_private && (
+          {quest.is_private && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/30">
               <Shield className="w-5 h-5 text-warning" />
               <span className="font-orbitron text-sm text-warning tracking-wider">
@@ -263,24 +261,23 @@ const MegaphoneLobby = ({
             </div>
           )}
 
-          {/* Activity Badge */}
           <div className="flex items-center justify-between">
             {(() => {
-              const activityData = getActivityByLabel(megaphone.category);
+              const activityData = getActivityByLabel(quest.category);
               return (
                 <Badge 
                   variant="outline" 
-                  className={megaphone.is_private 
+                  className={quest.is_private 
                     ? 'bg-warning/20 text-warning border-warning/40' 
-                    : getCategoryColorClasses(megaphone.category)
+                    : getCategoryColorClasses(quest.category)
                   }
                 >
-                  {megaphone.is_private ? (
-                    'Private Mission'
+                  {quest.is_private ? (
+                    'Private Quest'
                   ) : (
                     <span className="flex items-center gap-1.5">
                       {activityData && <span>{activityData.icon}</span>}
-                      {megaphone.category}
+                      {quest.category}
                     </span>
                   )}
                 </Badge>
@@ -298,12 +295,10 @@ const MegaphoneLobby = ({
             )}
           </div>
 
-          {/* Title */}
           <SheetTitle className="font-orbitron text-2xl tracking-wide text-left">
-            {megaphone.title}
+            {quest.title}
           </SheetTitle>
 
-          {/* Event details */}
           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1.5">
               <Clock className="w-4 h-4 text-primary" />
@@ -313,7 +308,7 @@ const MegaphoneLobby = ({
             </div>
             <div className="flex items-center gap-1.5">
               <Users className="w-4 h-4 text-primary" />
-              <span>{participants.length + 1} / {megaphone.max_participants || 10}</span>
+              <span>{participants.length + 1} / {quest.max_participants || 10}</span>
               {spotsLeft > 0 && (
                 <span className="text-success">({spotsLeft} spots left)</span>
               )}
@@ -426,9 +421,9 @@ const MegaphoneLobby = ({
           </TabsContent>
 
           <TabsContent value="comms" className="py-4 flex-1 flex flex-col min-h-0">
-            {canAccessChat && megaphone && (
+            {canAccessChat && quest && (
               <LobbyChatMessages 
-                eventId={megaphone.id} 
+                eventId={quest.id} 
                 currentUserId={currentUserId} 
               />
             )}
@@ -439,4 +434,4 @@ const MegaphoneLobby = ({
   );
 };
 
-export default MegaphoneLobby;
+export default QuestLobby;

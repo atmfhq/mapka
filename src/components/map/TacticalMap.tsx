@@ -4,11 +4,11 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { createRoot, Root } from 'react-dom/client';
 import { supabase } from '@/integrations/supabase/client';
 import UserPopup from './UserPopup';
-import DeployMegaphoneModal from './DeployMegaphoneModal';
-import MegaphoneLobby from './MegaphoneLobby';
+import DeployQuestModal from './DeployQuestModal';
+import QuestLobby from './QuestLobby';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Json } from '@/integrations/supabase/types';
-import { getActivityById } from '@/constants/activities';
+import { ACTIVITIES, getCategoryForActivity, getActivityById } from '@/constants/activities';
 import { useConnectedUsers } from '@/hooks/useConnectedUsers';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HERE';
@@ -34,7 +34,7 @@ interface Profile {
   is_active: boolean;
 }
 
-interface Megaphone {
+interface Quest {
   id: string;
   title: string;
   category: string;
@@ -61,21 +61,42 @@ interface TacticalMapProps {
 }
 
 export interface TacticalMapHandle {
-  fetchMegaphones: () => void;
+  fetchQuests: () => void;
   openMissionById: (id: string) => void;
   flyTo: (lat: number, lng: number) => void;
 }
 
+// Category colors with distinct, vibrant hues (HSL format)
 const CATEGORY_COLORS: Record<string, string> = {
-  sport: '15, 100%, 55%',
-  tabletop: '180, 100%, 50%',
-  social: '45, 100%, 55%',
-  outdoor: '120, 60%, 45%',
+  sport: '15, 100%, 55%',      // Orange-red
+  tabletop: '200, 100%, 50%',  // Cyan-blue
+  social: '45, 100%, 55%',     // Warm yellow
+  outdoor: '145, 70%, 45%',    // Emerald green
+  // Legacy fallbacks
   Sport: '15, 100%, 55%',
-  Gaming: '180, 100%, 50%',
+  Gaming: '200, 100%, 50%',
   Food: '45, 100%, 55%',
   Party: '320, 100%, 60%',
-  Other: '215, 20%, 55%',
+  Other: '270, 70%, 60%',      // Purple fallback
+};
+
+// Get activity icon by label (case insensitive)
+const getActivityIcon = (label: string): string => {
+  const activity = ACTIVITIES.find(a => a.label.toLowerCase() === label.toLowerCase());
+  return activity?.icon || '📍';
+};
+
+// Get category color from activity label
+const getCategoryColor = (label: string): string => {
+  const category = getCategoryForActivity(label);
+  if (category && CATEGORY_COLORS[category]) {
+    return CATEGORY_COLORS[category];
+  }
+  // Try direct match
+  if (CATEGORY_COLORS[label]) {
+    return CATEGORY_COLORS[label];
+  }
+  return CATEGORY_COLORS.Other;
 };
 
 // Apply random jitter for privacy (100-400m)
@@ -174,18 +195,18 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const userMarkerRootsRef = useRef<Root[]>([]);
-  const megaphoneMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const questMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const myMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const myMarkerRootRef = useRef<Root | null>(null);
   
   const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [megaphones, setMegaphones] = useState<Megaphone[]>([]);
+  const [quests, setQuests] = useState<Quest[]>([]);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
   
   const [deployModalOpen, setDeployModalOpen] = useState(false);
   const [clickedCoords, setClickedCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [selectedMegaphone, setSelectedMegaphone] = useState<Megaphone | null>(null);
+  const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [lobbyOpen, setLobbyOpen] = useState(false);
 
   // Get connected users
@@ -211,18 +232,18 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     });
   }, [profiles, activeActivity, activeActivityLabel, currentUserId]);
 
-  // Filter megaphones - HIDE PRIVATE EVENTS from map
-  const filteredMegaphones = useMemo(() => {
+  // Filter quests - HIDE PRIVATE EVENTS from map
+  const filteredQuests = useMemo(() => {
     // First filter out private events - they should not appear on map
-    const publicMegaphones = megaphones.filter(m => !m.is_private);
+    const publicQuests = quests.filter(m => !m.is_private);
     
-    if (!activeActivity || !activeActivityLabel) return publicMegaphones;
+    if (!activeActivity || !activeActivityLabel) return publicQuests;
     
-    return publicMegaphones.filter(m => {
-      const megaCat = m.category.toLowerCase();
-      return megaCat === activeActivityLabel || megaCat === activeActivity;
+    return publicQuests.filter(q => {
+      const questCat = q.category.toLowerCase();
+      return questCat === activeActivityLabel || questCat === activeActivity;
     });
-  }, [megaphones, activeActivity, activeActivityLabel]);
+  }, [quests, activeActivity, activeActivityLabel]);
 
   // Fetch nearby profiles using spatial RPC - refetch when location changes
   const fetchProfiles = useCallback(async () => {
@@ -252,8 +273,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     fetchProfiles();
   }, [fetchProfiles]);
 
-  // Fetch nearby megaphones using spatial RPC
-  const fetchMegaphones = useCallback(async () => {
+  // Fetch nearby quests using spatial RPC
+  const fetchQuests = useCallback(async () => {
     // Use the current user's location as the center point
     const centerLat = locationLat ?? userLat;
     const centerLng = locationLng ?? userLng;
@@ -265,9 +286,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     });
     
     if (!error && data) {
-      setMegaphones(data);
+      setQuests(data);
     } else if (error) {
-      console.error('Error fetching nearby megaphones:', error);
+      console.error('Error fetching nearby quests:', error);
     }
   }, [locationLat, locationLng, userLat, userLng]);
 
@@ -279,7 +300,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       .maybeSingle();
     
     if (data) {
-      setSelectedMegaphone(data);
+      setSelectedQuest(data);
       setLobbyOpen(true);
     }
   }, []);
@@ -296,22 +317,22 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   }, []);
 
   useImperativeHandle(ref, () => ({
-    fetchMegaphones,
+    fetchQuests,
     openMissionById,
     flyTo,
-  }), [fetchMegaphones, openMissionById, flyTo]);
+  }), [fetchQuests, openMissionById, flyTo]);
 
-  // Refetch megaphones when location changes (dependencies in fetchMegaphones callback)
+  // Refetch quests when location changes
   useEffect(() => {
-    fetchMegaphones();
-  }, [fetchMegaphones]);
+    fetchQuests();
+  }, [fetchQuests]);
 
-  // Realtime subscription for megaphones (INSERT, UPDATE, DELETE)
+  // Realtime subscription for quests (INSERT, UPDATE, DELETE)
   useEffect(() => {
-    console.log('Setting up megaphones realtime subscription...');
+    console.log('Setting up quests realtime subscription...');
     
     const channel = supabase
-      .channel('megaphones-realtime')
+      .channel('quests-realtime')
       .on(
         'postgres_changes',
         {
@@ -320,14 +341,14 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           table: 'megaphones',
         },
         (payload) => {
-          console.log('🔔 Realtime: New megaphone inserted:', payload.new);
-          const newMegaphone = payload.new as Megaphone;
-          // Only add public megaphones
-          if (!newMegaphone.is_private) {
-            setMegaphones(prev => {
+          console.log('🔔 Realtime: New quest inserted:', payload.new);
+          const newQuest = payload.new as Quest;
+          // Only add public quests
+          if (!newQuest.is_private) {
+            setQuests(prev => {
               // Avoid duplicates
-              if (prev.some(m => m.id === newMegaphone.id)) return prev;
-              return [...prev, newMegaphone];
+              if (prev.some(q => q.id === newQuest.id)) return prev;
+              return [...prev, newQuest];
             });
           }
         }
@@ -340,10 +361,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           table: 'megaphones',
         },
         (payload) => {
-          console.log('🔔 Realtime: Megaphone updated:', payload.new);
-          const updatedMegaphone = payload.new as Megaphone;
-          setMegaphones(prev => 
-            prev.map(m => m.id === updatedMegaphone.id ? updatedMegaphone : m)
+          console.log('🔔 Realtime: Quest updated:', payload.new);
+          const updatedQuest = payload.new as Quest;
+          setQuests(prev => 
+            prev.map(q => q.id === updatedQuest.id ? updatedQuest : q)
           );
         }
       )
@@ -355,17 +376,17 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           table: 'megaphones',
         },
         (payload) => {
-          console.log('🔔 Realtime: Megaphone deleted:', payload.old);
+          console.log('🔔 Realtime: Quest deleted:', payload.old);
           const deletedId = (payload.old as { id: string }).id;
-          setMegaphones(prev => prev.filter(m => m.id !== deletedId));
+          setQuests(prev => prev.filter(q => q.id !== deletedId));
         }
       )
       .subscribe((status) => {
-        console.log('Megaphones realtime subscription status:', status);
+        console.log('Quests realtime subscription status:', status);
       });
 
     return () => {
-      console.log('Cleaning up megaphones realtime subscription');
+      console.log('Cleaning up quests realtime subscription');
       supabase.removeChannel(channel);
     };
   }, []);
@@ -669,47 +690,44 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     };
   }, [locationLat, locationLng, userLat, userLng, currentUserAvatarConfig, isGhostMode]);
 
-  // Render megaphone markers (public only)
+  // Render quest markers (public only) with dynamic activity icons
   useEffect(() => {
     if (!map.current) return;
 
-    megaphoneMarkersRef.current.forEach(marker => marker.remove());
-    megaphoneMarkersRef.current = [];
+    questMarkersRef.current.forEach(marker => marker.remove());
+    questMarkersRef.current = [];
 
-    filteredMegaphones.forEach(megaphone => {
-      const categoryColor = CATEGORY_COLORS[megaphone.category] || CATEGORY_COLORS.Other;
+    filteredQuests.forEach(quest => {
+      // Get dynamic icon and color based on activity
+      const activityIcon = getActivityIcon(quest.category);
+      const categoryColor = getCategoryColor(quest.category);
 
       const el = document.createElement('div');
-      el.className = 'megaphone-marker';
-      
-      const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="m3 11 18-5v12L3 13v-2z"/>
-        <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
-      </svg>`;
+      el.className = 'quest-marker';
 
       el.innerHTML = `
-        <div class="megaphone-container" style="--category-color: ${categoryColor}">
-          <div class="megaphone-pulse"></div>
-          <div class="megaphone-pulse delay-1"></div>
-          <div class="megaphone-icon">
-            ${iconSvg}
+        <div class="quest-container" style="--category-color: ${categoryColor}">
+          <div class="quest-pulse"></div>
+          <div class="quest-pulse delay-1"></div>
+          <div class="quest-icon">
+            ${activityIcon}
           </div>
         </div>
       `;
 
       el.addEventListener('click', (e) => {
         e.stopPropagation();
-        setSelectedMegaphone(megaphone);
+        setSelectedQuest(quest);
         setLobbyOpen(true);
       });
 
       const marker = new mapboxgl.Marker({ element: el })
-        .setLngLat([megaphone.lng, megaphone.lat])
+        .setLngLat([quest.lng, quest.lat])
         .addTo(map.current!);
 
-      megaphoneMarkersRef.current.push(marker);
+      questMarkersRef.current.push(marker);
     });
-  }, [filteredMegaphones]);
+  }, [filteredQuests]);
 
   const isTokenMissing = !MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN_HERE';
   const isSelectedUserConnected = selectedUser ? connectedUserIds.has(selectedUser.id) : false;
@@ -831,22 +849,22 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         />
       )}
 
-      <DeployMegaphoneModal
+      <DeployQuestModal
         open={deployModalOpen}
         onOpenChange={setDeployModalOpen}
         coordinates={clickedCoords}
         userId={currentUserId}
         userBaseLat={locationLat ?? userLat}
         userBaseLng={locationLng ?? userLng}
-        onSuccess={fetchMegaphones}
+        onSuccess={fetchQuests}
       />
 
-      <MegaphoneLobby
+      <QuestLobby
         open={lobbyOpen}
         onOpenChange={setLobbyOpen}
-        megaphone={selectedMegaphone}
+        quest={selectedQuest}
         currentUserId={currentUserId}
-        onDelete={fetchMegaphones}
+        onDelete={fetchQuests}
       />
     </>
   );
