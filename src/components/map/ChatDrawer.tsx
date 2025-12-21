@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { format } from 'date-fns';
 import { MessageCircle, User, Send, ChevronLeft, Loader2, Users, Megaphone, Radio } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -12,6 +12,7 @@ import { toast } from '@/hooks/use-toast';
 import { useConnectedUsers } from '@/hooks/useConnectedUsers';
 import { useInvitationRealtime } from '@/hooks/useInvitationRealtime';
 import { useUnreadMessages } from '@/hooks/useUnreadMessages';
+import { useChatUnreadCounts } from '@/hooks/useChatUnreadCounts';
 
 interface ChatMessage {
   id: string;
@@ -54,7 +55,23 @@ const ChatDrawer = ({
   
   const { connectedUsers, getMissionIdForUser, loading, refetch: refetchConnections, getInvitationIdForUser } = useConnectedUsers(currentUserId);
   const { pendingInvitations, pendingCount, refetch: refetchPending } = useInvitationRealtime(currentUserId);
-  const { unreadCount, markInvitationAsRead, markEventAsRead, silentRefetch, optimisticClearForChat } = useUnreadMessages(currentUserId);
+  const { unreadCount, markInvitationAsRead, markEventAsRead, silentRefetch } = useUnreadMessages(currentUserId);
+
+  // Collect all event IDs for per-chat unread counts
+  const allEventIds = useMemo(() => {
+    const ids: string[] = [];
+    // Add mission IDs from connected users (private chats)
+    for (const user of connectedUsers) {
+      if (user.missionId) ids.push(user.missionId);
+    }
+    // Add active mission IDs (public events)
+    for (const mission of activeMissions) {
+      ids.push(mission.id);
+    }
+    return [...new Set(ids)];
+  }, [connectedUsers, activeMissions]);
+
+  const { getUnreadCount: getEventUnreadCount, refetch: refetchUnreadCounts } = useChatUnreadCounts(currentUserId, allEventIds);
 
   // Combine internal and external open states
   const isOpen = externalOpen || internalOpen;
@@ -221,10 +238,6 @@ const ChatDrawer = ({
   };
 
   const handleSelectUser = (userId: string) => {
-    // OPTIMISTIC: Immediately clear unread for this chat (assume reading all)
-    // We estimate based on current unread - in reality this clears for this specific chat
-    optimisticClearForChat(unreadCount > 0 ? Math.max(1, Math.floor(unreadCount / Math.max(1, connectedUsers.length))) : 0);
-    
     setSelectedUser(userId);
     setMessages([]);
     
@@ -237,15 +250,16 @@ const ChatDrawer = ({
     const userMissionId = getMissionIdForUser(userId);
     if (userMissionId) {
       markEventAsRead(userMissionId);
+      // Refetch counts after marking as read
+      setTimeout(() => refetchUnreadCounts(), 500);
     }
   };
 
   const handleOpenMission = (missionId: string) => {
-    // OPTIMISTIC: Immediately clear unread for this mission
-    optimisticClearForChat(unreadCount > 0 ? Math.max(1, Math.floor(unreadCount / Math.max(1, activeMissions.length + connectedUsers.length))) : 0);
-    
     // Background sync: Mark mission as read (fire and forget)
     markEventAsRead(missionId);
+    // Refetch counts after marking as read
+    setTimeout(() => refetchUnreadCounts(), 500);
     
     handleOpenChange(false);
     onOpenMission?.(missionId);
@@ -457,27 +471,47 @@ const ChatDrawer = ({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {connectedUsers.map((user) => (
-                      <button
-                        key={user.id}
-                        onClick={() => handleSelectUser(user.id)}
-                        className="w-full p-3 rounded-lg bg-success/10 border border-success/30 hover:border-success/60 transition-colors flex items-center gap-3"
-                      >
-                        <Avatar className="w-10 h-10 border-2 border-success">
-                          <AvatarImage src={user.avatar_url || undefined} />
-                          <AvatarFallback className="bg-success/20 text-success">
-                            {user.nick?.[0]?.toUpperCase() || '?'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 text-left">
-                          <p className="font-semibold text-sm">{user.nick || 'Unknown'}</p>
-                          <p className="text-xs text-success">Direct Signal</p>
-                        </div>
-                        <Badge variant="outline" className="bg-success/20 text-success border-success/40 text-xs">
-                          Active
-                        </Badge>
-                      </button>
-                    ))}
+                    {connectedUsers.map((user) => {
+                      const userMissionId = getMissionIdForUser(user.id);
+                      const userUnread = userMissionId ? getEventUnreadCount(userMissionId) : 0;
+                      
+                      return (
+                        <button
+                          key={user.id}
+                          onClick={() => handleSelectUser(user.id)}
+                          className="w-full p-3 rounded-lg bg-success/10 border border-success/30 hover:border-success/60 transition-colors flex items-center gap-3"
+                        >
+                          <div className="relative">
+                            <Avatar className="w-10 h-10 border-2 border-success">
+                              <AvatarImage src={user.avatar_url || undefined} />
+                              <AvatarFallback className="bg-success/20 text-success">
+                                {user.nick?.[0]?.toUpperCase() || '?'}
+                              </AvatarFallback>
+                            </Avatar>
+                            {userUnread > 0 && (
+                              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
+                                {userUnread > 9 ? '9+' : userUnread}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 text-left">
+                            <p className={`font-semibold text-sm ${userUnread > 0 ? 'text-foreground' : ''}`}>
+                              {user.nick || 'Unknown'}
+                            </p>
+                            <p className="text-xs text-success">Direct Signal</p>
+                          </div>
+                          {userUnread > 0 ? (
+                            <Badge className="bg-destructive text-destructive-foreground border-destructive text-xs">
+                              {userUnread} new
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-success/20 text-success border-success/40 text-xs">
+                              Active
+                            </Badge>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -509,24 +543,41 @@ const ChatDrawer = ({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {activeMissions.map((mission) => (
-                      <button
-                        key={mission.id}
-                        onClick={() => handleOpenMission(mission.id)}
-                        className="w-full p-3 rounded-lg bg-primary/10 border border-primary/30 hover:border-primary/60 transition-colors flex items-center gap-3"
-                      >
-                        <div className="w-10 h-10 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
-                          <Megaphone className="w-5 h-5 text-primary" />
-                        </div>
-                        <div className="flex-1 text-left">
-                          <p className="font-semibold text-sm">{mission.title}</p>
-                          <p className="text-xs text-primary capitalize">{mission.category}</p>
-                        </div>
-                        <Badge variant="outline" className="bg-primary/20 text-primary border-primary/40 text-xs">
-                          Live
-                        </Badge>
-                      </button>
-                    ))}
+                    {activeMissions.map((mission) => {
+                      const missionUnread = getEventUnreadCount(mission.id);
+                      
+                      return (
+                        <button
+                          key={mission.id}
+                          onClick={() => handleOpenMission(mission.id)}
+                          className="w-full p-3 rounded-lg bg-primary/10 border border-primary/30 hover:border-primary/60 transition-colors flex items-center gap-3"
+                        >
+                          <div className="relative w-10 h-10 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
+                            <Megaphone className="w-5 h-5 text-primary" />
+                            {missionUnread > 0 && (
+                              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
+                                {missionUnread > 9 ? '9+' : missionUnread}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex-1 text-left">
+                            <p className={`font-semibold text-sm ${missionUnread > 0 ? 'text-foreground' : ''}`}>
+                              {mission.title}
+                            </p>
+                            <p className="text-xs text-primary capitalize">{mission.category}</p>
+                          </div>
+                          {missionUnread > 0 ? (
+                            <Badge className="bg-destructive text-destructive-foreground border-destructive text-xs">
+                              {missionUnread} new
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-primary/20 text-primary border-primary/40 text-xs">
+                              Live
+                            </Badge>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
