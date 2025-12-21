@@ -777,22 +777,25 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           width: 56px;
           height: 56px;
           border-radius: 14px;
-          background: rgba(0, 0, 0, 0.9);
+          background: rgba(23, 23, 23, 0.92);
+          backdrop-filter: blur(4px);
+          border: 1px solid rgba(255, 255, 255, 0.15);
           display: flex;
           align-items: center;
           justify-content: center;
           font-size: 36px;
           line-height: 1;
-          animation: quest-glow-pulse 3s ease-in-out infinite;
-          box-shadow: 0 0 8px hsl(var(--category-color) / 0.6);
+          box-shadow: 0 0 10px hsl(var(--category-color) / 0.35);
+          transition: all 0.3s ease-out;
         }
-        @keyframes quest-glow-pulse {
-          0%, 100% {
-            box-shadow: 0 0 5px hsl(var(--category-color) / 0.5);
-          }
-          50% {
-            box-shadow: 0 0 15px hsl(var(--category-color) / 0.8);
-          }
+        .quest-marker:hover .quest-icon {
+          transform: scale(1.1);
+          border-color: rgba(255, 255, 255, 0.4);
+          box-shadow: 0 0 20px hsl(var(--category-color) / 0.6);
+        }
+        .quest-marker:active .quest-icon {
+          transform: scale(1.05);
+          box-shadow: 0 0 24px hsl(var(--category-color) / 0.7);
         }
       `}</style>
       
