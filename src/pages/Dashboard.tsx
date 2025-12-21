@@ -4,12 +4,12 @@ import { useAuth } from "@/hooks/useAuth";
 import TacticalMap, { TacticalMapHandle } from "@/components/map/TacticalMap";
 import MapHUD from "@/components/map/MapHUD";
 import LoadingScreen from "@/components/LoadingScreen";
-import { ActivityCategory, getCategoryInfo } from "@/constants/activities";
+import { getActivityById } from "@/constants/activities";
 
 const Dashboard = () => {
   const { user, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
-  const [activeCategory, setActiveCategory] = useState<ActivityCategory | null>(null);
+  const [activeActivity, setActiveActivity] = useState<string | null>(null);
   const mapRef = useRef<TacticalMapHandle | null>(null);
 
   useEffect(() => {
@@ -26,8 +26,8 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  const handleCategoryChange = (category: ActivityCategory | null) => {
-    setActiveCategory(category);
+  const handleActivityChange = (activity: string | null) => {
+    setActiveActivity(activity);
   };
 
   const handleMissionCreated = () => {
@@ -46,7 +46,7 @@ const Dashboard = () => {
   const userLat = profile.base_lat || 40.7128;
   const userLng = profile.base_lng || -74.006;
 
-  const activeCategoryInfo = activeCategory ? getCategoryInfo(activeCategory) : null;
+  const activeActivityData = activeActivity ? getActivityById(activeActivity) : null;
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background">
@@ -56,28 +56,28 @@ const Dashboard = () => {
         userLat={userLat}
         userLng={userLng}
         currentUserId={user!.id}
-        activeCategory={activeCategory}
+        activeActivity={activeActivity}
       />
 
       {/* HUD Overlay */}
       <MapHUD
         nick={profile.nick || "Operative"}
         avatarUrl={profile.avatar_url}
-        activeCategory={activeCategory}
+        activeActivity={activeActivity}
         currentUserId={user!.id}
-        onCategoryChange={handleCategoryChange}
+        onActivityChange={handleActivityChange}
         onSignOut={handleSignOut}
         onMissionCreated={handleMissionCreated}
         onOpenMission={handleOpenMission}
       />
 
       {/* Filter active indicator */}
-      {activeCategoryInfo && (
-        <div className="absolute top-[120px] md:top-[70px] left-1/2 -translate-x-1/2 z-20">
+      {activeActivityData && (
+        <div className="absolute top-[120px] md:top-[85px] left-1/2 -translate-x-1/2 z-20">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/20 border border-primary/40 backdrop-blur-sm">
-            <span className="text-sm">{activeCategoryInfo.icon}</span>
+            <span className="text-sm">{activeActivityData.icon}</span>
             <span className="font-rajdhani text-xs text-primary font-medium">
-              Filtering: {activeCategoryInfo.label}
+              Filtering: {activeActivityData.label}
             </span>
           </div>
         </div>

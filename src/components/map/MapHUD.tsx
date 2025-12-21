@@ -6,14 +6,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import FilterBar from './FilterBar';
 import MissionLog from './MissionLog';
 import InstallPrompt from '@/components/InstallPrompt';
-import { ActivityCategory } from '@/constants/activities';
 
 interface MapHUDProps {
   nick: string;
   avatarUrl: string | null;
-  activeCategory: ActivityCategory | null;
+  activeActivity: string | null;
   currentUserId: string;
-  onCategoryChange: (category: ActivityCategory | null) => void;
+  onActivityChange: (activity: string | null) => void;
   onSignOut: () => void;
   onMissionCreated?: () => void;
   onOpenMission?: (missionId: string) => void;
@@ -22,9 +21,9 @@ interface MapHUDProps {
 const MapHUD = ({ 
   nick, 
   avatarUrl, 
-  activeCategory, 
+  activeActivity, 
   currentUserId,
-  onCategoryChange, 
+  onActivityChange, 
   onSignOut,
   onMissionCreated,
   onOpenMission,
@@ -47,10 +46,10 @@ const MapHUD = ({
             </div>
 
             {/* Category Filters - Center (desktop only) */}
-            <div className="flex-1 justify-center overflow-x-auto scrollbar-hide hidden md:flex">
+            <div className="flex-1 justify-center overflow-visible hidden md:flex">
               <FilterBar 
-                activeCategory={activeCategory} 
-                onCategoryChange={onCategoryChange} 
+                activeActivity={activeActivity} 
+                onActivityChange={onActivityChange} 
               />
             </div>
 
@@ -137,8 +136,8 @@ const MapHUD = ({
           {/* Mobile Category Filters - Below header */}
           <div className="flex justify-start mt-2 md:hidden">
             <FilterBar 
-              activeCategory={activeCategory} 
-              onCategoryChange={onCategoryChange} 
+              activeActivity={activeActivity} 
+              onActivityChange={onActivityChange} 
             />
           </div>
         </div>
