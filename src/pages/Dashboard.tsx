@@ -11,6 +11,7 @@ const Dashboard = () => {
   const { user, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
   const [activeActivity, setActiveActivity] = useState<string | null>(null);
+  const [chatOpenUserId, setChatOpenUserId] = useState<string | null>(null);
   const mapRef = useRef<TacticalMapHandle | null>(null);
 
   useEffect(() => {
@@ -39,6 +40,17 @@ const Dashboard = () => {
     mapRef.current?.openMissionById(missionId);
   };
 
+  const handleOpenChatWithUser = (userId: string) => {
+    console.log('Dashboard: Opening chat with user:', userId);
+    setChatOpenUserId(userId);
+  };
+
+  const handleChatOpenChange = (open: boolean) => {
+    if (!open) {
+      setChatOpenUserId(null);
+    }
+  };
+
   if (loading || !profile) {
     return <LoadingScreen />;
   }
@@ -58,6 +70,7 @@ const Dashboard = () => {
         userLng={userLng}
         currentUserId={user!.id}
         activeActivity={activeActivity}
+        onOpenChatWithUser={handleOpenChatWithUser}
       />
 
       {/* Navbar - App Navigation */}
@@ -68,6 +81,8 @@ const Dashboard = () => {
         onSignOut={handleSignOut}
         onMissionCreated={handleMissionCreated}
         onOpenMission={handleOpenMission}
+        chatOpenUserId={chatOpenUserId}
+        onChatOpenChange={handleChatOpenChange}
       />
 
       {/* Map Filter HUD - Floating below navbar */}
