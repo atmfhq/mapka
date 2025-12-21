@@ -4,15 +4,41 @@ import { useAuth } from "@/hooks/useAuth";
 import TacticalMap, { TacticalMapHandle } from "@/components/map/TacticalMap";
 import Navbar from "@/components/map/Navbar";
 import MapFilterHUD from "@/components/map/MapFilterHUD";
+import MapHUDControls from "@/components/map/MapHUDControls";
+import RelocateModal from "@/components/map/RelocateModal";
 import LoadingScreen from "@/components/LoadingScreen";
 import { getActivityById } from "@/constants/activities";
 
+interface AvatarConfig {
+  skinColor?: string;
+  shape?: string;
+  eyes?: string;
+  mouth?: string;
+}
+
 const Dashboard = () => {
-  const { user, profile, loading, signOut } = useAuth();
+  const { user, profile, loading, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const [activeActivity, setActiveActivity] = useState<string | null>(null);
   const [chatOpenUserId, setChatOpenUserId] = useState<string | null>(null);
+  const [relocateModalOpen, setRelocateModalOpen] = useState(false);
+  const [currentLocation, setCurrentLocation] = useState<{
+    lat: number | null;
+    lng: number | null;
+    name: string | null;
+  }>({ lat: null, lng: null, name: null });
   const mapRef = useRef<TacticalMapHandle | null>(null);
+
+  // Initialize location from profile
+  useEffect(() => {
+    if (profile) {
+      setCurrentLocation({
+        lat: profile.location_lat ?? profile.base_lat ?? null,
+        lng: profile.location_lng ?? profile.base_lng ?? null,
+        name: profile.location_name ?? null,
+      });
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -55,13 +81,21 @@ const Dashboard = () => {
     setChatOpenUserId(null);
   };
 
+  const handleLocationUpdated = async (lat: number, lng: number, name: string) => {
+    setCurrentLocation({ lat, lng, name });
+    // Fly to new location
+    mapRef.current?.flyTo(lat, lng);
+    // Refresh profile to get updated data
+    await refreshProfile();
+  };
+
   if (loading || !profile) {
     return <LoadingScreen />;
   }
 
-  // Default to a central location if user hasn't set base
-  const userLat = profile.base_lat || 40.7128;
-  const userLng = profile.base_lng || -74.006;
+  // Use location_lat/lng if available, otherwise fall back to base_lat/lng
+  const userLat = currentLocation.lat ?? profile.base_lat ?? 40.7128;
+  const userLng = currentLocation.lng ?? profile.base_lng ?? -74.006;
 
   const activeActivityData = activeActivity ? getActivityById(activeActivity) : null;
 
@@ -74,6 +108,9 @@ const Dashboard = () => {
         userLng={userLng}
         currentUserId={user!.id}
         activeActivity={activeActivity}
+        currentUserAvatarConfig={profile.avatar_config as AvatarConfig | null}
+        locationLat={currentLocation.lat}
+        locationLng={currentLocation.lng}
         onOpenChatWithUser={handleOpenChatWithUser}
         onCloseChat={handleCloseChat}
       />
@@ -94,6 +131,18 @@ const Dashboard = () => {
       <MapFilterHUD
         activeActivity={activeActivity}
         onActivityChange={handleActivityChange}
+      />
+
+      {/* Map HUD Controls - Relocate button */}
+      <MapHUDControls onRelocateClick={() => setRelocateModalOpen(true)} />
+
+      {/* Relocate Modal */}
+      <RelocateModal
+        open={relocateModalOpen}
+        onOpenChange={setRelocateModalOpen}
+        currentUserId={user!.id}
+        currentLocationName={currentLocation.name ?? undefined}
+        onLocationUpdated={handleLocationUpdated}
       />
 
       {/* Filter active indicator - positioned below filter HUD */}

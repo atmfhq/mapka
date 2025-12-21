@@ -49,6 +49,9 @@ interface TacticalMapProps {
   userLng: number;
   currentUserId: string;
   activeActivity: string | null;
+  currentUserAvatarConfig?: AvatarConfig | null;
+  locationLat?: number | null;
+  locationLng?: number | null;
   onOpenChatWithUser?: (userId: string) => void;
   onCloseChat?: () => void;
 }
@@ -56,6 +59,7 @@ interface TacticalMapProps {
 export interface TacticalMapHandle {
   fetchMegaphones: () => void;
   openMissionById: (id: string) => void;
+  flyTo: (lat: number, lng: number) => void;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -84,6 +88,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   userLng, 
   currentUserId, 
   activeActivity,
+  currentUserAvatarConfig,
+  locationLat,
+  locationLng,
   onOpenChatWithUser,
   onCloseChat
 }, ref) => {
@@ -92,6 +99,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const userMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const userMarkerRootsRef = useRef<Root[]>([]);
   const megaphoneMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  const myMarkerRef = useRef<mapboxgl.Marker | null>(null);
+  const myMarkerRootRef = useRef<Root | null>(null);
   
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [megaphones, setMegaphones] = useState<Megaphone[]>([]);
@@ -182,10 +191,22 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     }
   }, []);
 
+  const flyTo = useCallback((lat: number, lng: number) => {
+    if (map.current) {
+      map.current.flyTo({
+        center: [lng, lat],
+        zoom: 14,
+        pitch: 45,
+        duration: 2000,
+      });
+    }
+  }, []);
+
   useImperativeHandle(ref, () => ({
     fetchMegaphones,
     openMissionById,
-  }), [fetchMegaphones, openMissionById]);
+    flyTo,
+  }), [fetchMegaphones, openMissionById, flyTo]);
 
   useEffect(() => {
     fetchMegaphones();
@@ -379,6 +400,63 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     };
   }, [filteredProfiles, currentUserId, connectedUserIds]);
 
+  // Render "My Avatar" marker at current location
+  useEffect(() => {
+    if (!map.current) return;
+
+    // Clean up previous marker
+    if (myMarkerRootRef.current) {
+      myMarkerRootRef.current.unmount();
+      myMarkerRootRef.current = null;
+    }
+    if (myMarkerRef.current) {
+      myMarkerRef.current.remove();
+      myMarkerRef.current = null;
+    }
+
+    // Use location_lat/lng if available, otherwise fall back to base_lat/lng
+    const myLat = locationLat ?? userLat;
+    const myLng = locationLng ?? userLng;
+
+    if (!myLat || !myLng) return;
+
+    const el = document.createElement('div');
+    el.className = 'my-marker';
+    
+    const container = document.createElement('div');
+    container.className = 'my-marker-container';
+    el.appendChild(container);
+    
+    const root = createRoot(container);
+    root.render(
+      <div className="my-avatar-wrapper">
+        <div className="my-avatar-pulse" />
+        <div className="my-avatar-pulse delay-1" />
+        <div className="my-avatar-ring">
+          <AvatarDisplay 
+            config={currentUserAvatarConfig} 
+            size={48} 
+            showGlow={false}
+          />
+        </div>
+      </div>
+    );
+    myMarkerRootRef.current = root;
+
+    const marker = new mapboxgl.Marker({ element: el })
+      .setLngLat([myLng, myLat])
+      .addTo(map.current!);
+
+    myMarkerRef.current = marker;
+
+    return () => {
+      if (myMarkerRootRef.current) {
+        myMarkerRootRef.current.unmount();
+        myMarkerRootRef.current = null;
+      }
+    };
+  }, [locationLat, locationLng, userLat, userLng, currentUserAvatarConfig]);
+
   // Render megaphone markers (public only)
   useEffect(() => {
     if (!map.current) return;
@@ -435,6 +513,53 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           position: relative;
           width: 40px;
           height: 40px;
+        }
+        .my-marker {
+          z-index: 1000 !important;
+        }
+        .my-marker-container {
+          position: relative;
+          width: 64px;
+          height: 64px;
+        }
+        .my-avatar-wrapper {
+          position: relative;
+          width: 64px;
+          height: 64px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .my-avatar-pulse {
+          position: absolute;
+          inset: 0;
+          border-radius: 50%;
+          border: 2px solid #fbbf24;
+          animation: my-pulse-expand 2s ease-out infinite;
+        }
+        .my-avatar-pulse.delay-1 {
+          animation-delay: 1s;
+        }
+        @keyframes my-pulse-expand {
+          0% {
+            transform: scale(0.75);
+            opacity: 1;
+          }
+          100% {
+            transform: scale(1.5);
+            opacity: 0;
+          }
+        }
+        .my-avatar-ring {
+          position: relative;
+          z-index: 2;
+          width: 52px;
+          height: 52px;
+          border-radius: 50%;
+          overflow: hidden;
+          border: 3px solid #fbbf24;
+          box-shadow: 0 0 20px rgba(251, 191, 36, 0.6), 0 0 40px rgba(251, 191, 36, 0.3);
+          background: hsl(var(--background));
         }
         .megaphone-marker {
           cursor: pointer;
