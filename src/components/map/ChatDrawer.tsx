@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useConnectedUsers } from '@/hooks/useConnectedUsers';
 import { useInvitationRealtime } from '@/hooks/useInvitationRealtime';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 
 interface ChatMessage {
   id: string;
@@ -51,8 +52,9 @@ const ChatDrawer = ({
   const [loadingMissions, setLoadingMissions] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  const { connectedUsers, getMissionIdForUser, loading, refetch: refetchConnections } = useConnectedUsers(currentUserId);
+  const { connectedUsers, getMissionIdForUser, loading, refetch: refetchConnections, getInvitationIdForUser } = useConnectedUsers(currentUserId);
   const { pendingInvitations, pendingCount, refetch: refetchPending } = useInvitationRealtime(currentUserId);
+  const { unreadCount, markInvitationAsRead, markEventAsRead, refetch: refetchUnread } = useUnreadMessages(currentUserId);
 
   // Combine internal and external open states
   const isOpen = externalOpen || internalOpen;
@@ -219,9 +221,24 @@ const ChatDrawer = ({
   const handleSelectUser = (userId: string) => {
     setSelectedUser(userId);
     setMessages([]);
+    
+    // Mark chat as read when opening
+    const invitationId = getInvitationIdForUser(userId);
+    if (invitationId) {
+      markInvitationAsRead(invitationId);
+    }
+    
+    // Also mark via missionId for event_participants
+    const userMissionId = getMissionIdForUser(userId);
+    if (userMissionId) {
+      markEventAsRead(userMissionId);
+    }
   };
 
   const handleOpenMission = (missionId: string) => {
+    // Mark mission as read when opening
+    markEventAsRead(missionId);
+    
     handleOpenChange(false);
     onOpenMission?.(missionId);
   };
@@ -281,8 +298,8 @@ const ChatDrawer = ({
     refetchPending();
   };
 
-  // Badge shows pending invitations + active connections + missions
-  const totalBadgeCount = pendingCount + connectedUsers.length + activeMissions.length;
+  // Badge shows pending invitations + unread messages
+  const totalBadgeCount = pendingCount + unreadCount;
 
   return (
     <Sheet open={isOpen} onOpenChange={handleOpenChange}>
@@ -298,9 +315,9 @@ const ChatDrawer = ({
             <span className={`absolute top-1 right-1 w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center ${
               pendingCount > 0 
                 ? 'bg-warning text-warning-foreground animate-pulse' 
-                : 'bg-success text-success-foreground'
+                : 'bg-destructive text-destructive-foreground'
             }`}>
-              {totalBadgeCount}
+              {totalBadgeCount > 99 ? '99+' : totalBadgeCount}
             </span>
           )}
         </Button>
