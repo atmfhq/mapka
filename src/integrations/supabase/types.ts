@@ -171,6 +171,9 @@ export type Database = {
           created_at: string | null
           id: string
           is_onboarded: boolean | null
+          location_lat: number | null
+          location_lng: number | null
+          location_name: string | null
           nick: string | null
           tags: string[] | null
           updated_at: string | null
@@ -184,6 +187,9 @@ export type Database = {
           created_at?: string | null
           id: string
           is_onboarded?: boolean | null
+          location_lat?: number | null
+          location_lng?: number | null
+          location_name?: string | null
           nick?: string | null
           tags?: string[] | null
           updated_at?: string | null
@@ -197,6 +203,9 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_onboarded?: boolean | null
+          location_lat?: number | null
+          location_lng?: number | null
+          location_name?: string | null
           nick?: string | null
           tags?: string[] | null
           updated_at?: string | null
