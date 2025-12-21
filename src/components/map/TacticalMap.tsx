@@ -248,20 +248,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
       // Create React root and render AvatarDisplay
       const root = createRoot(container);
       root.render(
-        <div className="relative w-12 h-12">
-          <div className="marker-ring absolute inset-0 rounded-full border-2 border-primary" 
-               style={{ 
-                 boxShadow: '0 0 12px hsl(var(--primary) / 0.6), inset 0 0 8px hsl(var(--primary) / 0.3)',
-                 animation: 'pulse-ring 2s ease-in-out infinite'
-               }} 
+        <div className="w-10 h-10 rounded-full overflow-hidden border border-white/60 bg-background">
+          <AvatarDisplay 
+            config={profile.avatar_config} 
+            size={40} 
+            showGlow={false}
           />
-          <div className="absolute inset-1">
-            <AvatarDisplay 
-              config={profile.avatar_config} 
-              size={40} 
-              showGlow={false}
-            />
-          </div>
         </div>
       );
       userMarkerRootsRef.current.push(root);
@@ -346,12 +338,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
         }
         .marker-container {
           position: relative;
-          width: 48px;
-          height: 48px;
-        }
-        @keyframes pulse-ring {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.7; transform: scale(1.1); }
+          width: 40px;
+          height: 40px;
         }
 
         /* Megaphone Marker Styles */
