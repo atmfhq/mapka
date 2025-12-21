@@ -102,7 +102,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [lobbyOpen, setLobbyOpen] = useState(false);
 
   // Get connected users
-  const { connectedUserIds } = useConnectedUsers(currentUserId);
+  const { connectedUserIds, getInvitationIdForUser, refetch: refetchConnections } = useConnectedUsers(currentUserId);
 
   const activeActivityData = activeActivity ? getActivityById(activeActivity) : null;
   const activeActivityLabel = activeActivityData?.label?.toLowerCase();
@@ -357,6 +357,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
   const isTokenMissing = !MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN_HERE';
   const isSelectedUserConnected = selectedUser ? connectedUserIds.has(selectedUser.id) : false;
+  const selectedUserInvitationId = selectedUser ? getInvitationIdForUser(selectedUser.id) : undefined;
 
   return (
     <>
@@ -436,11 +437,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           position={popupPosition}
           currentUserId={currentUserId}
           isConnected={isSelectedUserConnected}
+          invitationId={selectedUserInvitationId}
           onClose={() => {
             setSelectedUser(null);
             setPopupPosition(null);
           }}
           onOpenChat={onOpenChatWithUser}
+          onDisconnect={refetchConnections}
         />
       )}
 
