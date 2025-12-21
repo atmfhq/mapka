@@ -168,8 +168,8 @@ const DeployMegaphoneModal = ({
         {/* Tactical header */}
         <DialogHeader className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-destructive/20 border border-destructive/40">
-              <Megaphone className="w-6 h-6 text-destructive" />
+            <div className="p-2 rounded-lg bg-warning/20 border border-warning/40">
+              <Megaphone className="w-6 h-6 text-warning" />
             </div>
             <div>
               <DialogTitle className="font-orbitron text-xl tracking-wide">
@@ -386,7 +386,7 @@ const DeployMegaphoneModal = ({
               <span className="animate-pulse">DEPLOYING...</span>
             ) : (
               <>
-                <Megaphone className="w-5 h-5 mr-2 text-destructive" />
+                <Megaphone className="w-5 h-5 mr-2" />
                 DEPLOY MEGAPHONE
               </>
             )}
