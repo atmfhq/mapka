@@ -218,6 +218,10 @@ export type Database = {
         }
         Returns: string
       }
+      can_message_in_event: {
+        Args: { p_event_id: string; p_user_id: string }
+        Returns: boolean
+      }
       can_view_megaphone: {
         Args: {
           megaphone_row: Database["public"]["Tables"]["megaphones"]["Row"]

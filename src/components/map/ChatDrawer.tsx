@@ -227,11 +227,24 @@ const ChatDrawer = ({
 
     setSending(false);
     if (error) {
-      toast({
-        title: 'Failed to send message',
-        description: error.message,
-        variant: 'destructive',
-      });
+      // Check if it's a policy violation (connection terminated)
+      if (error.message.includes('row-level security') || error.code === '42501') {
+        toast({
+          title: 'Connection Terminated',
+          description: 'This connection has ended. Send a new signal to reconnect.',
+          variant: 'destructive',
+        });
+        // Go back to list view
+        setSelectedUser(null);
+        setMessages([]);
+        refetchConnections();
+      } else {
+        toast({
+          title: 'Failed to send message',
+          description: error.message,
+          variant: 'destructive',
+        });
+      }
     } else {
       setNewMessage('');
     }
