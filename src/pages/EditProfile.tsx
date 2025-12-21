@@ -5,45 +5,30 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import TacticalCard from "@/components/TacticalCard";
-import InterestChip from "@/components/InterestChip";
-import AvatarSelector from "@/components/AvatarSelector";
+import InterestSelector from "@/components/InterestSelector";
+import AvatarBuilder from "@/components/avatar/AvatarBuilder";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ACTIVITIES } from "@/constants/activities";
+import type { Json } from "@/integrations/supabase/types";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   ChevronLeft,
   Loader2,
   Save,
   Target,
-  Shield
+  Shield,
+  Heart,
+  Sparkles
 } from "lucide-react";
 
-// Preset avatars - cyberpunk/tactical themed
-const AVATAR_OPTIONS = [
-  { id: "ghost", url: "https://api.dicebear.com/7.x/bottts-neutral/svg?seed=ghost&backgroundColor=0a0a0a", label: "Ghost" },
-  { id: "cipher", url: "https://api.dicebear.com/7.x/bottts-neutral/svg?seed=cipher&backgroundColor=0a0a0a", label: "Cipher" },
-  { id: "phantom", url: "https://api.dicebear.com/7.x/bottts-neutral/svg?seed=phantom&backgroundColor=0a0a0a", label: "Phantom" },
-  { id: "spectre", url: "https://api.dicebear.com/7.x/bottts-neutral/svg?seed=spectre&backgroundColor=0a0a0a", label: "Spectre" },
-  { id: "nomad", url: "https://api.dicebear.com/7.x/bottts-neutral/svg?seed=nomad&backgroundColor=0a0a0a", label: "Nomad" },
-];
-
-// Interest tags (will be replaced with activities.ts in future)
-const INTEREST_OPTIONS = [
-  { id: "gaming", label: "Gaming", icon: "🎮" },
-  { id: "sport", label: "Sport", icon: "⚽" },
-  { id: "coding", label: "Coding", icon: "💻" },
-  { id: "coffee", label: "Coffee", icon: "☕" },
-  { id: "music", label: "Music", icon: "🎵" },
-  { id: "rpg", label: "RPG", icon: "🎲" },
-  { id: "nightlife", label: "Nightlife", icon: "🌙" },
-  { id: "fitness", label: "Fitness", icon: "💪" },
-  { id: "chess", label: "Chess", icon: "♟️" },
-  { id: "running", label: "Running", icon: "🏃" },
-  { id: "photography", label: "Photo", icon: "📸" },
-  { id: "art", label: "Art", icon: "🎨" },
-];
-
-const MAX_TAGS = 5;
+interface AvatarConfig {
+  skinColor?: string;
+  shape?: string;
+  eyes?: string;
+  mouth?: string;
+}
 
 const EditProfile = () => {
   const [loading, setLoading] = useState(false);
@@ -52,8 +37,13 @@ const EditProfile = () => {
   // Form state
   const [nick, setNick] = useState("");
   const [bio, setBio] = useState("");
-  const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>({
+    skinColor: "cyan",
+    shape: "circle",
+    eyes: "normal",
+    mouth: "smile",
+  });
   
   const { user, profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
@@ -65,28 +55,26 @@ const EditProfile = () => {
       setNick(profile.nick || "");
       setBio(profile.bio || "");
       
-      // Find avatar by URL
-      const avatarOption = AVATAR_OPTIONS.find(a => a.url === profile.avatar_url);
-      setSelectedAvatar(avatarOption?.id || null);
+      // Load avatar config
+      if (profile.avatar_config) {
+        setAvatarConfig({
+          skinColor: profile.avatar_config.skinColor || "cyan",
+          shape: profile.avatar_config.shape || "circle",
+          eyes: profile.avatar_config.eyes || "normal",
+          mouth: profile.avatar_config.mouth || "smile",
+        });
+      }
       
       // Map tag labels back to IDs
       const tagIds = (profile.tags || []).map(label => {
-        const option = INTEREST_OPTIONS.find(o => o.label === label);
-        return option?.id || label;
-      }).filter(id => INTEREST_OPTIONS.some(o => o.id === id));
+        const activity = ACTIVITIES.find(a => a.label === label);
+        return activity?.id || null;
+      }).filter((id): id is string => id !== null);
       setSelectedTags(tagIds);
       
       setInitialLoading(false);
     }
   }, [profile]);
-
-  const toggleTag = (tagId: string) => {
-    if (selectedTags.includes(tagId)) {
-      setSelectedTags(selectedTags.filter((t) => t !== tagId));
-    } else if (selectedTags.length < MAX_TAGS) {
-      setSelectedTags([...selectedTags, tagId]);
-    }
-  };
 
   const handleSubmit = async () => {
     if (!nick.trim()) {
@@ -102,9 +90,9 @@ const EditProfile = () => {
 
     setLoading(true);
     try {
-      const avatarUrl = AVATAR_OPTIONS.find((a) => a.id === selectedAvatar)?.url || profile?.avatar_url || null;
+      // Map activity IDs to labels
       const tagLabels = selectedTags.map(
-        (id) => INTEREST_OPTIONS.find((t) => t.id === id)?.label || id
+        (id) => ACTIVITIES.find((a) => a.id === id)?.label || id
       );
 
       const { error } = await supabase
@@ -112,7 +100,7 @@ const EditProfile = () => {
         .update({
           nick: nick.trim(),
           bio: bio.trim() || null,
-          avatar_url: avatarUrl,
+          avatar_config: avatarConfig as Json,
           tags: tagLabels,
         })
         .eq("id", user.id);
@@ -166,75 +154,73 @@ const EditProfile = () => {
           </p>
         </div>
 
-        {/* Edit Form */}
+        {/* Edit Form with Tabs */}
         <TacticalCard className="mb-6">
-          <div className="space-y-6 animate-fade-in-up">
-            <div className="flex items-center gap-2 mb-4">
-              <Shield className="w-5 h-5 text-primary" />
-              <h2 className="font-orbitron text-lg font-semibold">Identity Protocol</h2>
-            </div>
+          <Tabs defaultValue="identity" className="w-full">
+            <TabsList className="grid grid-cols-3 w-full bg-muted/50 mb-6">
+              <TabsTrigger value="identity" className="gap-1.5 text-xs">
+                <Shield className="w-4 h-4" />
+                <span className="hidden sm:inline">Identity</span>
+              </TabsTrigger>
+              <TabsTrigger value="interests" className="gap-1.5 text-xs">
+                <Heart className="w-4 h-4" />
+                <span className="hidden sm:inline">Interests</span>
+              </TabsTrigger>
+              <TabsTrigger value="appearance" className="gap-1.5 text-xs">
+                <Sparkles className="w-4 h-4" />
+                <span className="hidden sm:inline">Avatar</span>
+              </TabsTrigger>
+            </TabsList>
 
-            {/* Nickname */}
-            <div className="space-y-2">
-              <Label htmlFor="nick" className="font-mono text-xs uppercase text-muted-foreground">
-                Callsign / Nickname *
-              </Label>
-              <Input
-                id="nick"
-                value={nick}
-                onChange={(e) => setNick(e.target.value)}
-                placeholder="Enter your callsign"
-                maxLength={30}
-                className="bg-muted/50 border-border focus:border-primary font-rajdhani"
-              />
-            </div>
-
-            {/* Bio */}
-            <div className="space-y-2">
-              <Label htmlFor="bio" className="font-mono text-xs uppercase text-muted-foreground">
-                Bio ({bio.length}/150)
-              </Label>
-              <Textarea
-                id="bio"
-                value={bio}
-                onChange={(e) => setBio(e.target.value.slice(0, 150))}
-                placeholder="Brief description of your mission objectives..."
-                rows={3}
-                className="bg-muted/50 border-border focus:border-primary font-rajdhani resize-none"
-              />
-            </div>
-
-            {/* Avatar Selection */}
-            <div className="space-y-3">
-              <Label className="font-mono text-xs uppercase text-muted-foreground">
-                Select Avatar
-              </Label>
-              <AvatarSelector
-                options={AVATAR_OPTIONS}
-                selected={selectedAvatar}
-                onSelect={setSelectedAvatar}
-              />
-            </div>
-
-            {/* Interest Tags */}
-            <div className="space-y-3">
-              <Label className="font-mono text-xs uppercase text-muted-foreground">
-                Interests ({selectedTags.length}/{MAX_TAGS})
-              </Label>
-              <div className="flex flex-wrap gap-2">
-                {INTEREST_OPTIONS.map((interest) => (
-                  <InterestChip
-                    key={interest.id}
-                    label={interest.label}
-                    icon={interest.icon}
-                    selected={selectedTags.includes(interest.id)}
-                    disabled={selectedTags.length >= MAX_TAGS}
-                    onClick={() => toggleTag(interest.id)}
-                  />
-                ))}
+            {/* Identity Tab */}
+            <TabsContent value="identity" className="space-y-6 animate-fade-in-up">
+              {/* Nickname */}
+              <div className="space-y-2">
+                <Label htmlFor="nick" className="font-mono text-xs uppercase text-muted-foreground">
+                  Callsign / Nickname *
+                </Label>
+                <Input
+                  id="nick"
+                  value={nick}
+                  onChange={(e) => setNick(e.target.value)}
+                  placeholder="Enter your callsign"
+                  maxLength={30}
+                  className="bg-muted/50 border-border focus:border-primary font-rajdhani"
+                />
               </div>
-            </div>
-          </div>
+
+              {/* Bio */}
+              <div className="space-y-2">
+                <Label htmlFor="bio" className="font-mono text-xs uppercase text-muted-foreground">
+                  Bio ({bio.length}/150)
+                </Label>
+                <Textarea
+                  id="bio"
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value.slice(0, 150))}
+                  placeholder="Brief description of your mission objectives..."
+                  rows={3}
+                  className="bg-muted/50 border-border focus:border-primary font-rajdhani resize-none"
+                />
+              </div>
+            </TabsContent>
+
+            {/* Interests Tab */}
+            <TabsContent value="interests" className="animate-fade-in-up max-h-[50vh] overflow-y-auto">
+              <InterestSelector 
+                selected={selectedTags}
+                onChange={setSelectedTags}
+              />
+            </TabsContent>
+
+            {/* Appearance Tab */}
+            <TabsContent value="appearance" className="animate-fade-in-up max-h-[50vh] overflow-y-auto">
+              <AvatarBuilder 
+                initialConfig={avatarConfig}
+                onChange={setAvatarConfig}
+              />
+            </TabsContent>
+          </Tabs>
         </TacticalCard>
 
         {/* Navigation */}
