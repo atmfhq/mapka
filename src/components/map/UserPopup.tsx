@@ -2,12 +2,21 @@ import { useState } from 'react';
 import { X, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SendInviteModal from './SendInviteModal';
+import AvatarDisplay from '@/components/avatar/AvatarDisplay';
+
+interface AvatarConfig {
+  skinColor?: string;
+  shape?: string;
+  eyes?: string;
+  mouth?: string;
+}
 
 interface UserPopupProps {
   user: {
     id: string;
     nick: string | null;
     avatar_url: string | null;
+    avatar_config: AvatarConfig | null;
     tags: string[] | null;
     bio: string | null;
   };
@@ -47,11 +56,13 @@ const UserPopup = ({ user, position, currentUserId, onClose }: UserPopupProps) =
 
           {/* Content */}
           <div className="flex items-start gap-3">
-            <img 
-              src={user.avatar_url || '/placeholder.svg'} 
-              alt={user.nick || 'User'}
-              className="w-14 h-14 rounded-lg border-2 border-primary/40 object-cover"
-            />
+            <div className="w-14 h-14 rounded-lg border-2 border-primary/40 overflow-hidden flex items-center justify-center bg-background">
+              <AvatarDisplay 
+                config={user.avatar_config} 
+                size={52} 
+                showGlow={false}
+              />
+            </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-orbitron font-bold text-primary truncate">
                 {user.nick || 'Unknown Operative'}
