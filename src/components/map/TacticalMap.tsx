@@ -191,6 +191,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
   // Realtime subscription for megaphones (INSERT, UPDATE, DELETE)
   useEffect(() => {
+    console.log('Setting up megaphones realtime subscription...');
+    
     const channel = supabase
       .channel('megaphones-realtime')
       .on(
@@ -201,11 +203,15 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           table: 'megaphones',
         },
         (payload) => {
-          console.log('New megaphone inserted:', payload.new);
+          console.log('🔔 Realtime: New megaphone inserted:', payload.new);
           const newMegaphone = payload.new as Megaphone;
           // Only add public megaphones
           if (!newMegaphone.is_private) {
-            setMegaphones(prev => [...prev, newMegaphone]);
+            setMegaphones(prev => {
+              // Avoid duplicates
+              if (prev.some(m => m.id === newMegaphone.id)) return prev;
+              return [...prev, newMegaphone];
+            });
           }
         }
       )
@@ -217,7 +223,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           table: 'megaphones',
         },
         (payload) => {
-          console.log('Megaphone updated:', payload.new);
+          console.log('🔔 Realtime: Megaphone updated:', payload.new);
           const updatedMegaphone = payload.new as Megaphone;
           setMegaphones(prev => 
             prev.map(m => m.id === updatedMegaphone.id ? updatedMegaphone : m)
@@ -232,14 +238,17 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           table: 'megaphones',
         },
         (payload) => {
-          console.log('Megaphone deleted:', payload.old);
+          console.log('🔔 Realtime: Megaphone deleted:', payload.old);
           const deletedId = (payload.old as { id: string }).id;
           setMegaphones(prev => prev.filter(m => m.id !== deletedId));
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Megaphones realtime subscription status:', status);
+      });
 
     return () => {
+      console.log('Cleaning up megaphones realtime subscription');
       supabase.removeChannel(channel);
     };
   }, []);
