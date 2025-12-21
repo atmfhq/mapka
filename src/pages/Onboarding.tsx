@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,9 +62,16 @@ const Onboarding = () => {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   
-  const { user, refreshProfile } = useAuth();
+  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Redirect already onboarded users to dashboard
+  useEffect(() => {
+    if (!authLoading && profile?.is_onboarded) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [authLoading, profile, navigate]);
 
   const steps = [
     { label: "Identity", icon: <User className="w-6 h-6" /> },

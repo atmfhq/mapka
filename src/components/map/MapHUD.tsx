@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Target, LogOut, Settings } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Target, LogOut, Settings, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import CategoryFilter from './CategoryFilter';
@@ -100,6 +101,17 @@ const MapHUD = ({
                   </SheetHeader>
                   
                   <div className="py-4 space-y-3">
+                    {/* Edit Profile Button */}
+                    <Link to="/profile/edit" onClick={() => setSettingsOpen(false)}>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-3 border-primary/30 text-primary hover:bg-primary/10 min-h-[48px]"
+                      >
+                        <UserCog className="w-5 h-5" />
+                        <span className="font-medium">Edit Profile</span>
+                      </Button>
+                    </Link>
+                    
                     {/* Install App Button */}
                     <InstallPrompt />
                     
