@@ -3,36 +3,31 @@ import { Link } from 'react-router-dom';
 import { Target, LogOut, Settings, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import FilterBar from './FilterBar';
 import MissionLog from './MissionLog';
 import InstallPrompt from '@/components/InstallPrompt';
 
-interface MapHUDProps {
+interface NavbarProps {
   nick: string;
   avatarUrl: string | null;
-  activeActivity: string | null;
   currentUserId: string;
-  onActivityChange: (activity: string | null) => void;
   onSignOut: () => void;
   onMissionCreated?: () => void;
   onOpenMission?: (missionId: string) => void;
 }
 
-const MapHUD = ({ 
+const Navbar = ({ 
   nick, 
   avatarUrl, 
-  activeActivity, 
   currentUserId,
-  onActivityChange, 
   onSignOut,
   onMissionCreated,
   onOpenMission,
-}: MapHUDProps) => {
+}: NavbarProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
-    <header className="absolute top-0 left-0 right-0 z-20 pointer-events-none safe-area-top">
-      <div className="bg-background/80 backdrop-blur-md border-b border-border/50 pointer-events-auto">
+    <header className="absolute top-0 left-0 right-0 z-30 pointer-events-none safe-area-top">
+      <div className="bg-background/90 backdrop-blur-md border-b border-border/50 pointer-events-auto">
         <div className="container mx-auto px-3 sm:px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             {/* Logo */}
@@ -45,17 +40,9 @@ const MapHUD = ({
               </span>
             </div>
 
-            {/* Category Filters - Center (desktop only) */}
-            <div className="flex-1 justify-center overflow-visible hidden md:flex">
-              <FilterBar 
-                activeActivity={activeActivity} 
-                onActivityChange={onActivityChange} 
-              />
-            </div>
-
             {/* User Controls */}
             <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-              {/* Mission Log - 44px touch target */}
+              {/* Mission Log */}
               <MissionLog 
                 currentUserId={currentUserId}
                 onMissionCreated={onMissionCreated}
@@ -101,7 +88,6 @@ const MapHUD = ({
                   </SheetHeader>
                   
                   <div className="py-4 space-y-3">
-                    {/* Edit Profile Button */}
                     <Link to="/profile/edit" onClick={() => setSettingsOpen(false)}>
                       <Button
                         variant="outline"
@@ -112,10 +98,8 @@ const MapHUD = ({
                       </Button>
                     </Link>
                     
-                    {/* Install App Button */}
                     <InstallPrompt />
                     
-                    {/* Sign Out */}
                     <Button
                       onClick={() => {
                         setSettingsOpen(false);
@@ -132,18 +116,10 @@ const MapHUD = ({
               </Sheet>
             </div>
           </div>
-          
-          {/* Mobile Category Filters - Below header */}
-          <div className="flex justify-start mt-2 md:hidden">
-            <FilterBar 
-              activeActivity={activeActivity} 
-              onActivityChange={onActivityChange} 
-            />
-          </div>
         </div>
       </div>
     </header>
   );
 };
 
-export default MapHUD;
+export default Navbar;

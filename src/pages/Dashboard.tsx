@@ -2,7 +2,8 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import TacticalMap, { TacticalMapHandle } from "@/components/map/TacticalMap";
-import MapHUD from "@/components/map/MapHUD";
+import Navbar from "@/components/map/Navbar";
+import MapFilterHUD from "@/components/map/MapFilterHUD";
 import LoadingScreen from "@/components/LoadingScreen";
 import { getActivityById } from "@/constants/activities";
 
@@ -59,21 +60,25 @@ const Dashboard = () => {
         activeActivity={activeActivity}
       />
 
-      {/* HUD Overlay */}
-      <MapHUD
+      {/* Navbar - App Navigation */}
+      <Navbar
         nick={profile.nick || "Operative"}
         avatarUrl={profile.avatar_url}
-        activeActivity={activeActivity}
         currentUserId={user!.id}
-        onActivityChange={handleActivityChange}
         onSignOut={handleSignOut}
         onMissionCreated={handleMissionCreated}
         onOpenMission={handleOpenMission}
       />
 
-      {/* Filter active indicator */}
+      {/* Map Filter HUD - Floating below navbar */}
+      <MapFilterHUD
+        activeActivity={activeActivity}
+        onActivityChange={handleActivityChange}
+      />
+
+      {/* Filter active indicator - positioned below filter HUD */}
       {activeActivityData && (
-        <div className="absolute top-[120px] md:top-[85px] left-1/2 -translate-x-1/2 z-20">
+        <div className="absolute top-[140px] md:top-[130px] left-1/2 -translate-x-1/2 z-20">
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/20 border border-primary/40 backdrop-blur-sm">
             <span className="text-sm">{activeActivityData.icon}</span>
             <span className="font-rajdhani text-xs text-primary font-medium">
