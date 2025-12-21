@@ -14,7 +14,8 @@ interface NavbarProps {
   onSignOut: () => void;
   onMissionCreated?: () => void;
   onOpenMission?: (missionId: string) => void;
-  onOpenChatWithUser?: (userId: string) => void;
+  chatOpenUserId?: string | null;
+  onChatOpenChange?: (open: boolean) => void;
 }
 
 const Navbar = ({ 
@@ -24,7 +25,8 @@ const Navbar = ({
   onSignOut,
   onMissionCreated,
   onOpenMission,
-  onOpenChatWithUser,
+  chatOpenUserId,
+  onChatOpenChange,
 }: NavbarProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -54,6 +56,9 @@ const Navbar = ({
               {/* Chats (Active Connections) */}
               <ChatDrawer 
                 currentUserId={currentUserId}
+                externalOpen={!!chatOpenUserId}
+                externalUserId={chatOpenUserId}
+                onOpenChange={onChatOpenChange}
               />
 
               {/* Settings Menu */}

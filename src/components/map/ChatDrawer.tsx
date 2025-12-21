@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
-import { MessageCircle, User, X, Send, ChevronLeft } from 'lucide-react';
+import { MessageCircle, User, X, Send, ChevronLeft, Loader2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,27 +20,36 @@ interface ChatMessage {
 
 interface ChatDrawerProps {
   currentUserId: string;
-  initialOpenUserId?: string | null;
+  externalOpen?: boolean;
+  externalUserId?: string | null;
   onOpenChange?: (open: boolean) => void;
 }
 
-const ChatDrawer = ({ currentUserId, initialOpenUserId, onOpenChange }: ChatDrawerProps) => {
-  const [open, setOpen] = useState(false);
+const ChatDrawer = ({ currentUserId, externalOpen, externalUserId, onOpenChange }: ChatDrawerProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
-  const [sharedMissionId, setSharedMissionId] = useState<string | null>(null);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
   
-  const { connectedUsers, disconnectUser } = useConnectedUsers(currentUserId);
+  const { connectedUsers, disconnectUser, getMissionIdForUser, loading } = useConnectedUsers(currentUserId);
 
-  // Handle initial open user
+  // Use external open state if provided
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = (value: boolean) => {
+    setInternalOpen(value);
+    onOpenChange?.(value);
+  };
+
+  // Handle external user selection (from map click)
   useEffect(() => {
-    if (initialOpenUserId) {
-      setSelectedUser(initialOpenUserId);
-      setOpen(true);
+    if (externalUserId && externalOpen) {
+      console.log('ChatDrawer: Opening for external user:', externalUserId);
+      setSelectedUser(externalUserId);
     }
-  }, [initialOpenUserId]);
+  }, [externalUserId, externalOpen]);
 
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
@@ -48,85 +57,61 @@ const ChatDrawer = ({ currentUserId, initialOpenUserId, onOpenChange }: ChatDraw
       setSelectedUser(null);
       setMessages([]);
     }
-    onOpenChange?.(isOpen);
   };
 
   const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
+  const missionId = selectedUser ? getMissionIdForUser(selectedUser) : null;
 
-  // Find shared private mission between current user and selected user
-  const findSharedMission = useCallback(async () => {
-    if (!selectedUser) return;
+  console.log('ChatDrawer state:', { 
+    selectedUser, 
+    missionId, 
+    connectedUsers: connectedUsers.length,
+    selectedUserData 
+  });
 
-    // Find private megaphones where both users are participants
-    const { data: participations } = await supabase
-      .from('event_participants')
-      .select('event_id')
-      .eq('user_id', currentUserId)
-      .eq('status', 'joined');
-
-    if (!participations?.length) return;
-
-    const eventIds = participations.map(p => p.event_id);
-
-    // Check which of these events the selected user is also in
-    const { data: sharedParticipations } = await supabase
-      .from('event_participants')
-      .select('event_id')
-      .eq('user_id', selectedUser)
-      .eq('status', 'joined')
-      .in('event_id', eventIds);
-
-    if (sharedParticipations?.length) {
-      // Get the private mission
-      const { data: mission } = await supabase
-        .from('megaphones')
-        .select('id')
-        .eq('id', sharedParticipations[0].event_id)
-        .eq('is_private', true)
-        .maybeSingle();
-
-      if (mission) {
-        setSharedMissionId(mission.id);
-      }
-    }
-  }, [currentUserId, selectedUser]);
-
-  // Fetch messages for the shared mission
+  // Fetch messages for the mission
   const fetchMessages = useCallback(async () => {
-    if (!sharedMissionId) return;
+    if (!missionId) {
+      console.log('ChatDrawer: No missionId, skipping message fetch');
+      return;
+    }
 
-    const { data } = await supabase
+    setLoadingMessages(true);
+    console.log('ChatDrawer: Fetching messages for mission:', missionId);
+
+    const { data, error } = await supabase
       .from('event_chat_messages')
       .select('id, content, user_id, created_at')
-      .eq('event_id', sharedMissionId)
+      .eq('event_id', missionId)
       .order('created_at', { ascending: true });
+
+    console.log('ChatDrawer: Messages fetched:', data, 'Error:', error);
 
     if (data) {
       setMessages(data);
     }
-  }, [sharedMissionId]);
+    setLoadingMessages(false);
+  }, [missionId]);
 
   useEffect(() => {
-    findSharedMission();
-  }, [findSharedMission]);
-
-  useEffect(() => {
-    fetchMessages();
-  }, [fetchMessages]);
+    if (selectedUser && missionId) {
+      fetchMessages();
+    }
+  }, [selectedUser, missionId, fetchMessages]);
 
   // Realtime subscription for messages
   useEffect(() => {
-    if (!sharedMissionId) return;
+    if (!missionId) return;
 
     const channel = supabase
-      .channel(`chat-${sharedMissionId}`)
+      .channel(`chat-${missionId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'event_chat_messages',
-          filter: `event_id=eq.${sharedMissionId}`,
+          filter: `event_id=eq.${missionId}`,
         },
         () => {
           fetchMessages();
@@ -137,20 +122,31 @@ const ChatDrawer = ({ currentUserId, initialOpenUserId, onOpenChange }: ChatDraw
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [sharedMissionId, fetchMessages]);
+  }, [missionId, fetchMessages]);
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages]);
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !sharedMissionId) return;
+    if (!newMessage.trim() || !missionId) {
+      console.log('ChatDrawer: Cannot send - no message or no missionId');
+      return;
+    }
 
     setSending(true);
     const { error } = await supabase.from('event_chat_messages').insert({
-      event_id: sharedMissionId,
+      event_id: missionId,
       user_id: currentUserId,
       content: newMessage.trim(),
     });
 
     setSending(false);
     if (error) {
+      console.error('ChatDrawer: Send error:', error);
       toast({
         title: 'Failed to send message',
         description: error.message,
@@ -178,6 +174,12 @@ const ChatDrawer = ({ currentUserId, initialOpenUserId, onOpenChange }: ChatDraw
     }
   };
 
+  const handleSelectUser = (userId: string) => {
+    console.log('ChatDrawer: Selecting user:', userId);
+    setSelectedUser(userId);
+    setMessages([]);
+  };
+
   return (
     <Sheet open={open} onOpenChange={handleOpenChange}>
       <SheetTrigger asChild>
@@ -203,7 +205,10 @@ const ChatDrawer = ({ currentUserId, initialOpenUserId, onOpenChange }: ChatDraw
                   variant="ghost"
                   size="icon"
                   className="w-8 h-8"
-                  onClick={() => setSelectedUser(null)}
+                  onClick={() => {
+                    setSelectedUser(null);
+                    setMessages([]);
+                  }}
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </Button>
@@ -228,7 +233,11 @@ const ChatDrawer = ({ currentUserId, initialOpenUserId, onOpenChange }: ChatDraw
           // Connection list
           <ScrollArea className="h-[60vh] mt-4">
             <div className="space-y-2">
-              {connectedUsers.length === 0 ? (
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                </div>
+              ) : connectedUsers.length === 0 ? (
                 <div className="text-center py-12">
                   <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
                   <p className="text-muted-foreground text-sm">No active connections</p>
@@ -240,7 +249,7 @@ const ChatDrawer = ({ currentUserId, initialOpenUserId, onOpenChange }: ChatDraw
                 connectedUsers.map((user) => (
                   <button
                     key={user.id}
-                    onClick={() => setSelectedUser(user.id)}
+                    onClick={() => handleSelectUser(user.id)}
                     className="w-full p-3 rounded-lg bg-success/10 border border-success/30 hover:border-success/60 transition-colors flex items-center gap-3"
                   >
                     <Avatar className="w-12 h-12 border-2 border-success">
@@ -265,9 +274,17 @@ const ChatDrawer = ({ currentUserId, initialOpenUserId, onOpenChange }: ChatDraw
           // Chat view
           <div className="flex flex-col h-[60vh] mt-4">
             {/* Messages */}
-            <ScrollArea className="flex-1 pr-4">
+            <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
               <div className="space-y-3">
-                {messages.length === 0 ? (
+                {loadingMessages ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : !missionId ? (
+                  <p className="text-center text-muted-foreground text-sm py-8">
+                    No shared mission found. Accept an invitation to start chatting.
+                  </p>
+                ) : messages.length === 0 ? (
                   <p className="text-center text-muted-foreground text-sm py-8">
                     No messages yet. Start the conversation!
                   </p>
@@ -303,22 +320,24 @@ const ChatDrawer = ({ currentUserId, initialOpenUserId, onOpenChange }: ChatDraw
             </ScrollArea>
 
             {/* Input */}
-            <div className="flex gap-2 mt-4 pt-4 border-t border-border/50">
-              <Input
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                placeholder="Type a message..."
-                className="flex-1"
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-              />
-              <Button
-                size="icon"
-                onClick={handleSendMessage}
-                disabled={sending || !newMessage.trim()}
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
+            {missionId && (
+              <div className="flex gap-2 mt-4 pt-4 border-t border-border/50">
+                <Input
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                  className="flex-1"
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                />
+                <Button
+                  size="icon"
+                  onClick={handleSendMessage}
+                  disabled={sending || !newMessage.trim()}
+                >
+                  <Send className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex gap-2 mt-4">
@@ -326,7 +345,6 @@ const ChatDrawer = ({ currentUserId, initialOpenUserId, onOpenChange }: ChatDraw
                 variant="outline"
                 className="flex-1 gap-2"
                 onClick={() => {
-                  // Would navigate to profile - for now just show toast
                   toast({ title: 'Profile view coming soon' });
                 }}
               >
