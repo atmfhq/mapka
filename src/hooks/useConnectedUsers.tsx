@@ -134,24 +134,72 @@ export const useConnectedUsers = (currentUserId: string) => {
     fetchConnectedUsers();
   }, [fetchConnectedUsers]);
 
-  // Subscribe to invitation changes
+  // Subscribe to invitation changes - unique channel per user
   useEffect(() => {
+    if (!currentUserId) return;
+
+    console.log('useConnectedUsers: Setting up realtime subscription for user:', currentUserId);
+
     const channel = supabase
-      .channel('connected-users')
+      .channel(`connected-users-${currentUserId}`)
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'invitations' },
-        () => {
-          console.log('useConnectedUsers: Invitation change detected, refetching...');
-          fetchConnectedUsers();
+        { 
+          event: 'UPDATE', 
+          schema: 'public', 
+          table: 'invitations'
+        },
+        (payload) => {
+          console.log('useConnectedUsers: Invitation UPDATE received:', payload);
+          
+          // Check if this update involves the current user
+          const isInvolved = payload.new.sender_id === currentUserId || 
+                            payload.new.receiver_id === currentUserId;
+          
+          if (!isInvolved) {
+            console.log('useConnectedUsers: Update not for this user, ignoring');
+            return;
+          }
+
+          // Check if status changed to accepted (new connection) or cancelled (disconnection)
+          const statusChanged = payload.new.status === 'accepted' || payload.new.status === 'cancelled';
+          
+          if (statusChanged) {
+            console.log('useConnectedUsers: Status changed to', payload.new.status, '- refetching connections...');
+            fetchConnectedUsers();
+          }
         }
       )
-      .subscribe();
+      .on(
+        'postgres_changes',
+        { 
+          event: 'INSERT', 
+          schema: 'public', 
+          table: 'invitations'
+        },
+        (payload) => {
+          console.log('useConnectedUsers: New invitation INSERT received:', payload);
+          
+          // If a new invitation is inserted as already accepted, refetch
+          if (payload.new.status === 'accepted') {
+            const isInvolved = payload.new.sender_id === currentUserId || 
+                              payload.new.receiver_id === currentUserId;
+            if (isInvolved) {
+              console.log('useConnectedUsers: New accepted invitation - refetching...');
+              fetchConnectedUsers();
+            }
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('useConnectedUsers: Subscription status:', status);
+      });
 
     return () => {
+      console.log('useConnectedUsers: Cleaning up subscription');
       supabase.removeChannel(channel);
     };
-  }, [fetchConnectedUsers]);
+  }, [currentUserId, fetchConnectedUsers]);
 
   const disconnectUser = async (invitationId: string) => {
     const { error } = await supabase
