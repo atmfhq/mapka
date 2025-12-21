@@ -153,47 +153,52 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     });
   }, [megaphones, activeActivity, activeActivityLabel]);
 
-  // Fetch profiles - refetch when location changes to get users in new area
+  // Fetch nearby profiles using spatial RPC - refetch when location changes
   const fetchProfiles = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, nick, avatar_url, avatar_config, tags, base_lat, base_lng, location_lat, location_lng, bio, is_active');
+    // Use the current user's location as the center point
+    const centerLat = locationLat ?? userLat;
+    const centerLng = locationLng ?? userLng;
+    
+    const { data, error } = await supabase.rpc('get_nearby_profiles', {
+      p_lat: centerLat,
+      p_lng: centerLng,
+      p_radius_meters: 5000 // 5km radius
+    });
     
     if (!error && data) {
-      // Filter to only profiles with at least one set of coordinates
-      const profilesWithCoords = data.filter(p => 
-        (p.location_lat !== null && p.location_lng !== null) || 
-        (p.base_lat !== null && p.base_lng !== null)
-      );
-      const mappedProfiles = profilesWithCoords.map(p => ({
+      const mappedProfiles = data.map((p: any) => ({
         ...p,
         avatar_config: p.avatar_config as AvatarConfig | null,
         is_active: p.is_active ?? true
       }));
       setProfiles(mappedProfiles);
+    } else if (error) {
+      console.error('Error fetching nearby profiles:', error);
     }
-  }, []);
+  }, [locationLat, locationLng, userLat, userLng]);
 
   useEffect(() => {
     fetchProfiles();
-  }, [fetchProfiles, locationLat, locationLng]);
+  }, [fetchProfiles]);
 
-  // Fetch megaphones
+  // Fetch nearby megaphones using spatial RPC
   const fetchMegaphones = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('megaphones')
-      .select('*');
+    // Use the current user's location as the center point
+    const centerLat = locationLat ?? userLat;
+    const centerLng = locationLng ?? userLng;
+    
+    const { data, error } = await supabase.rpc('get_nearby_megaphones', {
+      p_lat: centerLat,
+      p_lng: centerLng,
+      p_radius_meters: 5000 // 5km radius
+    });
     
     if (!error && data) {
-      const now = Date.now();
-      const activeMegaphones = data.filter(m => {
-        const startTime = new Date(m.start_time).getTime();
-        const endTime = startTime + (m.duration_minutes * 60 * 1000);
-        return endTime > now;
-      });
-      setMegaphones(activeMegaphones);
+      setMegaphones(data);
+    } else if (error) {
+      console.error('Error fetching nearby megaphones:', error);
     }
-  }, []);
+  }, [locationLat, locationLng, userLat, userLng]);
 
   const openMissionById = useCallback(async (missionId: string) => {
     const { data } = await supabase
@@ -225,10 +230,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     flyTo,
   }), [fetchMegaphones, openMissionById, flyTo]);
 
-  // Refetch megaphones when location changes
+  // Refetch megaphones when location changes (dependencies in fetchMegaphones callback)
   useEffect(() => {
     fetchMegaphones();
-  }, [fetchMegaphones, locationLat, locationLng]);
+  }, [fetchMegaphones]);
 
   // Realtime subscription for megaphones (INSERT, UPDATE, DELETE)
   useEffect(() => {
