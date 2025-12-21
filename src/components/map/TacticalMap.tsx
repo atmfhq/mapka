@@ -695,8 +695,14 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       el.className = 'quest-marker';
 
       el.innerHTML = `
-        <div class="quest-cube" style="--category-color: ${categoryColor}">
-          <span class="quest-icon-inner">${activityIcon}</span>
+        <div class="quest-container" style="--category-color: ${categoryColor}">
+          <div class="quest-ring ring-1"></div>
+          <div class="quest-ring ring-2"></div>
+          <div class="quest-ring ring-3"></div>
+          <div class="quest-glow"></div>
+          <div class="quest-icon">
+            ${activityIcon}
+          </div>
         </div>
       `;
 
@@ -759,31 +765,82 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         .quest-marker {
           cursor: pointer;
         }
-        .quest-cube {
-          width: 40px;
-          height: 40px;
-          border-radius: 8px;
-          background: linear-gradient(145deg, hsl(var(--category-color)) 0%, hsl(var(--category-color) / 0.85) 100%);
+        .quest-container {
+          position: relative;
+          width: 80px;
+          height: 80px;
           display: flex;
           align-items: center;
           justify-content: center;
-          box-shadow: 
-            0 2px 8px hsl(var(--category-color) / 0.4),
-            0 4px 16px rgba(0, 0, 0, 0.3);
-          animation: quest-breathe 2.5s ease-in-out infinite;
         }
-        .quest-icon-inner {
-          font-size: 20px;
-          filter: brightness(0) invert(1);
-          opacity: 0.95;
+        .quest-ring {
+          position: absolute;
+          border-radius: 50%;
+          border: 2px solid hsl(var(--category-color));
+          animation: quest-ring-pulse 3s ease-out infinite;
         }
-        @keyframes quest-breathe {
-          0%, 100% {
-            transform: scale(1);
+        .quest-ring.ring-1 {
+          width: 100%;
+          height: 100%;
+          animation-delay: 0s;
+        }
+        .quest-ring.ring-2 {
+          width: 85%;
+          height: 85%;
+          animation-delay: 1s;
+        }
+        .quest-ring.ring-3 {
+          width: 70%;
+          height: 70%;
+          animation-delay: 2s;
+        }
+        @keyframes quest-ring-pulse {
+          0% {
+            transform: scale(0.8);
+            opacity: 1;
           }
           50% {
-            transform: scale(1.06);
+            opacity: 0.6;
           }
+          100% {
+            transform: scale(1.4);
+            opacity: 0;
+          }
+        }
+        .quest-glow {
+          position: absolute;
+          width: 60px;
+          height: 60px;
+          border-radius: 50%;
+          background: radial-gradient(circle, hsl(var(--category-color) / 0.4) 0%, transparent 70%);
+          animation: quest-glow-pulse 2s ease-in-out infinite;
+        }
+        @keyframes quest-glow-pulse {
+          0%, 100% {
+            transform: scale(1);
+            opacity: 0.6;
+          }
+          50% {
+            transform: scale(1.2);
+            opacity: 1;
+          }
+        }
+        .quest-icon {
+          position: relative;
+          z-index: 1;
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, hsl(var(--category-color)) 0%, hsl(var(--category-color) / 0.8) 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 24px;
+          box-shadow: 
+            0 0 20px hsl(var(--category-color) / 0.8),
+            0 0 40px hsl(var(--category-color) / 0.4),
+            inset 0 2px 4px rgba(255,255,255,0.3);
+          border: 2px solid hsl(var(--category-color) / 0.9);
         }
       `}</style>
       
