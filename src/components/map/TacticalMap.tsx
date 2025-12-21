@@ -585,6 +585,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       const el = document.createElement('div');
       el.className = 'user-marker';
+      el.style.zIndex = '10';
       
       const container = document.createElement('div');
       container.className = 'marker-container';
@@ -693,13 +694,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       const el = document.createElement('div');
       el.className = 'quest-marker';
+      el.style.zIndex = '50';
 
       el.innerHTML = `
         <div class="quest-container" style="--category-color: ${categoryColor}">
-          <div class="quest-ring ring-1"></div>
-          <div class="quest-ring ring-2"></div>
-          <div class="quest-ring ring-3"></div>
-          <div class="quest-glow"></div>
           <div class="quest-icon">
             ${activityIcon}
           </div>
@@ -767,62 +765,19 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         }
         .quest-container {
           position: relative;
-          width: 80px;
-          height: 80px;
+          width: 52px;
+          height: 52px;
           display: flex;
           align-items: center;
           justify-content: center;
+          animation: quest-breathe 3s ease-in-out infinite;
         }
-        .quest-ring {
-          position: absolute;
-          border-radius: 50%;
-          border: 2px solid hsl(var(--category-color));
-          animation: quest-ring-pulse 3s ease-out infinite;
-        }
-        .quest-ring.ring-1 {
-          width: 100%;
-          height: 100%;
-          animation-delay: 0s;
-        }
-        .quest-ring.ring-2 {
-          width: 85%;
-          height: 85%;
-          animation-delay: 1s;
-        }
-        .quest-ring.ring-3 {
-          width: 70%;
-          height: 70%;
-          animation-delay: 2s;
-        }
-        @keyframes quest-ring-pulse {
-          0% {
-            transform: scale(0.8);
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.6;
-          }
-          100% {
-            transform: scale(1.4);
-            opacity: 0;
-          }
-        }
-        .quest-glow {
-          position: absolute;
-          width: 60px;
-          height: 60px;
-          border-radius: 50%;
-          background: radial-gradient(circle, hsl(var(--category-color) / 0.4) 0%, transparent 70%);
-          animation: quest-glow-pulse 2s ease-in-out infinite;
-        }
-        @keyframes quest-glow-pulse {
+        @keyframes quest-breathe {
           0%, 100% {
             transform: scale(1);
-            opacity: 0.6;
           }
           50% {
-            transform: scale(1.2);
-            opacity: 1;
+            transform: scale(1.1);
           }
         }
         .quest-icon {
@@ -830,17 +785,20 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           z-index: 1;
           width: 48px;
           height: 48px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, hsl(var(--category-color)) 0%, hsl(var(--category-color) / 0.8) 100%);
+          border-radius: 12px;
+          background: hsl(var(--category-color));
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 24px;
+          font-size: 26px;
           box-shadow: 
-            0 0 20px hsl(var(--category-color) / 0.8),
-            0 0 40px hsl(var(--category-color) / 0.4),
-            inset 0 2px 4px rgba(255,255,255,0.3);
-          border: 2px solid hsl(var(--category-color) / 0.9);
+            0 0 16px hsl(var(--category-color) / 0.7),
+            0 4px 8px rgba(0, 0, 0, 0.3);
+          color: white;
+          filter: grayscale(100%) brightness(10);
+        }
+        .quest-icon > * {
+          filter: brightness(0) invert(1);
         }
       `}</style>
       
