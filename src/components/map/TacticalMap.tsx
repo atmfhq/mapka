@@ -10,6 +10,8 @@ import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Json } from '@/integrations/supabase/types';
 import { ACTIVITIES, getCategoryForActivity, getActivityById } from '@/constants/activities';
 import { useConnectedUsers } from '@/hooks/useConnectedUsers';
+import { Button } from '@/components/ui/button';
+import { Crosshair, Plus, Minus, Compass } from 'lucide-react';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HERE';
 
@@ -50,6 +52,8 @@ interface Quest {
 interface TacticalMapProps {
   userLat: number;
   userLng: number;
+  baseLat: number;
+  baseLng: number;
   currentUserId: string;
   activeActivity: string | null;
   currentUserAvatarConfig?: AvatarConfig | null;
@@ -181,7 +185,9 @@ const createCircleBorder = (centerLng: number, centerLat: number, radiusMeters: 
 
 const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ 
   userLat, 
-  userLng, 
+  userLng,
+  baseLat,
+  baseLng,
   currentUserId, 
   activeActivity,
   currentUserAvatarConfig,
@@ -208,6 +214,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [clickedCoords, setClickedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [lobbyOpen, setLobbyOpen] = useState(false);
+  const [isTacticalView, setIsTacticalView] = useState(true);
 
   // Get connected users
   const { connectedUserIds, getInvitationIdForUser, refetch: refetchConnections } = useConnectedUsers(currentUserId);
@@ -466,29 +473,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         pitch: 45,
       });
 
-      map.current.addControl(
-        new mapboxgl.NavigationControl({ visualizePitch: true }),
-        'bottom-right'
-      );
-
-      const navControl = document.querySelector('.mapboxgl-ctrl-bottom-right');
-      if (navControl) {
-        (navControl as HTMLElement).style.bottom = '100px';
-        (navControl as HTMLElement).style.right = '16px';
-      }
-
-      map.current.addControl(
-        new mapboxgl.GeolocateControl({
-          positionOptions: { enableHighAccuracy: true },
-          trackUserLocation: true,
-          showUserHeading: true,
-        }),
-        'bottom-right'
-      );
+      // No default controls - we use custom ones
 
       map.current.on('click', (e) => {
         const target = e.originalEvent.target as HTMLElement;
-        if (target.closest('.user-marker') || target.closest('.megaphone-marker')) {
+        if (target.closest('.user-marker') || target.closest('.megaphone-marker') || target.closest('.quest-marker')) {
           return;
         }
         
@@ -856,6 +845,93 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       `}</style>
       
       <div ref={mapContainer} className="absolute inset-0" />
+
+      {/* Custom Map Controls */}
+      {!isTokenMissing && (
+        <div className="absolute bottom-24 right-4 z-20 flex flex-col gap-2">
+          {/* Center on Base Button */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              if (map.current) {
+                map.current.flyTo({
+                  center: [baseLng, baseLat],
+                  zoom: 14,
+                  duration: 1500,
+                });
+              }
+            }}
+            className="w-11 h-11 bg-card/90 backdrop-blur-md border-primary/30 hover:bg-primary/20 hover:border-primary"
+            title="Center on Base"
+          >
+            <Crosshair className="w-5 h-5 text-primary" />
+          </Button>
+
+          {/* Zoom In */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              if (map.current) {
+                map.current.zoomIn({ duration: 300 });
+              }
+            }}
+            className="w-11 h-11 bg-card/90 backdrop-blur-md border-border/50 hover:bg-muted"
+            title="Zoom In"
+          >
+            <Plus className="w-5 h-5" />
+          </Button>
+
+          {/* Zoom Out */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              if (map.current) {
+                map.current.zoomOut({ duration: 300 });
+              }
+            }}
+            className="w-11 h-11 bg-card/90 backdrop-blur-md border-border/50 hover:bg-muted"
+            title="Zoom Out"
+          >
+            <Minus className="w-5 h-5" />
+          </Button>
+
+          {/* Compass / View Toggle */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              if (map.current) {
+                if (isTacticalView) {
+                  // Switch to Flat view
+                  map.current.easeTo({
+                    pitch: 0,
+                    bearing: 0,
+                    duration: 500,
+                  });
+                  setIsTacticalView(false);
+                } else {
+                  // Switch to Tactical view
+                  map.current.easeTo({
+                    pitch: 60,
+                    bearing: 0,
+                    duration: 500,
+                  });
+                  setIsTacticalView(true);
+                }
+              }
+            }}
+            className={`w-11 h-11 bg-card/90 backdrop-blur-md border-border/50 hover:bg-muted transition-transform ${
+              isTacticalView ? 'rotate-0' : 'rotate-45'
+            }`}
+            title={isTacticalView ? 'Switch to Flat View' : 'Switch to Tactical View'}
+          >
+            <Compass className={`w-5 h-5 transition-colors ${isTacticalView ? 'text-accent' : 'text-muted-foreground'}`} />
+          </Button>
+        </div>
+      )}
       
       {isTokenMissing && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
