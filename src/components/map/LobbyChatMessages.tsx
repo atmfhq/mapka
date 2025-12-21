@@ -135,8 +135,8 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
+    <div className="flex flex-col h-full min-h-0">
+      <div className="flex items-center gap-2 flex-shrink-0 mb-3">
         <Radio className="w-4 h-4 text-primary animate-pulse" />
         <h4 className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
           Tactical Comms
@@ -144,7 +144,7 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
       </div>
 
       {/* Messages */}
-      <ScrollArea className="h-48 rounded-lg bg-background/50 border border-border/50 p-3">
+      <ScrollArea className="flex-1 min-h-0 rounded-lg bg-background/50 border border-border/50 p-3 mb-3">
         <div ref={scrollRef} className="space-y-2">
           {messages.length === 0 ? (
             <p className="text-center text-muted-foreground text-xs py-4">
@@ -173,23 +173,23 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
         </div>
       </ScrollArea>
 
-      {/* Input */}
-      <div className="flex gap-2">
+      {/* Input - sticky at bottom with padding for keyboard */}
+      <div className="flex gap-2 flex-shrink-0 pb-safe">
         <Input
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder="Type message..."
-          className="flex-1 bg-background/50 border-border/50 font-mono text-sm"
+          className="flex-1 bg-background/50 border-border/50 font-mono text-sm min-h-[48px]"
           disabled={sending}
         />
         <Button
           size="icon"
           onClick={handleSend}
           disabled={sending || !newMessage.trim()}
-          className="bg-primary hover:bg-primary/90"
+          className="bg-primary hover:bg-primary/90 min-w-[48px] min-h-[48px]"
         >
-          <Send className="w-4 h-4" />
+          <Send className="w-5 h-5" />
         </Button>
       </div>
     </div>

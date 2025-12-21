@@ -226,7 +226,7 @@ const MegaphoneLobby = ({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent 
         side="bottom" 
-        className="bg-card border-t border-primary/30 rounded-t-2xl max-h-[85vh] overflow-y-auto"
+        className="bg-card border-t border-primary/30 rounded-t-2xl max-h-[90vh] overflow-hidden flex flex-col"
       >
         <SheetHeader className="space-y-4 pb-4 border-b border-border/50">
           {/* Private Mission Banner */}
@@ -287,21 +287,21 @@ const MegaphoneLobby = ({
         </SheetHeader>
 
         {/* Tabs: Info / Comms */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4">
-          <TabsList className="grid w-full grid-cols-2 bg-muted/30">
-            <TabsTrigger value="info" className="font-mono text-xs">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4 flex-1 flex flex-col min-h-0">
+          <TabsList className="grid w-full grid-cols-2 bg-muted/30 flex-shrink-0">
+            <TabsTrigger value="info" className="font-mono text-xs min-h-[44px]">
               INTEL
             </TabsTrigger>
             <TabsTrigger 
               value="comms" 
               disabled={!canAccessChat}
-              className="font-mono text-xs"
+              className="font-mono text-xs min-h-[44px]"
             >
               COMMS {!canAccessChat && '🔒'}
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="info" className="py-4 space-y-6">
+          <TabsContent value="info" className="py-4 space-y-6 overflow-y-auto flex-1">
             {/* Host */}
             <div className="space-y-3">
               <h4 className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
@@ -354,7 +354,7 @@ const MegaphoneLobby = ({
                 <div className="flex gap-2">
                   <Button 
                     variant="outline" 
-                    className="flex-1 border-destructive/50 text-destructive hover:bg-destructive/10"
+                    className="flex-1 border-destructive/50 text-destructive hover:bg-destructive/10 min-h-[48px]"
                     onClick={handleDelete}
                     disabled={loading}
                   >
@@ -365,7 +365,7 @@ const MegaphoneLobby = ({
               ) : hasJoined ? (
                 <Button 
                   variant="outline"
-                  className="w-full border-destructive/50 text-destructive hover:bg-destructive/10"
+                  className="w-full border-destructive/50 text-destructive hover:bg-destructive/10 min-h-[48px]"
                   onClick={handleLeave}
                   disabled={loading}
                 >
@@ -374,15 +374,15 @@ const MegaphoneLobby = ({
                 </Button>
               ) : spotsLeft > 0 ? (
                 <Button 
-                  className="w-full bg-success hover:bg-success/90 text-success-foreground font-orbitron"
+                  className="w-full bg-success hover:bg-success/90 text-success-foreground font-orbitron min-h-[52px] text-base"
                   onClick={handleJoin}
                   disabled={loading}
                 >
-                  <UserPlus className="w-4 h-4 mr-2" />
+                  <UserPlus className="w-5 h-5 mr-2" />
                   JOIN MISSION
                 </Button>
               ) : (
-                <Button disabled className="w-full">
+                <Button disabled className="w-full min-h-[48px]">
                   <Users className="w-4 h-4 mr-2" />
                   Mission Full
                 </Button>
@@ -390,7 +390,7 @@ const MegaphoneLobby = ({
             </div>
           </TabsContent>
 
-          <TabsContent value="comms" className="py-4">
+          <TabsContent value="comms" className="py-4 flex-1 flex flex-col min-h-0">
             {canAccessChat && megaphone && (
               <LobbyChatMessages 
                 eventId={megaphone.id} 
