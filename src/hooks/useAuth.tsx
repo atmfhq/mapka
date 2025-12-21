@@ -18,6 +18,9 @@ interface Profile {
   tags: string[] | null;
   base_lat: number | null;
   base_lng: number | null;
+  location_lat: number | null;
+  location_lng: number | null;
+  location_name: string | null;
   is_onboarded: boolean | null;
 }
 
@@ -62,6 +65,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       tags: data.tags,
       base_lat: data.base_lat,
       base_lng: data.base_lng,
+      location_lat: data.location_lat,
+      location_lng: data.location_lng,
+      location_name: data.location_name,
       is_onboarded: data.is_onboarded,
     };
   };
