@@ -4,13 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import type { Json } from "@/integrations/supabase/types";
 import TacticalCard from "@/components/TacticalCard";
 import TacticalStepper from "@/components/TacticalStepper";
-import InterestChip from "@/components/InterestChip";
-import AvatarSelector from "@/components/AvatarSelector";
+import InterestSelector from "@/components/InterestSelector";
+import AvatarBuilder from "@/components/avatar/AvatarBuilder";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { ACTIVITIES } from "@/constants/activities";
 import { 
   User, 
   MapPin, 
@@ -20,35 +22,17 @@ import {
   AlertTriangle,
   ChevronRight,
   ChevronLeft,
-  Loader2
+  Loader2,
+  Sparkles,
+  Heart
 } from "lucide-react";
 
-// Preset avatars - cyberpunk/tactical themed
-const AVATAR_OPTIONS = [
-  { id: "ghost", url: "https://api.dicebear.com/7.x/bottts-neutral/svg?seed=ghost&backgroundColor=0a0a0a", label: "Ghost" },
-  { id: "cipher", url: "https://api.dicebear.com/7.x/bottts-neutral/svg?seed=cipher&backgroundColor=0a0a0a", label: "Cipher" },
-  { id: "phantom", url: "https://api.dicebear.com/7.x/bottts-neutral/svg?seed=phantom&backgroundColor=0a0a0a", label: "Phantom" },
-  { id: "spectre", url: "https://api.dicebear.com/7.x/bottts-neutral/svg?seed=spectre&backgroundColor=0a0a0a", label: "Spectre" },
-  { id: "nomad", url: "https://api.dicebear.com/7.x/bottts-neutral/svg?seed=nomad&backgroundColor=0a0a0a", label: "Nomad" },
-];
-
-// Interest tags
-const INTEREST_OPTIONS = [
-  { id: "gaming", label: "Gaming", icon: "🎮" },
-  { id: "sport", label: "Sport", icon: "⚽" },
-  { id: "coding", label: "Coding", icon: "💻" },
-  { id: "coffee", label: "Coffee", icon: "☕" },
-  { id: "music", label: "Music", icon: "🎵" },
-  { id: "rpg", label: "RPG", icon: "🎲" },
-  { id: "nightlife", label: "Nightlife", icon: "🌙" },
-  { id: "fitness", label: "Fitness", icon: "💪" },
-  { id: "chess", label: "Chess", icon: "♟️" },
-  { id: "running", label: "Running", icon: "🏃" },
-  { id: "photography", label: "Photo", icon: "📸" },
-  { id: "art", label: "Art", icon: "🎨" },
-];
-
-const MAX_TAGS = 5;
+interface AvatarConfig {
+  skinColor?: string;
+  shape?: string;
+  eyes?: string;
+  mouth?: string;
+}
 
 const Onboarding = () => {
   const [step, setStep] = useState(0);
@@ -58,8 +42,13 @@ const Onboarding = () => {
   // Form state
   const [nick, setNick] = useState("");
   const [bio, setBio] = useState("");
-  const [selectedAvatar, setSelectedAvatar] = useState<string | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>({
+    skinColor: "cyan",
+    shape: "circle",
+    eyes: "normal",
+    mouth: "smile",
+  });
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
@@ -74,17 +63,11 @@ const Onboarding = () => {
   }, [authLoading, profile, navigate]);
 
   const steps = [
-    { label: "Identity", icon: <User className="w-6 h-6" /> },
-    { label: "Base", icon: <MapPin className="w-6 h-6" /> },
+    { label: "Identity", icon: <User className="w-5 h-5" /> },
+    { label: "Interests", icon: <Heart className="w-5 h-5" /> },
+    { label: "Appearance", icon: <Sparkles className="w-5 h-5" /> },
+    { label: "Base", icon: <MapPin className="w-5 h-5" /> },
   ];
-
-  const toggleTag = (tagId: string) => {
-    if (selectedTags.includes(tagId)) {
-      setSelectedTags(selectedTags.filter((t) => t !== tagId));
-    } else if (selectedTags.length < MAX_TAGS) {
-      setSelectedTags([...selectedTags, tagId]);
-    }
-  };
 
   const handleLocate = () => {
     if (!navigator.geolocation) {
@@ -131,16 +114,20 @@ const Onboarding = () => {
         });
         return;
       }
-      if (!selectedAvatar) {
+    }
+    
+    if (step === 1) {
+      if (selectedTags.length === 0) {
         toast({
-          title: "Avatar Required",
-          description: "Select your operative avatar",
+          title: "Select Interests",
+          description: "Choose at least one activity you enjoy",
           variant: "destructive",
         });
         return;
       }
-      setStep(1);
     }
+    
+    setStep(step + 1);
   };
 
   const handleSubmit = async () => {
@@ -157,9 +144,9 @@ const Onboarding = () => {
 
     setLoading(true);
     try {
-      const avatarUrl = AVATAR_OPTIONS.find((a) => a.id === selectedAvatar)?.url || null;
+      // Map activity IDs to labels for the tags
       const tagLabels = selectedTags.map(
-        (id) => INTEREST_OPTIONS.find((t) => t.id === id)?.label || id
+        (id) => ACTIVITIES.find((a) => a.id === id)?.label || id
       );
 
       const { error } = await supabase
@@ -167,7 +154,7 @@ const Onboarding = () => {
         .update({
           nick: nick.trim(),
           bio: bio.trim() || null,
-          avatar_url: avatarUrl,
+          avatar_config: avatarConfig as Json,
           tags: tagLabels,
           base_lat: coords.lat,
           base_lng: coords.lng,
@@ -220,7 +207,8 @@ const Onboarding = () => {
         <TacticalStepper currentStep={step} steps={steps} />
 
         {/* Step Content */}
-        <TacticalCard className="mb-6">
+        <TacticalCard className="mb-6 max-h-[60vh] overflow-y-auto">
+          {/* Step 0: Identity */}
           {step === 0 && (
             <div className="space-y-6 animate-fade-in-up">
               <div className="flex items-center gap-2 mb-4">
@@ -257,41 +245,49 @@ const Onboarding = () => {
                   className="bg-muted/50 border-border focus:border-primary font-rajdhani resize-none"
                 />
               </div>
-
-              {/* Avatar Selection */}
-              <div className="space-y-3">
-                <Label className="font-mono text-xs uppercase text-muted-foreground">
-                  Select Avatar *
-                </Label>
-                <AvatarSelector
-                  options={AVATAR_OPTIONS}
-                  selected={selectedAvatar}
-                  onSelect={setSelectedAvatar}
-                />
-              </div>
-
-              {/* Interest Tags */}
-              <div className="space-y-3">
-                <Label className="font-mono text-xs uppercase text-muted-foreground">
-                  Interests ({selectedTags.length}/{MAX_TAGS})
-                </Label>
-                <div className="flex flex-wrap gap-2">
-                  {INTEREST_OPTIONS.map((interest) => (
-                    <InterestChip
-                      key={interest.id}
-                      label={interest.label}
-                      icon={interest.icon}
-                      selected={selectedTags.includes(interest.id)}
-                      disabled={selectedTags.length >= MAX_TAGS}
-                      onClick={() => toggleTag(interest.id)}
-                    />
-                  ))}
-                </div>
-              </div>
             </div>
           )}
 
+          {/* Step 1: Interests */}
           {step === 1 && (
+            <div className="space-y-6 animate-fade-in-up">
+              <div className="flex items-center gap-2 mb-4">
+                <Heart className="w-5 h-5 text-accent" />
+                <h2 className="font-orbitron text-lg font-semibold">What Do You Enjoy?</h2>
+              </div>
+              
+              <p className="text-sm text-muted-foreground mb-4">
+                Select activities you're interested in. This helps you find like-minded people nearby.
+              </p>
+
+              <InterestSelector 
+                selected={selectedTags}
+                onChange={setSelectedTags}
+              />
+            </div>
+          )}
+
+          {/* Step 2: Appearance */}
+          {step === 2 && (
+            <div className="space-y-6 animate-fade-in-up">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles className="w-5 h-5 text-accent" />
+                <h2 className="font-orbitron text-lg font-semibold">Create Your Avatar</h2>
+              </div>
+
+              <p className="text-sm text-muted-foreground mb-4">
+                Customize your look. This is how others will see you on the map.
+              </p>
+
+              <AvatarBuilder 
+                initialConfig={avatarConfig}
+                onChange={setAvatarConfig}
+              />
+            </div>
+          )}
+
+          {/* Step 3: Location */}
+          {step === 3 && (
             <div className="space-y-6 animate-fade-in-up">
               <div className="flex items-center gap-2 mb-4">
                 <Crosshair className="w-5 h-5 text-primary" />
@@ -376,7 +372,7 @@ const Onboarding = () => {
             <div />
           )}
 
-          {step === 0 ? (
+          {step < 3 ? (
             <Button variant="solidCyan" onClick={handleNextStep}>
               Continue
               <ChevronRight className="w-4 h-4" />
