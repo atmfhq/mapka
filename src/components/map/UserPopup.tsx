@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Zap } from 'lucide-react';
+import { X, Zap, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SendInviteModal from './SendInviteModal';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
@@ -22,10 +22,12 @@ interface UserPopupProps {
   };
   position: { x: number; y: number };
   currentUserId: string;
+  isConnected: boolean;
   onClose: () => void;
+  onOpenChat?: (userId: string) => void;
 }
 
-const UserPopup = ({ user, position, currentUserId, onClose }: UserPopupProps) => {
+const UserPopup = ({ user, position, currentUserId, isConnected, onClose, onOpenChat }: UserPopupProps) => {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
   const isOwnProfile = user.id === currentUserId;
@@ -40,9 +42,15 @@ const UserPopup = ({ user, position, currentUserId, onClose }: UserPopupProps) =
           transform: 'translate(-50%, -100%)',
         }}
       >
-        <div className="relative bg-card/95 backdrop-blur-md border border-primary/30 rounded-lg p-4 min-w-[220px] max-w-[300px] shadow-[0_0_20px_hsl(var(--primary)/0.3)]">
+        <div className={`relative bg-card/95 backdrop-blur-md border rounded-lg p-4 min-w-[220px] max-w-[300px] ${
+          isConnected 
+            ? 'border-success/50 shadow-[0_0_20px_hsl(var(--success)/0.3)]' 
+            : 'border-primary/30 shadow-[0_0_20px_hsl(var(--primary)/0.3)]'
+        }`}>
           {/* Arrow */}
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-card/95 border-r border-b border-primary/30 rotate-45" />
+          <div className={`absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-card/95 border-r border-b rotate-45 ${
+            isConnected ? 'border-success/50' : 'border-primary/30'
+          }`} />
           
           {/* Close button */}
           <Button
@@ -54,9 +62,18 @@ const UserPopup = ({ user, position, currentUserId, onClose }: UserPopupProps) =
             <X className="w-4 h-4" />
           </Button>
 
+          {/* Connected badge */}
+          {isConnected && (
+            <div className="absolute -top-2 left-4 px-2 py-0.5 rounded-full bg-success text-success-foreground text-[10px] font-bold">
+              CONNECTED
+            </div>
+          )}
+
           {/* Content */}
           <div className="flex items-start gap-3">
-            <div className="w-14 h-14 rounded-lg border-2 border-primary/40 overflow-hidden flex items-center justify-center bg-background">
+            <div className={`w-14 h-14 rounded-lg border-2 overflow-hidden flex items-center justify-center bg-background ${
+              isConnected ? 'border-success' : 'border-primary/40'
+            }`}>
               <AvatarDisplay 
                 config={user.avatar_config} 
                 size={52} 
@@ -64,7 +81,9 @@ const UserPopup = ({ user, position, currentUserId, onClose }: UserPopupProps) =
               />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-orbitron font-bold text-primary truncate">
+              <h3 className={`font-orbitron font-bold truncate ${
+                isConnected ? 'text-success' : 'text-primary'
+              }`}>
                 {user.nick || 'Unknown Operative'}
               </h3>
               {user.bio && (
@@ -81,7 +100,11 @@ const UserPopup = ({ user, position, currentUserId, onClose }: UserPopupProps) =
               {user.tags.slice(0, 4).map((tag, index) => (
                 <span
                   key={index}
-                  className="px-2 py-0.5 rounded bg-primary/20 border border-primary/30 font-mono text-[10px] text-primary"
+                  className={`px-2 py-0.5 rounded border font-mono text-[10px] ${
+                    isConnected 
+                      ? 'bg-success/20 border-success/30 text-success'
+                      : 'bg-primary/20 border-primary/30 text-primary'
+                  }`}
                 >
                   {tag}
                 </span>
@@ -94,16 +117,30 @@ const UserPopup = ({ user, position, currentUserId, onClose }: UserPopupProps) =
             </div>
           )}
 
-          {/* Signal button */}
+          {/* Action buttons */}
           {!isOwnProfile && (
-            <Button
-              onClick={() => setInviteModalOpen(true)}
-              className="w-full mt-4 bg-warning hover:bg-warning/90 text-warning-foreground font-orbitron text-xs"
-              size="sm"
-            >
-              <Zap className="w-4 h-4 mr-2" />
-              SIGNAL OPERATIVE
-            </Button>
+            isConnected ? (
+              <Button
+                onClick={() => {
+                  onOpenChat?.(user.id);
+                  onClose();
+                }}
+                className="w-full mt-4 bg-success hover:bg-success/90 text-success-foreground font-orbitron text-xs"
+                size="sm"
+              >
+                <MessageCircle className="w-4 h-4 mr-2" />
+                OPEN CHAT
+              </Button>
+            ) : (
+              <Button
+                onClick={() => setInviteModalOpen(true)}
+                className="w-full mt-4 bg-warning hover:bg-warning/90 text-warning-foreground font-orbitron text-xs"
+                size="sm"
+              >
+                <Zap className="w-4 h-4 mr-2" />
+                SIGNAL OPERATIVE
+              </Button>
+            )
           )}
         </div>
       </div>

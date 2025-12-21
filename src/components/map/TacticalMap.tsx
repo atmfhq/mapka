@@ -9,6 +9,7 @@ import MegaphoneLobby from './MegaphoneLobby';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Json } from '@/integrations/supabase/types';
 import { getActivityById } from '@/constants/activities';
+import { useConnectedUsers } from '@/hooks/useConnectedUsers';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HERE';
 
@@ -47,7 +48,8 @@ interface TacticalMapProps {
   userLat: number;
   userLng: number;
   currentUserId: string;
-  activeActivity: string | null; // Activity ID like "basketball", "chess"
+  activeActivity: string | null;
+  onOpenChatWithUser?: (userId: string) => void;
 }
 
 export interface TacticalMapHandle {
@@ -56,20 +58,16 @@ export interface TacticalMapHandle {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  // Activity categories
   sport: '15, 100%, 55%',
   tabletop: '180, 100%, 50%',
   social: '45, 100%, 55%',
   outdoor: '120, 60%, 45%',
-  // Legacy megaphone categories
   Sport: '15, 100%, 55%',
   Gaming: '180, 100%, 50%',
   Food: '45, 100%, 55%',
   Party: '320, 100%, 60%',
   Other: '215, 20%, 55%',
 };
-
-const PRIVATE_COLOR = '45, 100%, 60%'; // Gold/warning color
 
 // Apply random jitter for privacy (100-400m)
 const applyPrivacyJitter = (lat: number, lng: number): [number, number] => {
@@ -80,7 +78,13 @@ const applyPrivacyJitter = (lat: number, lng: number): [number, number] => {
   return [lat + latOffset, lng + lngOffset];
 };
 
-const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, userLng, currentUserId, activeActivity }, ref) => {
+const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ 
+  userLat, 
+  userLng, 
+  currentUserId, 
+  activeActivity,
+  onOpenChatWithUser 
+}, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarkersRef = useRef<mapboxgl.Marker[]>([]);
@@ -92,13 +96,14 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
   
-  // Megaphone states
   const [deployModalOpen, setDeployModalOpen] = useState(false);
   const [clickedCoords, setClickedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedMegaphone, setSelectedMegaphone] = useState<Megaphone | null>(null);
   const [lobbyOpen, setLobbyOpen] = useState(false);
 
-  // Get the active activity label for filtering
+  // Get connected users
+  const { connectedUserIds } = useConnectedUsers(currentUserId);
+
   const activeActivityData = activeActivity ? getActivityById(activeActivity) : null;
   const activeActivityLabel = activeActivityData?.label?.toLowerCase();
 
@@ -108,17 +113,18 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
     
     return profiles.filter(profile => {
       if (!profile.tags || profile.tags.length === 0) return false;
-      // Check if any tag matches the activity label (case insensitive)
       return profile.tags.some(tag => tag.toLowerCase() === activeActivityLabel);
     });
   }, [profiles, activeActivity, activeActivityLabel]);
 
-  // Filter megaphones based on active activity
+  // Filter megaphones - HIDE PRIVATE EVENTS from map
   const filteredMegaphones = useMemo(() => {
-    if (!activeActivity || !activeActivityLabel) return megaphones;
+    // First filter out private events - they should not appear on map
+    const publicMegaphones = megaphones.filter(m => !m.is_private);
     
-    // Match megaphone category against the activity label
-    return megaphones.filter(m => {
+    if (!activeActivity || !activeActivityLabel) return publicMegaphones;
+    
+    return publicMegaphones.filter(m => {
       const megaCat = m.category.toLowerCase();
       return megaCat === activeActivityLabel || megaCat === activeActivity;
     });
@@ -144,14 +150,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
     fetchProfiles();
   }, []);
 
-  // Fetch megaphones (only active/future events)
+  // Fetch megaphones
   const fetchMegaphones = useCallback(async () => {
     const { data, error } = await supabase
       .from('megaphones')
       .select('*');
     
     if (!error && data) {
-      // Filter to only show events that haven't expired
       const now = Date.now();
       const activeMegaphones = data.filter(m => {
         const startTime = new Date(m.start_time).getTime();
@@ -162,7 +167,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
     }
   }, []);
 
-  // Function to open a mission by ID
   const openMissionById = useCallback(async (missionId: string) => {
     const { data } = await supabase
       .from('megaphones')
@@ -176,7 +180,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
     }
   }, []);
 
-  // Expose methods via ref
   useImperativeHandle(ref, () => ({
     fetchMegaphones,
     openMissionById,
@@ -210,13 +213,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
         pitch: 45,
       });
 
-      // Navigation controls - positioned to avoid HUD and status indicator
       map.current.addControl(
         new mapboxgl.NavigationControl({ visualizePitch: true }),
         'bottom-right'
       );
 
-      // Position the controls with custom CSS to avoid overlap
       const navControl = document.querySelector('.mapboxgl-ctrl-bottom-right');
       if (navControl) {
         (navControl as HTMLElement).style.bottom = '100px';
@@ -232,9 +233,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
         'bottom-right'
       );
 
-      // Click on map to deploy megaphone
       map.current.on('click', (e) => {
-        // Check if clicked on a marker (propagation should be stopped)
         const target = e.originalEvent.target as HTMLElement;
         if (target.closest('.user-marker') || target.closest('.megaphone-marker')) {
           return;
@@ -255,11 +254,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
     };
   }, [userLat, userLng]);
 
-  // Render user markers
+  // Render user markers with connected status
   useEffect(() => {
     if (!map.current) return;
 
-    // Cleanup old markers and React roots
     userMarkerRootsRef.current.forEach(root => root.unmount());
     userMarkerRootsRef.current = [];
     userMarkersRef.current.forEach(marker => marker.remove());
@@ -270,19 +268,22 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
       if (profile.id === currentUserId) return;
 
       const [jitteredLat, jitteredLng] = applyPrivacyJitter(profile.base_lat, profile.base_lng);
+      const isConnected = connectedUserIds.has(profile.id);
 
       const el = document.createElement('div');
       el.className = 'user-marker';
       
-      // Create container for React rendering
       const container = document.createElement('div');
       container.className = 'marker-container';
       el.appendChild(container);
       
-      // Create React root and render AvatarDisplay
       const root = createRoot(container);
       root.render(
-        <div className="w-10 h-10 rounded-full overflow-hidden border border-white/60 bg-background">
+        <div className={`w-10 h-10 rounded-full overflow-hidden border-2 bg-background ${
+          isConnected 
+            ? 'border-green-500 shadow-[0_0_12px_rgba(34,197,94,0.6)]' 
+            : 'border-white/60'
+        }`}>
           <AvatarDisplay 
             config={profile.avatar_config} 
             size={40} 
@@ -306,14 +307,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
       userMarkersRef.current.push(marker);
     });
 
-    // Cleanup on unmount
     return () => {
       userMarkerRootsRef.current.forEach(root => root.unmount());
       userMarkerRootsRef.current = [];
     };
-  }, [filteredProfiles, currentUserId]);
+  }, [filteredProfiles, currentUserId, connectedUserIds]);
 
-  // Render megaphone markers
+  // Render megaphone markers (public only)
   useEffect(() => {
     if (!map.current) return;
 
@@ -321,25 +321,18 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
     megaphoneMarkersRef.current = [];
 
     filteredMegaphones.forEach(megaphone => {
-      const isPrivate = megaphone.is_private;
-      const categoryColor = isPrivate ? PRIVATE_COLOR : (CATEGORY_COLORS[megaphone.category] || CATEGORY_COLORS.Other);
+      const categoryColor = CATEGORY_COLORS[megaphone.category] || CATEGORY_COLORS.Other;
 
       const el = document.createElement('div');
       el.className = 'megaphone-marker';
       
-      // Use lock icon for private events, megaphone for public
-      const iconSvg = isPrivate
-        ? `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-             <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
-             <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-           </svg>`
-        : `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-             <path d="m3 11 18-5v12L3 13v-2z"/>
-             <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
-           </svg>`;
+      const iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="m3 11 18-5v12L3 13v-2z"/>
+        <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>
+      </svg>`;
 
       el.innerHTML = `
-        <div class="megaphone-container ${isPrivate ? 'private' : ''}" style="--category-color: ${categoryColor}">
+        <div class="megaphone-container" style="--category-color: ${categoryColor}">
           <div class="megaphone-pulse"></div>
           <div class="megaphone-pulse delay-1"></div>
           <div class="megaphone-icon">
@@ -363,6 +356,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
   }, [filteredMegaphones]);
 
   const isTokenMissing = !MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN_HERE';
+  const isSelectedUserConnected = selectedUser ? connectedUserIds.has(selectedUser.id) : false;
 
   return (
     <>
@@ -375,8 +369,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
           width: 40px;
           height: 40px;
         }
-
-        /* Megaphone Marker Styles */
         .megaphone-marker {
           cursor: pointer;
         }
@@ -443,10 +435,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
           user={selectedUser} 
           position={popupPosition}
           currentUserId={currentUserId}
+          isConnected={isSelectedUserConnected}
           onClose={() => {
             setSelectedUser(null);
             setPopupPosition(null);
           }}
+          onOpenChat={onOpenChatWithUser}
         />
       )}
 
