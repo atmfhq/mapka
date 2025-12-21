@@ -55,23 +55,14 @@ const ChatDrawer = ({
   const [loadingMissions, setLoadingMissions] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  const { connectedUsers, getMissionIdForUser, loading, refetch: refetchConnections, getInvitationIdForUser } = useConnectedUsers(currentUserId);
+  const { connectedUsers, loading, refetch: refetchConnections, getInvitationIdForUser } = useConnectedUsers(currentUserId);
   const { pendingInvitations, pendingCount, refetch: refetchPending } = useInvitationRealtime(currentUserId);
   const { unreadCount, markInvitationAsRead, markEventAsRead, silentRefetch } = useUnreadMessages(currentUserId);
 
-  // Collect all event IDs for per-chat unread counts
+  // Collect all event IDs for per-chat unread counts (only for public missions now)
   const allEventIds = useMemo(() => {
-    const ids: string[] = [];
-    // Add mission IDs from connected users (private chats)
-    for (const user of connectedUsers) {
-      if (user.missionId) ids.push(user.missionId);
-    }
-    // Add active mission IDs (public events)
-    for (const mission of activeMissions) {
-      ids.push(mission.id);
-    }
-    return [...new Set(ids)];
-  }, [connectedUsers, activeMissions]);
+    return activeMissions.map(mission => mission.id);
+  }, [activeMissions]);
 
   const { getUnreadCount: getEventUnreadCount, refetch: refetchUnreadCounts } = useChatUnreadCounts(currentUserId, allEventIds);
 
@@ -159,45 +150,51 @@ const ChatDrawer = ({
     fetchActiveMissions();
   }, [fetchActiveMissions]);
 
-  const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
-  const missionId = selectedUser ? getMissionIdForUser(selectedUser) : null;
+const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
+  const invitationId = selectedUser ? getInvitationIdForUser(selectedUser) : null;
 
-  // Fetch messages for the mission
+  // Fetch messages for direct chat (based on invitation)
   const fetchMessages = useCallback(async () => {
-    if (!missionId) return;
+    if (!invitationId) return;
 
     setLoadingMessages(true);
     const { data } = await supabase
-      .from('event_chat_messages')
-      .select('id, content, user_id, created_at')
-      .eq('event_id', missionId)
+      .from('direct_messages')
+      .select('id, content, sender_id, created_at')
+      .eq('invitation_id', invitationId)
       .order('created_at', { ascending: true });
 
     if (data) {
-      setMessages(data);
+      // Map sender_id to user_id for consistency with UI
+      setMessages(data.map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        user_id: msg.sender_id,
+        created_at: msg.created_at,
+      })));
     }
     setLoadingMessages(false);
-  }, [missionId]);
+  }, [invitationId]);
 
   useEffect(() => {
-    if (selectedUser && missionId) {
+    if (selectedUser && invitationId) {
       fetchMessages();
     }
-  }, [selectedUser, missionId, fetchMessages]);
+  }, [selectedUser, invitationId, fetchMessages]);
 
-  // Realtime subscription for messages
+  // Realtime subscription for direct messages
   useEffect(() => {
-    if (!missionId) return;
+    if (!invitationId) return;
 
     const channel = supabase
-      .channel(`chat-${missionId}`)
+      .channel(`direct-chat-${invitationId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
-          table: 'event_chat_messages',
-          filter: `event_id=eq.${missionId}`,
+          table: 'direct_messages',
+          filter: `invitation_id=eq.${invitationId}`,
         },
         () => {
           fetchMessages();
@@ -208,7 +205,7 @@ const ChatDrawer = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [missionId, fetchMessages]);
+  }, [invitationId, fetchMessages]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -219,7 +216,7 @@ const ChatDrawer = ({
 
   const handleSendMessage = async () => {
     const trimmedMessage = newMessage.trim();
-    if (!trimmedMessage || !missionId) return;
+    if (!trimmedMessage || !invitationId) return;
     
     // Client-side validation
     if (trimmedMessage.length > MAX_MESSAGE_LENGTH) {
@@ -232,9 +229,9 @@ const ChatDrawer = ({
     }
 
     setSending(true);
-    const { error } = await supabase.from('event_chat_messages').insert({
-      event_id: missionId,
-      user_id: currentUserId,
+    const { error } = await supabase.from('direct_messages').insert({
+      invitation_id: invitationId,
+      sender_id: currentUserId,
       content: trimmedMessage,
     });
 
@@ -268,16 +265,9 @@ const ChatDrawer = ({
     setMessages([]);
     
     // Background sync: Mark chat as read (fire and forget)
-    const invitationId = getInvitationIdForUser(userId);
-    if (invitationId) {
-      markInvitationAsRead(invitationId);
-    }
-    
-    const userMissionId = getMissionIdForUser(userId);
-    if (userMissionId) {
-      markEventAsRead(userMissionId);
-      // Refetch counts after marking as read
-      setTimeout(() => refetchUnreadCounts(), 500);
+    const userInvitationId = getInvitationIdForUser(userId);
+    if (userInvitationId) {
+      markInvitationAsRead(userInvitationId);
     }
   };
 
@@ -506,9 +496,6 @@ const ChatDrawer = ({
                 ) : (
                   <div className="space-y-2">
                     {connectedUsers.map((user) => {
-                      const userMissionId = getMissionIdForUser(user.id);
-                      const userUnread = userMissionId ? getEventUnreadCount(userMissionId) : 0;
-                      
                       return (
                         <button
                           key={user.id}
@@ -522,27 +509,16 @@ const ChatDrawer = ({
                                 {user.nick?.[0]?.toUpperCase() || '?'}
                               </AvatarFallback>
                             </Avatar>
-                            {userUnread > 0 && (
-                              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
-                                {userUnread > 9 ? '9+' : userUnread}
-                              </span>
-                            )}
                           </div>
                           <div className="flex-1 text-left">
-                            <p className={`font-semibold text-sm ${userUnread > 0 ? 'text-foreground' : ''}`}>
+                            <p className="font-semibold text-sm">
                               {user.nick || 'Unknown'}
                             </p>
                             <p className="text-xs text-success">Direct Signal</p>
                           </div>
-                          {userUnread > 0 ? (
-                            <Badge className="bg-destructive text-destructive-foreground border-destructive text-xs">
-                              {userUnread} new
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-success/20 text-success border-success/40 text-xs">
-                              Active
-                            </Badge>
-                          )}
+                          <Badge variant="outline" className="bg-success/20 text-success border-success/40 text-xs">
+                            Active
+                          </Badge>
                         </button>
                       );
                     })}
@@ -626,9 +602,9 @@ const ChatDrawer = ({
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
                   </div>
-                ) : !missionId ? (
+                ) : !invitationId ? (
                   <p className="text-center text-muted-foreground text-sm py-8">
-                    No shared mission found. Accept an invitation to start chatting.
+                    No active connection. Accept an invitation to start chatting.
                   </p>
                 ) : messages.length === 0 ? (
                   <p className="text-center text-muted-foreground text-sm py-8">
@@ -665,7 +641,7 @@ const ChatDrawer = ({
               </div>
             </ScrollArea>
 
-            {missionId && (
+            {invitationId && (
               <div className="flex gap-2 mt-4 pt-4 border-t border-border/50">
                 <Input
                   value={newMessage}

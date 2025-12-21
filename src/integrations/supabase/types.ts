@@ -14,6 +14,38 @@ export type Database = {
   }
   public: {
     Tables: {
+      direct_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          invitation_id: string
+          sender_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          invitation_id: string
+          sender_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          invitation_id?: string
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direct_messages_invitation_id_fkey"
+            columns: ["invitation_id"]
+            isOneToOne: false
+            referencedRelation: "invitations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_chat_messages: {
         Row: {
           content: string
@@ -276,6 +308,10 @@ export type Database = {
       get_unread_message_count: { Args: { p_user_id: string }; Returns: number }
       is_event_member: {
         Args: { event_uuid: string; user_uuid: string }
+        Returns: boolean
+      }
+      is_invitation_member: {
+        Args: { p_invitation_id: string; p_user_id: string }
         Returns: boolean
       }
     }
