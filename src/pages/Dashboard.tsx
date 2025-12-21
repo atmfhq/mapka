@@ -134,6 +134,8 @@ const Dashboard = () => {
         ref={mapRef}
         userLat={userLat}
         userLng={userLng}
+        baseLat={profile.base_lat ?? userLat}
+        baseLng={profile.base_lng ?? userLng}
         currentUserId={user!.id}
         activeActivity={activeActivity}
         currentUserAvatarConfig={profile.avatar_config as AvatarConfig | null}
@@ -148,6 +150,7 @@ const Dashboard = () => {
       <Navbar
         nick={profile.nick || "Operative"}
         avatarUrl={profile.avatar_url}
+        avatarConfig={profile.avatar_config as AvatarConfig | null}
         currentUserId={user!.id}
         isActive={isActive}
         onActiveChange={handleActiveChange}

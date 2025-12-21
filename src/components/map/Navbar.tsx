@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Target, LogOut, Settings, UserCog, MapPin, Ghost, Eye } from 'lucide-react';
+import { Target, LogOut, UserCog, MapPin, Ghost, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -9,10 +9,19 @@ import { Label } from '@/components/ui/label';
 import AlertsDrawer from './AlertsDrawer';
 import ChatDrawer from './ChatDrawer';
 import InstallPrompt from '@/components/InstallPrompt';
+import AvatarDisplay from '@/components/avatar/AvatarDisplay';
+
+interface AvatarConfig {
+  skinColor?: string;
+  shape?: string;
+  eyes?: string;
+  mouth?: string;
+}
 
 interface NavbarProps {
   nick: string;
   avatarUrl: string | null;
+  avatarConfig?: AvatarConfig | null;
   currentUserId: string;
   isActive: boolean;
   onActiveChange: (active: boolean) => void;
@@ -26,7 +35,8 @@ interface NavbarProps {
 
 const Navbar = ({ 
   nick, 
-  avatarUrl, 
+  avatarUrl,
+  avatarConfig,
   currentUserId,
   isActive,
   onActiveChange,
@@ -89,34 +99,22 @@ const Navbar = ({
                 </TooltipContent>
               </Tooltip>
 
-              {/* Settings Menu */}
+              {/* Profile Avatar Button */}
               <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
                 <SheetTrigger asChild>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="min-w-[44px] min-h-[44px] text-muted-foreground hover:text-foreground"
+                    className="min-w-[44px] min-h-[44px] p-0 rounded-full overflow-hidden border-2 border-primary/40 hover:border-primary transition-colors"
                   >
-                    {avatarUrl ? (
-                      <img
-                        src={avatarUrl}
-                        alt={nick}
-                        className="w-8 h-8 rounded-lg border border-primary/30 object-cover"
-                      />
-                    ) : (
-                      <Settings className="w-5 h-5" />
-                    )}
+                    <AvatarDisplay config={avatarConfig} size={40} showGlow={false} />
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh]">
                   <SheetHeader className="pb-4 border-b border-border/50">
                     <SheetTitle className="font-orbitron text-xl flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center overflow-hidden">
-                        {avatarUrl ? (
-                          <img src={avatarUrl} alt={nick} className="w-full h-full object-cover" />
-                        ) : (
-                          <Target className="w-6 h-6 text-primary" />
-                        )}
+                      <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-primary/40">
+                        <AvatarDisplay config={avatarConfig} size={48} showGlow={false} />
                       </div>
                       <div className="text-left">
                         <div>{nick}</div>
