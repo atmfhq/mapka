@@ -1,15 +1,16 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import TacticalMap from "@/components/map/TacticalMap";
+import TacticalMap, { TacticalMapHandle } from "@/components/map/TacticalMap";
 import MapHUD from "@/components/map/MapHUD";
 import LoadingScreen from "@/components/LoadingScreen";
+import { ActivityCategory, getCategoryInfo } from "@/constants/activities";
 
 const Dashboard = () => {
   const { user, profile, loading, signOut } = useAuth();
   const navigate = useNavigate();
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
-  const mapRef = useRef<{ fetchMegaphones: () => void; openMissionById: (id: string) => void } | null>(null);
+  const [activeCategory, setActiveCategory] = useState<ActivityCategory | null>(null);
+  const mapRef = useRef<TacticalMapHandle | null>(null);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -25,12 +26,8 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  const handleToggleFilter = (categoryId: string) => {
-    setActiveFilters(prev => 
-      prev.includes(categoryId)
-        ? prev.filter(id => id !== categoryId)
-        : [...prev, categoryId]
-    );
+  const handleCategoryChange = (category: ActivityCategory | null) => {
+    setActiveCategory(category);
   };
 
   const handleMissionCreated = () => {
@@ -49,6 +46,8 @@ const Dashboard = () => {
   const userLat = profile.base_lat || 40.7128;
   const userLng = profile.base_lng || -74.006;
 
+  const activeCategoryInfo = activeCategory ? getCategoryInfo(activeCategory) : null;
+
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background">
       {/* Map Layer */}
@@ -57,19 +56,32 @@ const Dashboard = () => {
         userLat={userLat}
         userLng={userLng}
         currentUserId={user!.id}
+        activeCategory={activeCategory}
       />
 
       {/* HUD Overlay */}
       <MapHUD
         nick={profile.nick || "Operative"}
         avatarUrl={profile.avatar_url}
-        activeFilters={activeFilters}
+        activeCategory={activeCategory}
         currentUserId={user!.id}
-        onToggleFilter={handleToggleFilter}
+        onCategoryChange={handleCategoryChange}
         onSignOut={handleSignOut}
         onMissionCreated={handleMissionCreated}
         onOpenMission={handleOpenMission}
       />
+
+      {/* Filter active indicator */}
+      {activeCategoryInfo && (
+        <div className="absolute top-[120px] md:top-[70px] left-1/2 -translate-x-1/2 z-20">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/20 border border-primary/40 backdrop-blur-sm">
+            <span className="text-sm">{activeCategoryInfo.icon}</span>
+            <span className="font-rajdhani text-xs text-primary font-medium">
+              Filtering: {activeCategoryInfo.label}
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Status indicator - positioned for mobile safe area */}
       <div className="absolute bottom-4 left-4 z-20 safe-area-bottom safe-area-left">

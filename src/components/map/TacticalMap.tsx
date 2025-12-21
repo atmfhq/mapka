@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle, useMemo } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { createRoot, Root } from 'react-dom/client';
@@ -8,6 +8,7 @@ import DeployMegaphoneModal from './DeployMegaphoneModal';
 import MegaphoneLobby from './MegaphoneLobby';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Json } from '@/integrations/supabase/types';
+import { ActivityCategory, userTagsMatchCategory, ACTIVITY_CATEGORIES } from '@/constants/activities';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HERE';
 
@@ -46,6 +47,7 @@ interface TacticalMapProps {
   userLat: number;
   userLng: number;
   currentUserId: string;
+  activeCategory: ActivityCategory | null;
 }
 
 export interface TacticalMapHandle {
@@ -53,12 +55,25 @@ export interface TacticalMapHandle {
   openMissionById: (id: string) => void;
 }
 
+// Map activity category to megaphone category names
+const CATEGORY_MAP: Record<ActivityCategory, string> = {
+  sport: 'Sport',
+  tabletop: 'Gaming', // Tabletop maps to Gaming in megaphone categories
+  social: 'Food',     // Social maps to Food for now
+  outdoor: 'Other',   // Outdoor maps to Other
+};
+
 const CATEGORY_COLORS: Record<string, string> = {
   Sport: '15, 100%, 55%',
   Gaming: '180, 100%, 50%',
   Food: '45, 100%, 55%',
   Party: '320, 100%, 60%',
   Other: '215, 20%, 55%',
+  // Add colors for new activity categories
+  sport: '15, 100%, 55%',
+  tabletop: '180, 100%, 50%',
+  social: '45, 100%, 55%',
+  outdoor: '120, 60%, 45%',
 };
 
 const PRIVATE_COLOR = '45, 100%, 60%'; // Gold/warning color
@@ -72,7 +87,7 @@ const applyPrivacyJitter = (lat: number, lng: number): [number, number] => {
   return [lat + latOffset, lng + lngOffset];
 };
 
-const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, userLng, currentUserId }, ref) => {
+const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, userLng, currentUserId, activeCategory }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarkersRef = useRef<mapboxgl.Marker[]>([]);
@@ -89,6 +104,25 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
   const [clickedCoords, setClickedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedMegaphone, setSelectedMegaphone] = useState<Megaphone | null>(null);
   const [lobbyOpen, setLobbyOpen] = useState(false);
+
+  // Filter profiles based on active category
+  const filteredProfiles = useMemo(() => {
+    if (!activeCategory) return profiles;
+    return profiles.filter(profile => userTagsMatchCategory(profile.tags, activeCategory));
+  }, [profiles, activeCategory]);
+
+  // Filter megaphones based on active category
+  const filteredMegaphones = useMemo(() => {
+    if (!activeCategory) return megaphones;
+    const categoryInfo = ACTIVITY_CATEGORIES.find(c => c.id === activeCategory);
+    if (!categoryInfo) return megaphones;
+    
+    // Match both the capitalized label and lowercase id
+    return megaphones.filter(m => {
+      const megaCat = m.category.toLowerCase();
+      return megaCat === activeCategory || megaCat === categoryInfo.label.toLowerCase();
+    });
+  }, [megaphones, activeCategory]);
 
   // Fetch profiles
   useEffect(() => {
@@ -231,7 +265,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
     userMarkersRef.current.forEach(marker => marker.remove());
     userMarkersRef.current = [];
 
-    profiles.forEach(profile => {
+    filteredProfiles.forEach(profile => {
       if (!profile.base_lat || !profile.base_lng) return;
       if (profile.id === currentUserId) return;
 
@@ -277,7 +311,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
       userMarkerRootsRef.current.forEach(root => root.unmount());
       userMarkerRootsRef.current = [];
     };
-  }, [profiles, currentUserId]);
+  }, [filteredProfiles, currentUserId]);
 
   // Render megaphone markers
   useEffect(() => {
@@ -286,7 +320,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
     megaphoneMarkersRef.current.forEach(marker => marker.remove());
     megaphoneMarkersRef.current = [];
 
-    megaphones.forEach(megaphone => {
+    filteredMegaphones.forEach(megaphone => {
       const isPrivate = megaphone.is_private;
       const categoryColor = isPrivate ? PRIVATE_COLOR : (CATEGORY_COLORS[megaphone.category] || CATEGORY_COLORS.Other);
 
@@ -326,7 +360,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({ userLat, 
 
       megaphoneMarkersRef.current.push(marker);
     });
-  }, [megaphones]);
+  }, [filteredMegaphones]);
 
   const isTokenMissing = !MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN_HERE';
 
