@@ -311,8 +311,15 @@ const ChatDrawer = ({
       description: 'You are now connected.',
     });
 
+    // Immediately update pending invitations UI
     refetchPending();
-    refetchConnections();
+    
+    // Small delay to ensure database transaction completes, then refetch connections
+    // This ensures the megaphone and participant records are created before we fetch
+    setTimeout(() => {
+      console.log('ChatDrawer: Refetching connections after accept...');
+      refetchConnections();
+    }, 300);
   };
 
   const handleDeclineInvitation = async (invitationId: string) => {
