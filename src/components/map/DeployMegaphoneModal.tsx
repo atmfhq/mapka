@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { format } from 'date-fns';
+import { useState, useMemo, useEffect } from 'react';
+import { format, startOfDay, isToday } from 'date-fns';
 import { CalendarIcon, Megaphone, Users, Clock, MapPin, AlertTriangle, ChevronRight } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,18 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ACTIVITY_CATEGORIES, ACTIVITIES, ActivityCategory, getActivitiesByCategory, getActivityById } from '@/constants/activities';
+
+// Get minimum time for today (current time + 15 min buffer, rounded up to next 5 min)
+const getMinTimeForToday = (): string => {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() + 15); // Add 15 min buffer
+  // Round up to next 5 minutes
+  const minutes = Math.ceil(now.getMinutes() / 5) * 5;
+  now.setMinutes(minutes);
+  const hours = now.getHours().toString().padStart(2, '0');
+  const mins = now.getMinutes().toString().padStart(2, '0');
+  return `${hours}:${mins}`;
+};
 
 interface DeployMegaphoneModalProps {
   open: boolean;
@@ -42,6 +54,25 @@ const DeployMegaphoneModal = ({
     return getActivitiesByCategory(selectedCategory);
   }, [selectedCategory]);
 
+  // Calculate min time based on selected date
+  const minTime = useMemo(() => {
+    if (!date) return undefined;
+    if (isToday(date)) {
+      return getMinTimeForToday();
+    }
+    return undefined; // No restriction for future dates
+  }, [date]);
+
+  // Auto-adjust time if it's below minimum when date changes to today
+  useEffect(() => {
+    if (date && isToday(date)) {
+      const min = getMinTimeForToday();
+      if (time < min) {
+        setTime(min);
+      }
+    }
+  }, [date]);
+
   const selectedActivityData = selectedActivity ? getActivityById(selectedActivity) : null;
   const selectedCategoryData = selectedCategory ? ACTIVITY_CATEGORIES.find(c => c.id === selectedCategory) : null;
 
@@ -72,12 +103,22 @@ const DeployMegaphoneModal = ({
       return;
     }
 
-    setLoading(true);
-
     // Combine date and time
     const [hours, minutes] = time.split(':').map(Number);
     const startTime = new Date(date);
     startTime.setHours(hours, minutes, 0, 0);
+
+    // Validate that start time is in the future
+    if (startTime <= new Date()) {
+      toast({
+        title: "Invalid time",
+        description: "Event start time must be in the future.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
 
     // Save the activity label as the category (for backwards compatibility and filtering)
     const activityData = getActivityById(selectedActivity);
@@ -268,7 +309,7 @@ const DeployMegaphoneModal = ({
                     mode="single"
                     selected={date}
                     onSelect={setDate}
-                    disabled={(d) => d < new Date()}
+                    disabled={(d) => startOfDay(d) < startOfDay(new Date())}
                     initialFocus
                     className="p-3 pointer-events-auto"
                   />
@@ -284,8 +325,14 @@ const DeployMegaphoneModal = ({
                 type="time"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
+                min={minTime}
                 className="bg-muted/50 border-border/50"
               />
+              {minTime && (
+                <p className="text-[10px] text-muted-foreground">
+                  Min: {minTime}
+                </p>
+              )}
             </div>
           </div>
 
