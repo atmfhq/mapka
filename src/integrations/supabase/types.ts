@@ -157,6 +157,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_config: Json | null
           avatar_url: string | null
           base_lat: number | null
           base_lng: number | null
@@ -169,6 +170,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          avatar_config?: Json | null
           avatar_url?: string | null
           base_lat?: number | null
           base_lng?: number | null
@@ -181,6 +183,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          avatar_config?: Json | null
           avatar_url?: string | null
           base_lat?: number | null
           base_lng?: number | null

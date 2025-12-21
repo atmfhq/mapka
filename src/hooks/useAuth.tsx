@@ -2,11 +2,19 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
+interface AvatarConfig {
+  skinColor?: string;
+  shape?: string;
+  eyes?: string;
+  mouth?: string;
+}
+
 interface Profile {
   id: string;
   nick: string | null;
   bio: string | null;
   avatar_url: string | null;
+  avatar_config: AvatarConfig | null;
   tags: string[] | null;
   base_lat: number | null;
   base_lng: number | null;
@@ -30,7 +38,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfile = async (userId: string): Promise<Profile | null> => {
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -41,7 +49,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error("Error fetching profile:", error);
       return null;
     }
-    return data;
+    
+    if (!data) return null;
+    
+    // Cast the data to Profile, handling avatar_config type
+    return {
+      id: data.id,
+      nick: data.nick,
+      bio: data.bio,
+      avatar_url: data.avatar_url,
+      avatar_config: data.avatar_config as AvatarConfig | null,
+      tags: data.tags,
+      base_lat: data.base_lat,
+      base_lng: data.base_lng,
+      is_onboarded: data.is_onboarded,
+    };
   };
 
   const refreshProfile = async () => {
