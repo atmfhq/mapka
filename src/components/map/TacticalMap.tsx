@@ -28,6 +28,8 @@ interface Profile {
   tags: string[] | null;
   base_lat: number | null;
   base_lng: number | null;
+  location_lat: number | null;
+  location_lng: number | null;
   bio: string | null;
 }
 
@@ -145,12 +147,15 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const fetchProfiles = useCallback(async () => {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, nick, avatar_url, avatar_config, tags, base_lat, base_lng, bio')
-      .not('base_lat', 'is', null)
-      .not('base_lng', 'is', null);
+      .select('id, nick, avatar_url, avatar_config, tags, base_lat, base_lng, location_lat, location_lng, bio');
     
     if (!error && data) {
-      const mappedProfiles = data.map(p => ({
+      // Filter to only profiles with at least one set of coordinates
+      const profilesWithCoords = data.filter(p => 
+        (p.location_lat !== null && p.location_lng !== null) || 
+        (p.base_lat !== null && p.base_lng !== null)
+      );
+      const mappedProfiles = profilesWithCoords.map(p => ({
         ...p,
         avatar_config: p.avatar_config as AvatarConfig | null
       }));
@@ -293,10 +298,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         },
         (payload) => {
           console.log('🔔 Realtime: Profile updated:', payload.new);
-          const updatedProfile = payload.new as Profile & { base_lat: number | null; base_lng: number | null };
+          const updatedProfile = payload.new as Profile;
           
-          // Update the profile in state if it has valid coordinates
-          if (updatedProfile.base_lat !== null && updatedProfile.base_lng !== null) {
+          // Update the profile in state if it has valid coordinates (location_lat/lng OR base_lat/lng)
+          const hasLocation = updatedProfile.location_lat !== null && updatedProfile.location_lng !== null;
+          const hasBase = updatedProfile.base_lat !== null && updatedProfile.base_lng !== null;
+          
+          if (hasLocation || hasBase) {
             setProfiles(prev => {
               const exists = prev.some(p => p.id === updatedProfile.id);
               if (exists) {
@@ -310,6 +318,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
                 return [...prev, { ...updatedProfile, avatar_config: updatedProfile.avatar_config as AvatarConfig | null }];
               }
             });
+          } else {
+            // User no longer has coordinates, remove them
+            setProfiles(prev => prev.filter(p => p.id !== updatedProfile.id));
           }
         }
       )
@@ -398,10 +409,14 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     userMarkersRef.current = [];
 
     filteredProfiles.forEach(profile => {
-      if (!profile.base_lat || !profile.base_lng) return;
+      // Prioritize location_lat/lng (teleport) over base_lat/lng (original position)
+      const profileLat = profile.location_lat ?? profile.base_lat;
+      const profileLng = profile.location_lng ?? profile.base_lng;
+      
+      if (!profileLat || !profileLng) return;
       if (profile.id === currentUserId) return;
 
-      const [jitteredLat, jitteredLng] = applyPrivacyJitter(profile.base_lat, profile.base_lng);
+      const [jitteredLat, jitteredLng] = applyPrivacyJitter(profileLat, profileLng);
       const isConnected = connectedUserIds.has(profile.id);
 
       const el = document.createElement('div');
