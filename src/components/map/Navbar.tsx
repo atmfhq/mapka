@@ -102,13 +102,12 @@ const Navbar = ({
               {/* Profile Avatar Button */}
               <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
                 <SheetTrigger asChild>
-                <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="w-10 h-10 p-0 rounded-full overflow-hidden border-2 border-primary/40 hover:border-primary transition-colors bg-background"
+                <button 
+                    onClick={() => setSettingsOpen(true)}
+                    className="w-10 h-10 rounded-full overflow-hidden hover:opacity-80 transition-opacity"
                   >
                     <AvatarDisplay config={avatarConfig} size={40} showGlow={false} />
-                  </Button>
+                  </button>
                 </SheetTrigger>
                 <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh]">
                   <SheetHeader className="pb-4 border-b border-border/50">
