@@ -14,10 +14,10 @@ import { ACTIVITIES, ACTIVITY_CATEGORIES, getCategoryForActivity } from '@/const
 interface Quest {
   id: string;
   title: string;
+  description?: string | null;
   category: string; // Stores activity label like "Basketball"
   start_time: string;
   duration_minutes: number;
-  max_participants: number | null;
   lat: number;
   lng: number;
   host_id: string;
@@ -241,7 +241,7 @@ const QuestLobby = ({
 
   const startTime = new Date(quest.start_time);
   const endTime = new Date(startTime.getTime() + quest.duration_minutes * 60000);
-  const spotsLeft = (quest.max_participants || 10) - participants.length - 1;
+  const totalMembers = participants.length + 1; // +1 for host
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -308,12 +308,16 @@ const QuestLobby = ({
             </div>
             <div className="flex items-center gap-1.5">
               <Users className="w-4 h-4 text-primary" />
-              <span>{participants.length + 1} / {quest.max_participants || 10}</span>
-              {spotsLeft > 0 && (
-                <span className="text-success">({spotsLeft} spots left)</span>
-              )}
+              <span>{totalMembers} joined</span>
             </div>
           </div>
+
+          {/* Description */}
+          {quest.description && (
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {quest.description}
+            </p>
+          )}
         </SheetHeader>
 
         {/* Tabs: Info / Comms */}
@@ -402,7 +406,7 @@ const QuestLobby = ({
                   <X className="w-4 h-4 mr-2" />
                   Leave Mission
                 </Button>
-              ) : spotsLeft > 0 ? (
+              ) : (
                 <Button 
                   className="w-full bg-success hover:bg-success/90 text-success-foreground font-orbitron min-h-[52px] text-base"
                   onClick={handleJoin}
@@ -410,11 +414,6 @@ const QuestLobby = ({
                 >
                   <UserPlus className="w-5 h-5 mr-2" />
                   JOIN MISSION
-                </Button>
-              ) : (
-                <Button disabled className="w-full min-h-[48px]">
-                  <Users className="w-4 h-4 mr-2" />
-                  Mission Full
                 </Button>
               )}
             </div>
