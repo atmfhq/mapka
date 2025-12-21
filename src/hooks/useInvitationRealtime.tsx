@@ -137,21 +137,43 @@ export const useInvitationRealtime = (currentUserId: string | null) => {
   useEffect(() => {
     if (!currentUserId) return;
 
+    console.log('Setting up sender realtime subscription for user:', currentUserId);
+
     const channel = supabase
-      .channel('invitations-sender-realtime')
+      .channel(`invitations-sender-${currentUserId}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'invitations',
-          filter: `sender_id=eq.${currentUserId}`,
         },
         async (payload) => {
-          console.log('Invitation updated (sender):', payload);
+          console.log('Invitation UPDATE received:', payload);
+          
+          // Check if this update is for the current user as sender
+          if (payload.new.sender_id !== currentUserId) {
+            console.log('Not for this sender, ignoring');
+            return;
+          }
+
+          console.log('Sender match! Checking status change...');
           
           // Check if the invitation was just accepted
-          if (payload.new.status === 'accepted' && payload.old?.status === 'pending') {
+          // With REPLICA IDENTITY FULL, payload.old should have the previous status
+          const isAccepted = payload.new.status === 'accepted';
+          const wasNotAccepted = !payload.old?.status || payload.old.status === 'pending';
+          
+          console.log('Status check:', { 
+            newStatus: payload.new.status, 
+            oldStatus: payload.old?.status,
+            isAccepted,
+            wasNotAccepted 
+          });
+
+          if (isAccepted && wasNotAccepted) {
+            console.log('Invitation accepted! Showing toast...');
+            
             // Fetch receiver profile for the notification
             const { data: receiverProfile } = await supabase
               .from('profiles')
@@ -160,15 +182,18 @@ export const useInvitationRealtime = (currentUserId: string | null) => {
               .single();
 
             toast({
-              title: '✅ Signal Accepted!',
-              description: `You are now connected with ${receiverProfile?.nick || 'an operative'}.`,
+              title: '🎯 Signal Connected!',
+              description: `${receiverProfile?.nick || 'Someone'} accepted your invitation. Check your chats!`,
             });
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Sender subscription status:', status);
+      });
 
     return () => {
+      console.log('Cleaning up sender subscription');
       supabase.removeChannel(channel);
     };
   }, [currentUserId]);
