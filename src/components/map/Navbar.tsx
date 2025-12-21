@@ -105,11 +105,9 @@ const Navbar = ({
                 <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="w-10 h-10 p-0 rounded-full overflow-hidden border-2 border-primary/40 hover:border-primary transition-colors flex items-center justify-center"
+                    className="w-10 h-10 p-0 rounded-full overflow-hidden border-2 border-primary/40 hover:border-primary transition-colors bg-background"
                   >
-                    <div className="w-full h-full flex items-center justify-center">
-                      <AvatarDisplay config={avatarConfig} size={36} showGlow={false} />
-                    </div>
+                    <AvatarDisplay config={avatarConfig} size={40} showGlow={false} />
                   </Button>
                 </SheetTrigger>
                 <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh]">
