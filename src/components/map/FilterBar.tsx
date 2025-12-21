@@ -1,16 +1,26 @@
 import { useState } from 'react';
-import { SlidersHorizontal, X, ChevronDown } from 'lucide-react';
+import { SlidersHorizontal, X, ChevronDown, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
 import { ACTIVITY_CATEGORIES, ActivityCategory, getActivitiesByCategory, getActivityById, Activity } from '@/constants/activities';
 
+export type DateFilter = 'today' | '3days' | '7days';
+
+const DATE_FILTER_OPTIONS: { id: DateFilter; label: string }[] = [
+  { id: 'today', label: 'Today' },
+  { id: '3days', label: '3 Days' },
+  { id: '7days', label: '7 Days' },
+];
+
 interface FilterBarProps {
   activeActivity: string | null;
   onActivityChange: (activity: string | null) => void;
+  dateFilter: DateFilter;
+  onDateFilterChange: (filter: DateFilter) => void;
 }
 
-const FilterBar = ({ activeActivity, onActivityChange }: FilterBarProps) => {
+const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterChange }: FilterBarProps) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState<ActivityCategory | null>(null);
 
@@ -51,8 +61,29 @@ const FilterBar = ({ activeActivity, onActivityChange }: FilterBarProps) => {
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Desktop: Categories row */}
+      {/* Desktop: Date filters + Categories row */}
       <div className="hidden md:flex items-center gap-2">
+        {/* Date Filter Pills */}
+        <div className="flex items-center gap-1 mr-2 pr-3 border-r border-border/50">
+          {DATE_FILTER_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              onClick={() => onDateFilterChange(option.id)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-all duration-300",
+                "font-rajdhani text-sm font-medium whitespace-nowrap",
+                dateFilter === option.id
+                  ? "bg-warning/20 border-warning text-warning"
+                  : "bg-card/50 border-border/50 text-muted-foreground hover:border-warning/50 hover:text-warning/80"
+              )}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>{option.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* Category filters */}
         {ACTIVITY_CATEGORIES.map((category) => {
           const isExpanded = expandedCategory === category.id;
           const hasActiveActivity = activeActivityData?.category === category.id;
@@ -125,8 +156,27 @@ const FilterBar = ({ activeActivity, onActivityChange }: FilterBarProps) => {
         </div>
       )}
 
-      {/* Mobile: Filter button + Drawer */}
+      {/* Mobile: Filter button + Date pills + Drawer */}
       <div className="flex md:hidden items-center gap-2">
+        {/* Mobile Date Filter Pills */}
+        <div className="flex items-center gap-1">
+          {DATE_FILTER_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              onClick={() => onDateFilterChange(option.id)}
+              className={cn(
+                "px-2.5 py-1.5 rounded-lg border transition-all duration-200",
+                "font-rajdhani text-xs font-medium whitespace-nowrap",
+                dateFilter === option.id
+                  ? "bg-warning/20 border-warning text-warning"
+                  : "bg-card/50 border-border/50 text-muted-foreground"
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+
         <Drawer open={drawerOpen} onOpenChange={(open) => {
           setDrawerOpen(open);
           if (!open) setExpandedCategory(null);
@@ -147,7 +197,7 @@ const FilterBar = ({ activeActivity, onActivityChange }: FilterBarProps) => {
                   <span>{activeActivityData.label}</span>
                 </>
               ) : (
-                <span>Filter</span>
+                <span>Activity</span>
               )}
             </Button>
           </DrawerTrigger>
