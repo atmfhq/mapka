@@ -1,10 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+interface AvatarConfig {
+  skinColor?: string;
+  shape?: string;
+  eyes?: string;
+  mouth?: string;
+}
+
 interface ConnectedUser {
   id: string;
   nick: string | null;
   avatar_url: string | null;
+  avatar_config: AvatarConfig | null;
   invitationId: string;
   missionId: string | null;
 }
@@ -61,10 +69,10 @@ export const useConnectedUsers = (currentUserId: string) => {
       const otherUserIds = otherUserData.map(d => d.otherId);
       console.log('useConnectedUsers: Other user IDs:', otherUserIds);
 
-      // Fetch their profiles
+      // Fetch their profiles with avatar_config
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
-        .select('id, nick, avatar_url')
+        .select('id, nick, avatar_url, avatar_config')
         .in('id', otherUserIds);
 
       console.log('useConnectedUsers: Fetched profiles:', profiles, 'Error:', profileError);
@@ -113,7 +121,10 @@ export const useConnectedUsers = (currentUserId: string) => {
         }
 
         connectedWithMissions.push({
-          ...profile,
+          id: profile.id,
+          nick: profile.nick,
+          avatar_url: profile.avatar_url,
+          avatar_config: profile.avatar_config as AvatarConfig | null,
           invitationId: invData?.invitationId || '',
           missionId,
         });

@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { format } from 'date-fns';
 import { MessageCircle, User, Send, ChevronLeft, Loader2, Users, Megaphone, Radio } from 'lucide-react';
+import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
@@ -384,13 +385,14 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </Button>
-                <Avatar className="w-8 h-8 border-2 border-success">
-                  <AvatarImage src={selectedUserData?.avatar_url || undefined} />
-                  <AvatarFallback className="bg-success/20 text-success">
-                    {selectedUserData?.nick?.[0]?.toUpperCase() || '?'}
-                  </AvatarFallback>
-                </Avatar>
-                <span className="flex-1">{selectedUserData?.nick || 'Unknown'}</span>
+                <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-success">
+                  <AvatarDisplay 
+                    config={selectedUserData?.avatar_config} 
+                    size={36} 
+                    showGlow={false} 
+                  />
+                </div>
+                <span className="flex-1 font-semibold">{selectedUserData?.nick || 'Unknown'}</span>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -468,7 +470,7 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                 </div>
               )}
 
-              {/* Section A: Direct Signals (Private Chats) */}
+              {/* Section A: Direct Signals (Private Chats) - Horizontal Avatar Row */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Users className="w-4 h-4 text-success" />
@@ -494,35 +496,32 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {connectedUsers.map((user) => {
-                      return (
+                  <ScrollArea className="w-full">
+                    <div className="flex gap-3 pb-3">
+                      {connectedUsers.map((user) => (
                         <button
                           key={user.id}
                           onClick={() => handleSelectUser(user.id)}
-                          className="w-full p-3 rounded-lg bg-success/10 border border-success/30 hover:border-success/60 transition-colors flex items-center gap-3"
+                          className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-success/10 transition-colors min-w-[72px]"
                         >
                           <div className="relative">
-                            <Avatar className="w-10 h-10 border-2 border-success">
-                              <AvatarImage src={user.avatar_url || undefined} />
-                              <AvatarFallback className="bg-success/20 text-success">
-                                {user.nick?.[0]?.toUpperCase() || '?'}
-                              </AvatarFallback>
-                            </Avatar>
+                            <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-success shadow-[0_0_12px_rgba(34,197,94,0.4)]">
+                              <AvatarDisplay 
+                                config={user.avatar_config} 
+                                size={56} 
+                                showGlow={false} 
+                              />
+                            </div>
+                            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-success rounded-full border-2 border-background" />
                           </div>
-                          <div className="flex-1 text-left">
-                            <p className="font-semibold text-sm">
-                              {user.nick || 'Unknown'}
-                            </p>
-                            <p className="text-xs text-success">Direct Signal</p>
-                          </div>
-                          <Badge variant="outline" className="bg-success/20 text-success border-success/40 text-xs">
-                            Active
-                          </Badge>
+                          <span className="text-xs font-medium text-foreground truncate max-w-[64px]">
+                            {user.nick || 'Unknown'}
+                          </span>
                         </button>
-                      );
-                    })}
-                  </div>
+                      ))}
+                    </div>
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
                 )}
               </div>
 
