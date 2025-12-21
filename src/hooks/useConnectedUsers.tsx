@@ -54,11 +54,11 @@ export const useConnectedUsers = (currentUserId: string) => {
 
       // Get the other user IDs from the invitations
       const otherUserData = myInvitations.map(inv => ({
-        oderId: inv.sender_id === currentUserId ? inv.receiver_id : inv.sender_id,
+        otherId: inv.sender_id === currentUserId ? inv.receiver_id : inv.sender_id,
         invitationId: inv.id,
       }));
 
-      const otherUserIds = otherUserData.map(d => d.oderId);
+      const otherUserIds = otherUserData.map(d => d.otherId);
       console.log('useConnectedUsers: Other user IDs:', otherUserIds);
 
       // Fetch their profiles
@@ -81,7 +81,7 @@ export const useConnectedUsers = (currentUserId: string) => {
       const connectedWithMissions: ConnectedUser[] = [];
 
       for (const profile of profiles || []) {
-        const invData = otherUserData.find(d => d.oderId === profile.id);
+        const invData = otherUserData.find(d => d.otherId === profile.id);
         
         // Find the private mission between these two users
         // Check megaphones where either user is host and both are participants
