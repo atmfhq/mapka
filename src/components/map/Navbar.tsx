@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { Target, LogOut, Settings, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import MissionLog from './MissionLog';
+import AlertsDrawer from './AlertsDrawer';
+import ChatDrawer from './ChatDrawer';
 import InstallPrompt from '@/components/InstallPrompt';
 
 interface NavbarProps {
@@ -13,6 +14,7 @@ interface NavbarProps {
   onSignOut: () => void;
   onMissionCreated?: () => void;
   onOpenMission?: (missionId: string) => void;
+  onOpenChatWithUser?: (userId: string) => void;
 }
 
 const Navbar = ({ 
@@ -22,6 +24,7 @@ const Navbar = ({
   onSignOut,
   onMissionCreated,
   onOpenMission,
+  onOpenChatWithUser,
 }: NavbarProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
@@ -42,11 +45,15 @@ const Navbar = ({
 
             {/* User Controls */}
             <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-              {/* Mission Log */}
-              <MissionLog 
+              {/* Alerts (Public Events) */}
+              <AlertsDrawer 
                 currentUserId={currentUserId}
-                onMissionCreated={onMissionCreated}
                 onOpenMission={onOpenMission}
+              />
+
+              {/* Chats (Active Connections) */}
+              <ChatDrawer 
+                currentUserId={currentUserId}
               />
 
               {/* Settings Menu */}

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Send, Zap } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Send, Zap, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { getActivityById, Activity, ACTIVITIES } from '@/constants/activities';
 
 interface SendInviteModalProps {
   open: boolean;
@@ -18,18 +19,10 @@ interface SendInviteModalProps {
     id: string;
     nick: string | null;
     avatar_url: string | null;
+    tags?: string[] | null;
   };
   currentUserId: string;
 }
-
-const ACTIVITY_OPTIONS = [
-  { id: 'coffee', label: 'Coffee', emoji: '☕' },
-  { id: 'walk', label: 'Walk', emoji: '🚶' },
-  { id: 'gaming', label: 'Gaming', emoji: '🎮' },
-  { id: 'food', label: 'Food', emoji: '🍕' },
-  { id: 'workout', label: 'Workout', emoji: '💪' },
-  { id: 'chat', label: 'Just Chat', emoji: '💬' },
-];
 
 const SendInviteModal = ({
   open,
@@ -39,15 +32,45 @@ const SendInviteModal = ({
 }: SendInviteModalProps) => {
   const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [matchingActivities, setMatchingActivities] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Find matching activities based on target user's tags
+  useEffect(() => {
+    if (!open) return;
+    
+    setLoading(true);
+    
+    const userTags = targetUser.tags || [];
+    
+    if (userTags.length === 0) {
+      // No tags - show all activities
+      setMatchingActivities(ACTIVITIES);
+    } else {
+      // Filter activities that match user's tags (case insensitive)
+      const lowerTags = userTags.map(t => t.toLowerCase());
+      const matched = ACTIVITIES.filter(activity => 
+        lowerTags.includes(activity.label.toLowerCase())
+      );
+      
+      // If no exact matches, show all
+      setMatchingActivities(matched.length > 0 ? matched : ACTIVITIES);
+    }
+    
+    setLoading(false);
+    setSelectedActivity(null);
+  }, [open, targetUser.tags]);
 
   const handleSend = async () => {
     if (!selectedActivity) return;
     setSending(true);
 
+    const activityData = getActivityById(selectedActivity);
+
     const { error } = await supabase.from('invitations').insert({
       sender_id: currentUserId,
       receiver_id: targetUser.id,
-      activity_type: selectedActivity,
+      activity_type: activityData?.label || selectedActivity,
       status: 'pending',
     });
 
@@ -71,9 +94,11 @@ const SendInviteModal = ({
     onOpenChange(false);
   };
 
+  const hasMatchingInterests = matchingActivities.length > 0 && (targetUser.tags?.length || 0) > 0;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-primary/30 max-w-sm">
+      <DialogContent className="bg-card border-primary/30 max-w-sm max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-orbitron text-lg flex items-center gap-2">
             <Zap className="w-5 h-5 text-warning" />
@@ -92,27 +117,47 @@ const SendInviteModal = ({
             </Avatar>
             <div>
               <p className="font-semibold">{targetUser.nick || 'Unknown'}</p>
-              <p className="text-xs text-muted-foreground">Select activity to invite</p>
+              <p className="text-xs text-muted-foreground">
+                {hasMatchingInterests 
+                  ? `${matchingActivities.length} matching interests found`
+                  : 'Select activity to invite'}
+              </p>
             </div>
           </div>
 
+          {/* Signal protocol indicator */}
+          {hasMatchingInterests && (
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-success/10 border border-success/30">
+              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+              <span className="text-xs text-success font-mono">
+                SIGNAL PROTOCOL: MATCHING INTERESTS DETECTED
+              </span>
+            </div>
+          )}
+
           {/* Activity selection */}
-          <div className="grid grid-cols-3 gap-2">
-            {ACTIVITY_OPTIONS.map((activity) => (
-              <button
-                key={activity.id}
-                onClick={() => setSelectedActivity(activity.id)}
-                className={`p-3 rounded-lg border text-center transition-all ${
-                  selectedActivity === activity.id
-                    ? 'bg-primary/20 border-primary text-primary'
-                    : 'bg-muted/20 border-border/50 hover:border-primary/50'
-                }`}
-              >
-                <span className="text-xl block">{activity.emoji}</span>
-                <span className="text-xs font-medium mt-1 block">{activity.label}</span>
-              </button>
-            ))}
-          </div>
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {matchingActivities.map((activity) => (
+                <button
+                  key={activity.id}
+                  onClick={() => setSelectedActivity(activity.id)}
+                  className={`p-3 rounded-lg border text-center transition-all ${
+                    selectedActivity === activity.id
+                      ? 'bg-primary/20 border-primary text-primary shadow-[0_0_10px_hsl(var(--primary)/0.3)]'
+                      : 'bg-muted/20 border-border/50 hover:border-primary/50'
+                  }`}
+                >
+                  <span className="text-xl block">{activity.icon}</span>
+                  <span className="text-xs font-medium mt-1 block truncate">{activity.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
 
           {/* Send button */}
           <Button
