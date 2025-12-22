@@ -61,54 +61,53 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Desktop: Categories row + Spacer + Date filters */}
-      <div className="hidden md:flex items-center gap-2">
-        {/* Category filters (left group) */}
-        {ACTIVITY_CATEGORIES.map((category) => {
-          const isExpanded = expandedCategory === category.id;
-          const hasActiveActivity = activeActivityData?.category === category.id;
+      {/* Desktop: Categories row (left) + Date filters (right) */}
+      <div className="hidden md:flex items-center justify-between w-full">
+        {/* GROUP A: Category filters (left) */}
+        <div className="flex items-center gap-2">
+          {ACTIVITY_CATEGORIES.map((category) => {
+            const isExpanded = expandedCategory === category.id;
+            const hasActiveActivity = activeActivityData?.category === category.id;
+            
+            return (
+              <button
+                key={category.id}
+                onClick={() => handleCategoryClick(category.id)}
+                className={cn(
+                  "relative flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-300 flex-shrink-0",
+                  "font-rajdhani text-sm font-medium whitespace-nowrap",
+                  isExpanded || hasActiveActivity
+                    ? "bg-primary/20 border-primary text-primary"
+                    : "bg-card/50 border-border/50 text-muted-foreground hover:border-primary/50 hover:text-primary/80"
+                )}
+              >
+                <span className="text-base">{category.icon}</span>
+                <span>{category.label}</span>
+                <ChevronDown className={cn(
+                  "w-4 h-4 transition-transform",
+                  isExpanded && "rotate-180"
+                )} />
+              </button>
+            );
+          })}
           
-          return (
+          {/* Clear filter button */}
+          {activeActivity && (
             <button
-              key={category.id}
-              onClick={() => handleCategoryClick(category.id)}
-              className={cn(
-                "relative flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-300 flex-shrink-0",
-                "font-rajdhani text-sm font-medium whitespace-nowrap",
-                isExpanded || hasActiveActivity
-                  ? "bg-primary/20 border-primary text-primary"
-                  : "bg-card/50 border-border/50 text-muted-foreground hover:border-primary/50 hover:text-primary/80"
-              )}
+              onClick={() => {
+                onActivityChange(null);
+                setExpandedCategory(null);
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-destructive/50 text-destructive hover:bg-destructive/10 transition-all font-rajdhani text-sm flex-shrink-0"
             >
-              <span className="text-base">{category.icon}</span>
-              <span>{category.label}</span>
-              <ChevronDown className={cn(
-                "w-4 h-4 transition-transform",
-                isExpanded && "rotate-180"
-              )} />
+              <X className="w-4 h-4" />
+              Clear
             </button>
-          );
-        })}
-        
-        {/* Clear filter button */}
-        {activeActivity && (
-          <button
-            onClick={() => {
-              onActivityChange(null);
-              setExpandedCategory(null);
-            }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-destructive/50 text-destructive hover:bg-destructive/10 transition-all font-rajdhani text-sm flex-shrink-0"
-          >
-            <X className="w-4 h-4" />
-            Clear
-          </button>
-        )}
+          )}
+        </div>
 
-        {/* Spacer to push date filters right */}
-        <div className="ml-8" />
-
-        {/* Date Filter Pills (right group) */}
-        <div className="flex items-center gap-1 pl-3 border-l border-border/50 flex-shrink-0">
+        {/* GROUP B: Date Filter Pills (right) */}
+        <div className="flex items-center gap-2 flex-shrink-0">
           {DATE_FILTER_OPTIONS.map((option) => (
             <button
               key={option.id}
