@@ -52,10 +52,10 @@ const AlertsDrawer = ({ currentUserId, onOpenMission, onFlyToQuest }: AlertsDraw
         return startTime > now - 2 * 60 * 60 * 1000; // Within last 2h or future
       });
 
-      // Fetch host profiles
+      // Fetch host profiles from public_profiles view
       const hostIds = [...new Set(activeEvents.map(e => e.host_id))];
       const { data: profiles } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, nick, avatar_url')
         .in('id', hostIds);
 
