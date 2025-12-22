@@ -172,7 +172,7 @@ const Auth = () => {
 
             <Button
               type="submit"
-              variant="solidCyan"
+              variant="default"
               className="w-full"
               size="lg"
               disabled={loading}
@@ -182,7 +182,7 @@ const Auth = () => {
               ) : isLogin ? (
                 <>
                   <User className="w-4 h-4" />
-                  Access Terminal
+                  Login
                 </>
               ) : (
                 <>

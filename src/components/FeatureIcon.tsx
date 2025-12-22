@@ -3,15 +3,16 @@ import { cn } from "@/lib/utils";
 
 interface FeatureIconProps {
   icon: LucideIcon;
-  color: "cyan" | "magenta" | "lime";
+  color: "forest" | "gold" | "berry" | "sky";
   size?: "sm" | "md" | "lg";
 }
 
 const FeatureIcon = ({ icon: Icon, color, size = "md" }: FeatureIconProps) => {
   const colorClasses = {
-    cyan: "text-primary border-primary/30 bg-primary/10 shadow-[0_0_20px_hsl(180_100%_50%_/_0.2)]",
-    magenta: "text-accent border-accent/30 bg-accent/10 shadow-[0_0_20px_hsl(320_100%_60%_/_0.2)]",
-    lime: "text-success border-success/30 bg-success/10 shadow-[0_0_20px_hsl(120_100%_50%_/_0.2)]",
+    forest: "text-primary border-primary/50 bg-primary/10",
+    gold: "text-accent border-accent/50 bg-accent/10",
+    berry: "text-pink-500 border-pink-400/50 bg-pink-400/10",
+    sky: "text-sky-500 border-sky-400/50 bg-sky-400/10",
   };
 
   const sizeClasses = {
@@ -29,12 +30,12 @@ const FeatureIcon = ({ icon: Icon, color, size = "md" }: FeatureIconProps) => {
   return (
     <div
       className={cn(
-        "rounded-lg border flex items-center justify-center",
+        "rounded-xl border-3 border-border flex items-center justify-center shadow-hard-sm",
         colorClasses[color],
         sizeClasses[size]
       )}
     >
-      <Icon size={iconSizes[size]} strokeWidth={1.5} />
+      <Icon size={iconSizes[size]} strokeWidth={2} />
     </div>
   );
 };

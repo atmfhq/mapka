@@ -333,7 +333,7 @@ const EditProfile = () => {
           </Button>
 
           <Button
-            variant="solidCyan"
+            variant="default"
             onClick={handleSubmit}
             disabled={loading}
           >
