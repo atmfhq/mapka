@@ -776,14 +776,23 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       el.className = `quest-marker ${isMyQuest ? 'my-quest' : ''} ${isLiveNow ? 'live-now' : ''}`;
       el.style.zIndex = '20';
 
-      el.innerHTML = `
-        <div class="quest-container" style="--category-color: ${categoryColor}">
-          ${isLiveNow ? '<div class="live-pulse"></div>' : ''}
-          <div class="quest-icon ${isMyQuest ? 'my-quest-icon' : ''} ${isLiveNow ? 'live-icon' : ''}">
-            ${activityIcon}
-          </div>
-        </div>
-      `;
+      // Build DOM safely to prevent XSS - no innerHTML with dynamic content
+      const container = document.createElement('div');
+      container.className = 'quest-container';
+      container.style.setProperty('--category-color', categoryColor);
+
+      if (isLiveNow) {
+        const pulse = document.createElement('div');
+        pulse.className = 'live-pulse';
+        container.appendChild(pulse);
+      }
+
+      const iconDiv = document.createElement('div');
+      iconDiv.className = `quest-icon ${isMyQuest ? 'my-quest-icon' : ''} ${isLiveNow ? 'live-icon' : ''}`;
+      iconDiv.textContent = activityIcon; // textContent is XSS-safe
+      container.appendChild(iconDiv);
+
+      el.appendChild(container);
 
       el.addEventListener('click', (e) => {
         e.stopPropagation();
