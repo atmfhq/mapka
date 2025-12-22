@@ -735,14 +735,15 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       // Get dynamic icon and color based on activity
       const activityIcon = getActivityIcon(quest.category);
       const categoryColor = getCategoryColor(quest.category);
+      const isMyQuest = quest.host_id === currentUserId;
 
       const el = document.createElement('div');
-      el.className = 'quest-marker';
+      el.className = `quest-marker ${isMyQuest ? 'my-quest' : ''}`;
       el.style.zIndex = '20';
 
       el.innerHTML = `
         <div class="quest-container" style="--category-color: ${categoryColor}">
-          <div class="quest-icon">
+          <div class="quest-icon ${isMyQuest ? 'my-quest-icon' : ''}">
             ${activityIcon}
           </div>
         </div>
@@ -832,11 +833,18 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           box-shadow: 0 0 8px hsl(var(--primary) / 0.15);
           transition: all 0.2s ease-out;
         }
+        .quest-icon.my-quest-icon {
+          border: 3px solid hsl(var(--primary));
+          box-shadow: 0 0 16px hsl(var(--primary) / 0.5), inset 0 0 8px hsl(var(--primary) / 0.1);
+        }
         .quest-marker:hover .quest-icon {
           transform: scale(1.08);
           background: hsl(var(--primary) / 0.2);
           border-color: hsl(var(--primary));
           box-shadow: 0 0 16px hsl(var(--primary) / 0.4);
+        }
+        .quest-marker.my-quest:hover .quest-icon {
+          box-shadow: 0 0 20px hsl(var(--primary) / 0.6), inset 0 0 10px hsl(var(--primary) / 0.15);
         }
         .quest-marker:active .quest-icon {
           transform: scale(1.04);
