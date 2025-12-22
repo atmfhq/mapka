@@ -928,12 +928,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           transform: scale(1.1);
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
         }
-        /* Connected user - subtle green glow */
+        /* Connected user - no glow, same shadow */
         .user-avatar-marker.connected {
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 12px rgba(34, 197, 94, 0.5);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
         }
         .user-avatar-marker.connected:hover {
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 16px rgba(34, 197, 94, 0.6);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
         }
         .my-marker {
           cursor: pointer;
@@ -943,13 +943,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           width: 44px;
           height: 44px;
         }
-        /* Current user marker - slightly larger squircle with golden accent */
+        /* Current user marker - slightly larger squircle, no glow */
         .my-avatar-ring {
           width: 44px;
           height: 44px;
           border-radius: 14px;
           overflow: hidden;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), 0 0 16px rgba(251, 191, 36, 0.4);
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
           transition: all 0.3s ease;
         }
         .my-avatar-ring.ghost {
