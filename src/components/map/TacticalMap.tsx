@@ -1021,6 +1021,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             return next;
           });
         }}
+        onUpdate={(updatedQuest) => {
+          // Update the quest in local state immediately
+          setQuests(prev => prev.map(q => q.id === updatedQuest.id ? updatedQuest : q));
+          setSelectedQuest(updatedQuest);
+        }}
       />
     </>
   );
