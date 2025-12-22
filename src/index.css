@@ -1,98 +1,119 @@
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    /* Dark tactical base */
-    --background: 222 47% 5%;
-    --foreground: 210 40% 96%;
+    /* Cozy Adventure RPG - Light Theme */
+    /* Sky Blue Background */
+    --background: 195 80% 94%;
+    --foreground: 230 60% 15%;
 
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 96%;
+    /* Parchment Cards */
+    --card: 45 100% 98%;
+    --card-foreground: 230 60% 15%;
 
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 40% 96%;
+    --popover: 45 100% 98%;
+    --popover-foreground: 230 60% 15%;
 
-    /* Neon Cyan - Primary */
-    --primary: 180 100% 50%;
-    --primary-foreground: 222 47% 5%;
+    /* RPG Green - Primary Action */
+    --primary: 122 39% 49%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Slate secondary */
-    --secondary: 215 25% 15%;
-    --secondary-foreground: 210 40% 90%;
+    /* Wood Brown - Secondary */
+    --secondary: 30 30% 85%;
+    --secondary-foreground: 25 50% 20%;
 
-    /* Muted dark slate */
-    --muted: 215 25% 12%;
-    --muted-foreground: 215 20% 55%;
+    /* Stone Gray - Muted */
+    --muted: 210 15% 92%;
+    --muted-foreground: 210 10% 45%;
 
-    /* Neon Magenta - Accent */
-    --accent: 320 100% 60%;
-    --accent-foreground: 0 0% 100%;
+    /* Loot Gold - Accent */
+    --accent: 45 100% 55%;
+    --accent-foreground: 25 50% 15%;
 
-    /* Neon Lime - Success/Join */
-    --success: 120 100% 50%;
-    --success-foreground: 222 47% 5%;
+    /* Adventure Green - Success */
+    --success: 142 70% 45%;
+    --success-foreground: 0 0% 100%;
 
-    /* Warning/Events */
-    --warning: 45 100% 55%;
-    --warning-foreground: 222 47% 5%;
+    /* Quest Orange - Warning */
+    --warning: 35 95% 55%;
+    --warning-foreground: 25 50% 15%;
 
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 215 25% 20%;
-    --input: 215 25% 18%;
-    --ring: 180 100% 50%;
+    /* Thick Dark Brown Borders */
+    --border: 25 40% 25%;
+    --input: 25 40% 25%;
+    --ring: 122 39% 40%;
 
-    --radius: 0.5rem;
+    --radius: 1rem;
 
-    /* Glow effects */
-    --glow-cyan: 0 0 20px hsl(180 100% 50% / 0.5);
-    --glow-magenta: 0 0 20px hsl(320 100% 60% / 0.5);
-    --glow-lime: 0 0 20px hsl(120 100% 50% / 0.5);
+    /* Hard shadows for blocky feel */
+    --shadow-hard: 4px 4px 0px 0px hsl(25 40% 20% / 0.9);
+    --shadow-hard-sm: 2px 2px 0px 0px hsl(25 40% 20% / 0.9);
+    --shadow-hard-lg: 6px 6px 0px 0px hsl(25 40% 20% / 0.9);
 
-    /* Sidebar - tactical panel */
-    --sidebar-background: 222 47% 6%;
-    --sidebar-foreground: 210 40% 90%;
-    --sidebar-primary: 180 100% 50%;
-    --sidebar-primary-foreground: 222 47% 5%;
-    --sidebar-accent: 320 100% 60%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 215 25% 18%;
-    --sidebar-ring: 180 100% 50%;
+    /* Sidebar - Adventure Panel */
+    --sidebar-background: 45 100% 97%;
+    --sidebar-foreground: 230 60% 15%;
+    --sidebar-primary: 122 39% 49%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 45 100% 55%;
+    --sidebar-accent-foreground: 25 50% 15%;
+    --sidebar-border: 25 40% 25%;
+    --sidebar-ring: 122 39% 40%;
   }
 
   .dark {
-    --background: 222 47% 5%;
-    --foreground: 210 40% 96%;
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 96%;
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 40% 96%;
-    --primary: 180 100% 50%;
-    --primary-foreground: 222 47% 5%;
-    --secondary: 215 25% 15%;
-    --secondary-foreground: 210 40% 90%;
-    --muted: 215 25% 12%;
-    --muted-foreground: 215 20% 55%;
-    --accent: 320 100% 60%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 215 25% 20%;
-    --input: 215 25% 18%;
-    --ring: 180 100% 50%;
-    --sidebar-background: 222 47% 6%;
-    --sidebar-foreground: 210 40% 90%;
-    --sidebar-primary: 180 100% 50%;
-    --sidebar-primary-foreground: 222 47% 5%;
-    --sidebar-accent: 320 100% 60%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 215 25% 18%;
-    --sidebar-ring: 180 100% 50%;
+    /* Keep light theme for adventure feel - dark mode uses slightly warmer tones */
+    --background: 220 20% 12%;
+    --foreground: 45 30% 90%;
+
+    --card: 220 20% 16%;
+    --card-foreground: 45 30% 90%;
+
+    --popover: 220 20% 16%;
+    --popover-foreground: 45 30% 90%;
+
+    --primary: 122 50% 55%;
+    --primary-foreground: 220 20% 10%;
+
+    --secondary: 25 20% 25%;
+    --secondary-foreground: 45 30% 85%;
+
+    --muted: 220 15% 20%;
+    --muted-foreground: 210 10% 55%;
+
+    --accent: 45 100% 50%;
+    --accent-foreground: 220 20% 10%;
+
+    --success: 142 60% 50%;
+    --success-foreground: 220 20% 10%;
+
+    --warning: 35 90% 50%;
+    --warning-foreground: 220 20% 10%;
+
+    --destructive: 0 65% 50%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 25 30% 35%;
+    --input: 25 30% 35%;
+    --ring: 122 50% 50%;
+
+    --shadow-hard: 4px 4px 0px 0px hsl(25 30% 10% / 0.9);
+    --shadow-hard-sm: 2px 2px 0px 0px hsl(25 30% 10% / 0.9);
+    --shadow-hard-lg: 6px 6px 0px 0px hsl(25 30% 10% / 0.9);
+
+    --sidebar-background: 220 20% 14%;
+    --sidebar-foreground: 45 30% 90%;
+    --sidebar-primary: 122 50% 55%;
+    --sidebar-primary-foreground: 220 20% 10%;
+    --sidebar-accent: 45 100% 50%;
+    --sidebar-accent-foreground: 220 20% 10%;
+    --sidebar-border: 25 30% 35%;
+    --sidebar-ring: 122 50% 50%;
   }
 }
 
@@ -102,105 +123,95 @@
   }
 
   body {
-    @apply bg-background text-foreground font-rajdhani antialiased;
+    @apply bg-background text-foreground font-nunito antialiased;
   }
 
   html {
     scroll-behavior: smooth;
   }
+
+  /* Adventure typography */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-fredoka font-bold tracking-tight;
+  }
 }
 
 @layer utilities {
-  /* Neon glow effects */
-  .glow-cyan {
-    box-shadow: var(--glow-cyan);
+  /* Hard shadow utilities - blocky RPG feel */
+  .shadow-hard {
+    box-shadow: var(--shadow-hard);
   }
 
-  .glow-magenta {
-    box-shadow: var(--glow-magenta);
+  .shadow-hard-sm {
+    box-shadow: var(--shadow-hard-sm);
   }
 
-  .glow-lime {
-    box-shadow: var(--glow-lime);
+  .shadow-hard-lg {
+    box-shadow: var(--shadow-hard-lg);
   }
 
-  .text-glow-cyan {
-    text-shadow: 0 0 10px hsl(180 100% 50% / 0.8);
+  /* Button press effect */
+  .btn-pressed {
+    transform: translateY(4px);
+    box-shadow: none !important;
   }
 
-  .text-glow-magenta {
-    text-shadow: 0 0 10px hsl(320 100% 60% / 0.8);
+  /* Adventure card style */
+  .adventure-card {
+    @apply bg-card border-3 border-border rounded-2xl;
+    box-shadow: var(--shadow-hard);
   }
 
-  .text-glow-lime {
-    text-shadow: 0 0 10px hsl(120 100% 50% / 0.8);
+  /* Chunky border utilities */
+  .border-chunky {
+    @apply border-3;
   }
 
-  /* Tactical grid background */
-  .tactical-grid {
-    background-image: 
-      linear-gradient(hsl(180 100% 50% / 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(180 100% 50% / 0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
+  .border-chunky-lg {
+    @apply border-4;
   }
 
-  /* Scanline effect */
-  .scanlines::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      hsl(180 100% 50% / 0.02) 2px,
-      hsl(180 100% 50% / 0.02) 4px
-    );
-    pointer-events: none;
+  /* Candy badge colors */
+  .badge-forest {
+    @apply bg-primary text-primary-foreground border-2 border-primary/80;
   }
 
-  /* Pulse animation */
-  .pulse-glow {
-    animation: pulse-glow 2s ease-in-out infinite;
+  .badge-gold {
+    @apply bg-accent text-accent-foreground border-2 border-accent/80;
   }
 
-  @keyframes pulse-glow {
-    0%, 100% {
-      box-shadow: 0 0 5px hsl(180 100% 50% / 0.5), 0 0 20px hsl(180 100% 50% / 0.3);
-    }
-    50% {
-      box-shadow: 0 0 15px hsl(180 100% 50% / 0.8), 0 0 40px hsl(180 100% 50% / 0.5);
-    }
+  .badge-sky {
+    @apply bg-sky-400 text-sky-900 border-2 border-sky-500;
   }
 
-  /* Radar sweep animation */
-  .radar-sweep {
-    animation: radar-sweep 4s linear infinite;
-  }
-
-  @keyframes radar-sweep {
-    0% {
-      transform: rotate(0deg);
-    }
-    100% {
-      transform: rotate(360deg);
-    }
+  .badge-berry {
+    @apply bg-pink-400 text-pink-900 border-2 border-pink-500;
   }
 
   /* Fade in up animation */
   .animate-fade-in-up {
-    animation: fade-in-up 0.6s ease-out forwards;
+    animation: fade-in-up 0.5s ease-out forwards;
   }
 
   @keyframes fade-in-up {
     from {
       opacity: 0;
-      transform: translateY(20px);
+      transform: translateY(16px);
     }
     to {
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  /* Bounce animation for playful feel */
+  .animate-bounce-soft {
+    animation: bounce-soft 0.4s ease-out;
+  }
+
+  @keyframes bounce-soft {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
   }
 
   /* Stagger delays */
@@ -233,56 +244,65 @@
   }
 }
 
-/* Mapbox controls positioning to avoid overlap */
+/* Mapbox controls - Adventure style */
 .mapboxgl-ctrl-bottom-right {
   bottom: 100px !important;
   right: 16px !important;
 }
 
 .mapboxgl-ctrl-group {
-  background: hsl(222 47% 8% / 0.9) !important;
-  border: 1px solid hsl(180 100% 50% / 0.3) !important;
-  backdrop-filter: blur(8px);
+  background: hsl(45 100% 98% / 0.95) !important;
+  border: 3px solid hsl(25 40% 25%) !important;
+  border-radius: 12px !important;
+  box-shadow: 3px 3px 0px 0px hsl(25 40% 20% / 0.8) !important;
+  overflow: hidden;
 }
 
 .mapboxgl-ctrl-group button {
   min-width: 44px !important;
   min-height: 44px !important;
+  background: hsl(45 100% 98%) !important;
+}
+
+.mapboxgl-ctrl-group button:hover {
+  background: hsl(122 39% 90%) !important;
 }
 
 .mapboxgl-ctrl-group button + button {
-  border-top: 1px solid hsl(215 25% 20%) !important;
+  border-top: 2px solid hsl(25 40% 25%) !important;
 }
 
 .mapboxgl-ctrl-icon {
-  filter: invert(1) brightness(0.9);
+  filter: none;
 }
 
-/* Custom scrollbar for tactical feel */
+/* Custom scrollbar - Adventure style */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(222 47% 8%);
+  background: hsl(var(--muted));
+  border-radius: 5px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(180 100% 50% / 0.3);
-  border-radius: 3px;
+  background: hsl(var(--primary));
+  border-radius: 5px;
+  border: 2px solid hsl(var(--muted));
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(180 100% 50% / 0.5);
+  background: hsl(var(--primary) / 0.8);
 }
 
 /* Mobile App Feel - Prevent text selection on UI elements */
 button,
 label,
 h1, h2, h3, h4, h5, h6,
-.font-orbitron,
-.tactical-card,
+.font-fredoka,
+.adventure-card,
 nav,
 header,
 .badge,
@@ -317,7 +337,7 @@ p.selectable {
     opacity: 0;
   }
   50% {
-    transform: scale(1.2);
+    transform: scale(1.15);
   }
   100% {
     transform: scale(1);
@@ -327,4 +347,9 @@ p.selectable {
 
 .megaphone-marker-new {
   animation: marker-pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Border width 3 utility */
+.border-3 {
+  border-width: 3px;
 }

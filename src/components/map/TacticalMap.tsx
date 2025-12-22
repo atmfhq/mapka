@@ -544,7 +544,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     try {
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/dark-v11',
+        style: 'mapbox://styles/mapbox/outdoors-v12',
         center: [userLng, userLat],
         zoom: 14,
         pitch: 45,

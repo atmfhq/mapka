@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
 import HeroRadar from "@/components/HeroRadar";
-import TacticalCard from "@/components/TacticalCard";
+import AdventureCard from "@/components/AdventureCard";
 import FeatureIcon from "@/components/FeatureIcon";
-import { MapPin, Users, Radio, Gamepad2, Target, Zap } from "lucide-react";
+import { MapPin, Users, Radio, Gamepad2, Compass, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -17,51 +17,62 @@ const Index = () => {
     if (profile && !profile.is_onboarded) return "/onboarding";
     return "/dashboard";
   };
+  
   const handleWatchDemo = () => {
     toast({
       title: "Coming Soon",
       description: "Demo video is under production. Stay tuned!"
     });
   };
-  return <div className="min-h-screen bg-background tactical-grid relative overflow-hidden">
-      {/* Background gradient overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+
+  return (
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      {/* Background - sunny sky gradient */}
+      <div className="absolute inset-0 bg-gradient-to-b from-sky-200/50 via-background to-background pointer-events-none" />
       
-      {/* Top HUD bar */}
-      <header className="relative z-10 border-b border-border/50 backdrop-blur-sm">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      {/* Floating clouds decoration */}
+      <div className="absolute top-20 left-10 w-32 h-16 bg-card/60 rounded-full blur-xl opacity-50" />
+      <div className="absolute top-40 right-20 w-40 h-20 bg-card/60 rounded-full blur-xl opacity-40" />
+      
+      {/* Top Navigation Bar - Adventure HUD style */}
+      <header className="relative z-10 border-b-3 border-border bg-card/95 backdrop-blur-sm shadow-hard">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
-              <Target className="w-5 h-5 text-primary" />
+            <div className="w-12 h-12 rounded-xl bg-primary border-3 border-border flex items-center justify-center shadow-hard-sm">
+              <Compass className="w-6 h-6 text-primary-foreground" />
             </div>
-            <span className="font-orbitron text-xl font-bold text-foreground tracking-wider">
-              SQUAD<span className="text-primary">MAP</span>
+            <span className="font-fredoka text-2xl font-bold text-foreground tracking-tight">
+              Squad<span className="text-primary">Map</span>
             </span>
           </div>
           
           <nav className="hidden md:flex items-center gap-6">
-            <span className="text-muted-foreground font-mono text-sm uppercase tracking-widest">
-              v1.0 tactical beta 
+            <span className="text-muted-foreground font-nunito text-sm font-semibold">
+              Adventure Beta v1.0
             </span>
           </nav>
           
           <div className="flex items-center gap-3">
-            {user ? <Link to={getAppLink()}>
-                <Button variant="neonCyan" size="sm">
+            {user ? (
+              <Link to={getAppLink()}>
+                <Button variant="default" size="sm">
                   Dashboard
                 </Button>
-              </Link> : <>
+              </Link>
+            ) : (
+              <>
                 <Link to="/auth">
-                  <Button variant="ghost" size="sm" className="font-mono">
+                  <Button variant="ghost" size="sm" className="font-nunito">
                     Login
                   </Button>
                 </Link>
                 <Link to="/auth">
-                  <Button variant="neonCyan" size="sm">
-                    Deploy
+                  <Button variant="default" size="sm">
+                    Join Quest
                   </Button>
                 </Link>
-              </>}
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -70,34 +81,34 @@ const Index = () => {
       <section className="relative z-10 container mx-auto px-4 py-16 md:py-24">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           <div className="space-y-8 animate-fade-in-up">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/30 bg-primary/5">
-              <Radio className="w-4 h-4 text-primary animate-pulse" />
-              <span className="font-mono text-sm text-primary uppercase tracking-wider">
-                Social Locator Online
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border-2 border-primary/50 bg-primary/10">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="font-nunito text-sm font-bold text-primary">
+                Adventure Awaits!
               </span>
             </div>
             
-            <h1 className="text-4xl md:text-6xl font-orbitron font-bold leading-tight">
+            <h1 className="text-4xl md:text-6xl font-fredoka font-bold leading-tight">
               <span className="text-foreground">Find Your</span>
               <br />
-              <span className="text-primary text-glow-cyan">Squad</span>
+              <span className="text-primary">Squad</span>
               <span className="text-foreground">.</span>
               <br />
-              <span className="text-accent text-glow-magenta">Go Offline</span>
-              <span className="text-foreground">.</span>
+              <span className="text-accent">Go Explore</span>
+              <span className="text-foreground">!</span>
             </h1>
             
-            <p className="text-lg text-muted-foreground max-w-lg font-rajdhani leading-relaxed">
-              A tactical map for finding real people. See who's nearby, 
-              discover activities, and turn online connections into offline adventures.
-              <span className="text-primary"> See → Click → Go.</span>
+            <p className="text-lg text-muted-foreground max-w-lg font-nunito leading-relaxed">
+              A map for finding real adventure buddies. See who's nearby, 
+              discover activities, and turn online connections into real-world quests.
+              <span className="text-primary font-bold"> See → Click → Go!</span>
             </p>
             
             <div className="flex flex-wrap gap-4">
               <Link to={getAppLink()}>
-                <Button variant="solidCyan" size="xl" className="group">
-                  <MapPin className="w-5 h-5 group-hover:animate-pulse" />
-                  Enter The Map
+                <Button variant="default" size="xl" className="group">
+                  <MapPin className="w-5 h-5" />
+                  Start Adventure
                 </Button>
               </Link>
               <Button variant="outline" size="xl" onClick={handleWatchDemo}>
@@ -106,41 +117,41 @@ const Index = () => {
               </Button>
             </div>
             
-            {/* Stats */}
+            {/* Stats - Adventure style */}
             <div className="flex gap-8 pt-4">
               <div className="text-center">
-                <div className="font-orbitron text-2xl font-bold text-primary">∞</div>
-                <div className="font-mono text-xs text-muted-foreground uppercase">Connections</div>
+                <div className="font-fredoka text-2xl font-bold text-primary">∞</div>
+                <div className="font-nunito text-xs text-muted-foreground font-semibold uppercase">Adventures</div>
               </div>
               <div className="text-center">
-                <div className="font-orbitron text-2xl font-bold text-accent">24/7</div>
-                <div className="font-mono text-xs text-muted-foreground uppercase">Live Map</div>
+                <div className="font-fredoka text-2xl font-bold text-accent">24/7</div>
+                <div className="font-nunito text-xs text-muted-foreground font-semibold uppercase">Live Map</div>
               </div>
               <div className="text-center">
-                <div className="font-orbitron text-2xl font-bold text-success">0</div>
-                <div className="font-mono text-xs text-muted-foreground uppercase">BS Factor</div>
+                <div className="font-fredoka text-2xl font-bold text-success">100%</div>
+                <div className="font-nunito text-xs text-muted-foreground font-semibold uppercase">Fun</div>
               </div>
             </div>
           </div>
           
           {/* Radar visualization */}
           <div className="relative animate-fade-in-up delay-200 opacity-0" style={{
-          animationFillMode: 'forwards'
-        }}>
+            animationFillMode: 'forwards'
+          }}>
             <HeroRadar />
             
-            {/* Floating labels */}
-            <div className="absolute top-[15%] right-[10%] px-3 py-1 rounded bg-card/80 backdrop-blur border border-primary/30 font-mono text-xs text-primary animate-float">
-              @runner_pro
+            {/* Floating labels - Adventure style */}
+            <div className="absolute top-[15%] right-[10%] px-3 py-1.5 rounded-xl bg-card border-2 border-primary font-nunito text-sm font-bold text-primary shadow-hard-sm animate-bounce-soft">
+              @runner_pro 🏃
             </div>
-            <div className="absolute bottom-[25%] left-[5%] px-3 py-1 rounded bg-card/80 backdrop-blur border border-accent/30 font-mono text-xs text-accent animate-float" style={{
-            animationDelay: '0.5s'
-          }}>
+            <div className="absolute bottom-[25%] left-[5%] px-3 py-1.5 rounded-xl bg-card border-2 border-accent font-nunito text-sm font-bold text-accent shadow-hard-sm animate-bounce-soft" style={{
+              animationDelay: '0.5s'
+            }}>
               🎮 Gaming Night
             </div>
-            <div className="absolute top-[40%] right-[5%] px-3 py-1 rounded bg-card/80 backdrop-blur border border-success/30 font-mono text-xs text-success animate-float" style={{
-            animationDelay: '1s'
-          }}>
+            <div className="absolute top-[40%] right-[5%] px-3 py-1.5 rounded-xl bg-card border-2 border-success font-nunito text-sm font-bold text-success shadow-hard-sm animate-bounce-soft" style={{
+              animationDelay: '1s'
+            }}>
               ⚽ 3v3 Match
             </div>
           </div>
@@ -150,83 +161,85 @@ const Index = () => {
       {/* Features Section */}
       <section className="relative z-10 container mx-auto px-4 py-16">
         <div className="text-center mb-12">
-          <h2 className="font-orbitron text-3xl font-bold mb-4">
-            <span className="text-muted-foreground">Mission</span>{" "}
-            <span className="text-primary">Control</span>
+          <h2 className="font-fredoka text-3xl font-bold mb-4">
+            <span className="text-muted-foreground">Quest</span>{" "}
+            <span className="text-primary">Features</span>
           </h2>
-          <p className="text-muted-foreground font-rajdhani max-w-xl mx-auto">
+          <p className="text-muted-foreground font-nunito max-w-xl mx-auto">
             Everything you need to coordinate with your squad
           </p>
         </div>
         
         <div className="grid md:grid-cols-3 gap-6">
-          <TacticalCard glowColor="cyan" className="animate-fade-in-up delay-100 opacity-0" style={{
-          animationFillMode: 'forwards'
-        }}>
-            <FeatureIcon icon={MapPin} color="cyan" />
-            <h3 className="font-orbitron text-xl font-semibold mt-4 mb-2">
-              Tactical Map
+          <AdventureCard color="forest" className="animate-fade-in-up delay-100 opacity-0" style={{
+            animationFillMode: 'forwards'
+          }}>
+            <FeatureIcon icon={MapPin} color="forest" />
+            <h3 className="font-fredoka text-xl font-bold mt-4 mb-2">
+              Adventure Map
             </h3>
-            <p className="text-muted-foreground text-sm">
-              Dark-mode map with neon markers. See users and events as tactical icons on your HUD.
+            <p className="text-muted-foreground text-sm font-nunito">
+              Explore the map and see other adventurers nearby. Find your next quest!
             </p>
-          </TacticalCard>
+          </AdventureCard>
           
-          <TacticalCard glowColor="magenta" className="animate-fade-in-up delay-200 opacity-0" style={{
-          animationFillMode: 'forwards'
-        }}>
-            <FeatureIcon icon={Radio} color="magenta" />
-            <h3 className="font-orbitron text-xl font-semibold mt-4 mb-2">
+          <AdventureCard color="gold" className="animate-fade-in-up delay-200 opacity-0" style={{
+            animationFillMode: 'forwards'
+          }}>
+            <FeatureIcon icon={Radio} color="gold" />
+            <h3 className="font-fredoka text-xl font-bold mt-4 mb-2">
               Megaphones
             </h3>
-            <p className="text-muted-foreground text-sm">
-              Broadcast activities to nearby users. Create public events and watch your squad assemble.
+            <p className="text-muted-foreground text-sm font-nunito">
+              Broadcast activities to nearby users. Create public events and gather your party!
             </p>
-          </TacticalCard>
+          </AdventureCard>
           
-          <TacticalCard glowColor="lime" className="animate-fade-in-up delay-300 opacity-0" style={{
-          animationFillMode: 'forwards'
-        }}>
-            <FeatureIcon icon={Users} color="lime" />
-            <h3 className="font-orbitron text-xl font-semibold mt-4 mb-2">
+          <AdventureCard color="berry" className="animate-fade-in-up delay-300 opacity-0" style={{
+            animationFillMode: 'forwards'
+          }}>
+            <FeatureIcon icon={Users} color="berry" />
+            <h3 className="font-fredoka text-xl font-bold mt-4 mb-2">
               Character Profiles
             </h3>
-            <p className="text-muted-foreground text-sm">
-              Create your avatar with skills (interests). Show the world what you're into.
+            <p className="text-muted-foreground text-sm font-nunito">
+              Create your avatar with skills (interests). Show the world what you're into!
             </p>
-          </TacticalCard>
+          </AdventureCard>
         </div>
       </section>
 
       {/* CTA Section */}
       <section className="relative z-10 container mx-auto px-4 py-16 mb-8">
-        <TacticalCard className="text-center py-12 bg-gradient-to-br from-card via-card/80 to-primary/5">
-          <Zap className="w-12 h-12 mx-auto text-primary mb-4" />
-          <h2 className="font-orbitron text-3xl font-bold mb-4">
-            Ready to <span className="text-primary text-glow-cyan">Deploy</span>?
+        <AdventureCard color="forest" className="text-center py-12 bg-gradient-to-br from-card via-card/80 to-primary/10">
+          <Sparkles className="w-12 h-12 mx-auto text-primary mb-4" />
+          <h2 className="font-fredoka text-3xl font-bold mb-4">
+            Ready to <span className="text-primary">Explore</span>?
           </h2>
-          <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-            Join the tactical network. Find real people for real activities.
+          <p className="text-muted-foreground mb-8 max-w-md mx-auto font-nunito">
+            Join the adventure. Find real people for real activities!
           </p>
           <Link to={getAppLink()}>
-            <Button variant="solidCyan" size="xl">
+            <Button variant="default" size="xl">
               {user ? "Go to Dashboard" : "Create Your Character"}
             </Button>
           </Link>
-        </TacticalCard>
+        </AdventureCard>
       </section>
 
       {/* Footer */}
-      <footer className="relative z-10 border-t border-border/50 py-6">
+      <footer className="relative z-10 border-t-3 border-border bg-card py-6">
         <div className="container mx-auto px-4 flex items-center justify-between">
-          <span className="font-mono text-xs text-muted-foreground">
-            © 2024 SQUADMAP · TACTICAL SOCIAL
+          <span className="font-nunito text-sm text-muted-foreground font-semibold">
+            © 2024 SquadMap · Adventure Together
           </span>
-          <span className="font-mono text-xs text-primary">
-            STATUS: ONLINE
+          <span className="font-nunito text-sm text-primary font-bold">
+            🟢 ONLINE
           </span>
         </div>
       </footer>
-    </div>;
+    </div>
+  );
 };
+
 export default Index;

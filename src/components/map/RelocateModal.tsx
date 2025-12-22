@@ -120,7 +120,7 @@ const RelocateModal = ({
             Cancel
           </Button>
           <Button
-            variant="solidCyan"
+            variant="default"
             onClick={handleConfirm}
             disabled={!selectedLocation || saving}
           >
