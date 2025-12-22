@@ -38,10 +38,10 @@ export const useInvitationRealtime = (currentUserId: string | null) => {
     }
 
     if (data && data.length > 0) {
-      // Fetch sender profiles
+      // Fetch sender profiles from public_profiles view
       const senderIds = [...new Set(data.map(inv => inv.sender_id))];
       const { data: profiles } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, nick, avatar_url')
         .in('id', senderIds);
 
@@ -80,12 +80,12 @@ export const useInvitationRealtime = (currentUserId: string | null) => {
         async (payload) => {
           console.log('New invitation received:', payload);
           
-          // Fetch sender profile for the notification
+          // Fetch sender profile for the notification from public_profiles view
           const { data: senderProfile } = await supabase
-            .from('profiles')
+            .from('public_profiles')
             .select('nick, avatar_url')
             .eq('id', payload.new.sender_id)
-            .single();
+            .maybeSingle();
 
           const newInvitation: PendingInvitation = {
             id: payload.new.id,
@@ -174,12 +174,12 @@ export const useInvitationRealtime = (currentUserId: string | null) => {
           if (isAccepted && wasNotAccepted) {
             console.log('Invitation accepted! Showing toast...');
             
-            // Fetch receiver profile for the notification
+            // Fetch receiver profile for the notification from public_profiles view
             const { data: receiverProfile } = await supabase
-              .from('profiles')
+              .from('public_profiles')
               .select('nick')
               .eq('id', payload.new.receiver_id)
-              .single();
+              .maybeSingle();
 
             toast({
               title: '🎯 Signal Connected!',

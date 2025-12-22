@@ -190,7 +190,7 @@ const QuestLobby = ({
 
     const fetchData = async () => {
       const { data: hostData } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, nick, avatar_url, avatar_config, bio, tags, location_lat, location_lng')
         .eq('id', quest.host_id)
         .maybeSingle();
@@ -205,7 +205,7 @@ const QuestLobby = ({
       if (participantsData) {
         const userIds = participantsData.map(p => p.user_id);
         const { data: profiles } = await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('id, nick, avatar_url, avatar_config, bio, tags, location_lat, location_lng')
           .in('id', userIds);
 
@@ -233,7 +233,7 @@ const QuestLobby = ({
     if (data) {
       const userIds = data.map(p => p.user_id);
       const { data: profiles } = await supabase
-        .from('profiles')
+        .from('public_profiles')
         .select('id, nick, avatar_url, avatar_config, bio, tags, location_lat, location_lng')
         .in('id', userIds);
 

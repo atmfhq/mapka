@@ -47,10 +47,10 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
       }
 
       if (data) {
-        // Fetch profiles for all messages
+        // Fetch profiles for all messages from public_profiles view
         const userIds = [...new Set(data.map(m => m.user_id))];
         const { data: profiles } = await supabase
-          .from('profiles')
+          .from('public_profiles')
           .select('id, nick, avatar_url')
           .in('id', userIds);
 
@@ -81,9 +81,9 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
         async (payload) => {
           const newMsg = payload.new as ChatMessage;
           
-          // Fetch profile for new message
+          // Fetch profile for new message from public_profiles view
           const { data: profile } = await supabase
-            .from('profiles')
+            .from('public_profiles')
             .select('id, nick, avatar_url')
             .eq('id', newMsg.user_id)
             .maybeSingle();
