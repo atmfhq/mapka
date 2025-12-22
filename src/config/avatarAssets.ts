@@ -15,7 +15,6 @@
  * Path: public/assets/avatar/eyes/{filename}
  */
 export const AVAILABLE_EYES: string[] = [
-  // Placeholder entries - replace with actual asset filenames
   'eyes_000.png',
   'eyes_001.png',
   'eyes_002.png',
@@ -40,29 +39,19 @@ export const AVAILABLE_EYES: string[] = [
   'eyes_021.png',
   'eyes_022.png',
   'eyes_023.png',
-  'eyes_024.png',
   'eyes_025.png',
   'eyes_026.png',
   'eyes_027.png',
-  'eyes_028.png',
-  'eyes_029.png',
   'eyes_030.png',
   'eyes_031.png',
-  'eyes_032.png',
   'eyes_033.png',
   'eyes_034.png',
   'eyes_035.png',
   'eyes_036.png',
-  'eyes_037.png',
   'eyes_038.png',
   'eyes_039.png',
   'eyes_040.png',
   'eyes_041.png',
-  
-  // Add more eye assets here...
-  // 'eye_7.png',
-  // 'eye_8.png',
-  // ...
 ];
 
 /**
@@ -71,6 +60,7 @@ export const AVAILABLE_EYES: string[] = [
  */
 export const AVAILABLE_MOUTHS: string[] = [
   // Placeholder entries - replace with actual asset filenames
+  'mouth_000.png',
   'mouth_001.png',
   'mouth_002.png',
   'mouth_003.png',

@@ -10,36 +10,28 @@ interface AvatarConfig {
 
 // Check if an eye ID corresponds to a PNG asset file
 const isEyeAsset = (eyeId: string): boolean => {
-  return AVAILABLE_EYES.some(filename => {
-    const id = filename.replace(/\.[^/.]+$/, '').replace(/^eye_/, '');
-    return id === eyeId;
-  });
+  return AVAILABLE_EYES.includes(eyeId);
 };
 
 // Check if a mouth ID corresponds to a PNG asset file
 const isMouthAsset = (mouthId: string): boolean => {
-  return AVAILABLE_MOUTHS.some(filename => {
-    const id = filename.replace(/\.[^/.]+$/, '').replace(/^mouth_/, '');
-    return id === mouthId;
-  });
+  return AVAILABLE_MOUTHS.includes(mouthId);
 };
 
 // Get the full path for an eye asset
 const getEyePath = (eyeId: string): string | null => {
-  const match = AVAILABLE_EYES.find(filename => {
-    const id = filename.replace(/\.[^/.]+$/, '').replace(/^eye_/, '');
-    return id === eyeId;
-  });
-  return match ? getEyeAssetPath(match) : null;
+  if (AVAILABLE_EYES.includes(eyeId)) {
+    return getEyeAssetPath(eyeId);
+  }
+  return null;
 };
 
 // Get the full path for a mouth asset
 const getMouthPath = (mouthId: string): string | null => {
-  const match = AVAILABLE_MOUTHS.find(filename => {
-    const id = filename.replace(/\.[^/.]+$/, '').replace(/^mouth_/, '');
-    return id === mouthId;
-  });
-  return match ? getMouthAssetPath(match) : null;
+  if (AVAILABLE_MOUTHS.includes(mouthId)) {
+    return getMouthAssetPath(mouthId);
+  }
+  return null;
 };
 
 interface AvatarDisplayProps {
