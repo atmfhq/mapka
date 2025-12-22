@@ -349,6 +349,7 @@ export type Database = {
         Args: { p_invitation_id: string; p_user_id: string }
         Returns: boolean
       }
+      sanitize_text_input: { Args: { input_text: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
