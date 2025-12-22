@@ -283,16 +283,15 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
   };
 
   const handleAcceptInvitation = async (invitationId: string, senderId: string, activityType: string) => {
-    // Get current user's location from their profile - prioritize location_lat/lng over base_lat/lng
+    // Get current user's location from their profile
     const { data: profile } = await supabase
       .from('profiles')
-      .select('base_lat, base_lng, location_lat, location_lng')
+      .select('location_lat, location_lng')
       .eq('id', currentUserId)
       .single();
 
-    // Prioritize teleport location over base location
-    const lat = profile?.location_lat ?? profile?.base_lat ?? 0;
-    const lng = profile?.location_lng ?? profile?.base_lng ?? 0;
+    const lat = profile?.location_lat ?? 0;
+    const lng = profile?.location_lng ?? 0;
 
     const { data, error } = await supabase.rpc('accept_invitation', {
       p_invitation_id: invitationId,

@@ -194,13 +194,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "megaphones_host_id_fkey"
-            columns: ["host_id"]
-            isOneToOne: false
-            referencedRelation: "public_profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       profiles: {
@@ -253,42 +246,7 @@ export type Database = {
       }
     }
     Views: {
-      public_profiles: {
-        Row: {
-          avatar_config: Json | null
-          avatar_url: string | null
-          bio: string | null
-          id: string | null
-          is_active: boolean | null
-          location_lat: number | null
-          location_lng: number | null
-          nick: string | null
-          tags: string[] | null
-        }
-        Insert: {
-          avatar_config?: Json | null
-          avatar_url?: string | null
-          bio?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          location_lat?: number | null
-          location_lng?: number | null
-          nick?: string | null
-          tags?: string[] | null
-        }
-        Update: {
-          avatar_config?: Json | null
-          avatar_url?: string | null
-          bio?: string | null
-          id?: string | null
-          is_active?: boolean | null
-          location_lat?: number | null
-          location_lng?: number | null
-          nick?: string | null
-          tags?: string[] | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       accept_invitation: {
@@ -342,6 +300,20 @@ export type Database = {
       }
       get_nearby_profiles: {
         Args: { p_lat: number; p_lng: number; p_radius_meters?: number }
+        Returns: {
+          avatar_config: Json
+          avatar_url: string
+          bio: string
+          id: string
+          is_active: boolean
+          location_lat: number
+          location_lng: number
+          nick: string
+          tags: string[]
+        }[]
+      }
+      get_public_profile: {
+        Args: { p_user_id: string }
         Returns: {
           avatar_config: Json
           avatar_url: string

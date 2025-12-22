@@ -126,8 +126,6 @@ const Onboarding = () => {
           bio: bio.trim() || null,
           avatar_config: avatarConfig as Json,
           tags: tagLabels,
-          base_lat: coords.lat,
-          base_lng: coords.lng,
           location_lat: coords.lat,
           location_lng: coords.lng,
           location_name: locationName || null,
