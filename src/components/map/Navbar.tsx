@@ -115,7 +115,7 @@ const Navbar = ({
                 <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh]">
                   <SheetHeader className="pb-4 border-b border-border/50">
                     <SheetTitle className="font-orbitron text-xl flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-primary/40">
+                      <div className="w-12 h-12 rounded-xl overflow-hidden shadow-md">
                         <AvatarDisplay config={avatarConfig} size={48} showGlow={false} />
                       </div>
                       <div className="text-left">
