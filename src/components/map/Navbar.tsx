@@ -28,6 +28,7 @@ interface NavbarProps {
   onSignOut: () => void;
   onMissionCreated?: () => void;
   onOpenMission?: (missionId: string) => void;
+  onFlyToQuest?: (lat: number, lng: number) => void;
   chatOpenUserId?: string | null;
   onChatOpenChange?: (open: boolean) => void;
   onRelocateClick?: () => void;
@@ -43,6 +44,7 @@ const Navbar = ({
   onSignOut,
   onMissionCreated,
   onOpenMission,
+  onFlyToQuest,
   chatOpenUserId,
   onChatOpenChange,
   onRelocateClick,
@@ -70,6 +72,7 @@ const Navbar = ({
               <AlertsDrawer 
                 currentUserId={currentUserId}
                 onOpenMission={onOpenMission}
+                onFlyToQuest={onFlyToQuest}
               />
 
               {/* Chats (Active Connections) */}
