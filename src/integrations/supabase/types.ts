@@ -244,6 +244,27 @@ export type Database = {
         }
         Relationships: []
       }
+      rpc_rate_limits: {
+        Row: {
+          call_count: number
+          function_name: string
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          call_count?: number
+          function_name: string
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          call_count?: number
+          function_name?: string
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -281,6 +302,11 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_rate_limit: {
+        Args: { func_name: string; max_calls: number; window_seconds: number }
+        Returns: undefined
+      }
+      cleanup_expired_rate_limits: { Args: never; Returns: undefined }
       delete_user_account: { Args: never; Returns: undefined }
       get_nearby_megaphones: {
         Args: { p_lat: number; p_lng: number; p_radius_meters?: number }
