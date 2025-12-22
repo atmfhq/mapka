@@ -1,4 +1,4 @@
-import { SKIN_COLOR_VALUES, DEFAULT_AVATAR_CONFIG } from "./avatarParts";
+import { resolveColor, darkenHexColor, DEFAULT_AVATAR_CONFIG } from "./avatarParts";
 
 interface AvatarConfig {
   skinColor?: string;
@@ -27,8 +27,9 @@ const AvatarDisplay = ({
     mouth: config?.mouth || DEFAULT_AVATAR_CONFIG.mouth,
   };
 
-  const color = SKIN_COLOR_VALUES[cfg.skinColor] || SKIN_COLOR_VALUES.cyan;
-  const darkerColor = color.replace("50%", "35%").replace("55%", "40%").replace("60%", "45%").replace("65%", "50%");
+  // Resolve color (handles both legacy IDs and hex values)
+  const color = resolveColor(cfg.skinColor);
+  const darkerColor = darkenHexColor(color, 15);
 
   // Base shape path/element
   const renderShape = () => {

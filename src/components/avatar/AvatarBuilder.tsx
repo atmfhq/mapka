@@ -1,16 +1,19 @@
 import { useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import AvatarDisplay from "./AvatarDisplay";
 import { 
-  SKIN_COLORS, 
-  SKIN_COLOR_VALUES, 
+  PRESET_COLORS,
   SHAPES, 
   EYES, 
   MOUTHS,
-  DEFAULT_AVATAR_CONFIG 
+  DEFAULT_AVATAR_CONFIG,
+  resolveColor 
 } from "./avatarParts";
-import { Palette, Shapes, Eye, Smile } from "lucide-react";
+import { Palette, Shapes, Eye, Smile, Pipette } from "lucide-react";
 
 interface AvatarConfig {
   skinColor?: string;
@@ -26,16 +29,18 @@ interface AvatarBuilderProps {
 
 const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
   const [config, setConfig] = useState<AvatarConfig>({
-    skinColor: initialConfig?.skinColor || DEFAULT_AVATAR_CONFIG.skinColor,
+    skinColor: resolveColor(initialConfig?.skinColor) || DEFAULT_AVATAR_CONFIG.skinColor,
     shape: initialConfig?.shape || DEFAULT_AVATAR_CONFIG.shape,
     eyes: initialConfig?.eyes || DEFAULT_AVATAR_CONFIG.eyes,
     mouth: initialConfig?.mouth || DEFAULT_AVATAR_CONFIG.mouth,
   });
 
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
+
   useEffect(() => {
     if (initialConfig) {
       setConfig({
-        skinColor: initialConfig.skinColor || DEFAULT_AVATAR_CONFIG.skinColor,
+        skinColor: resolveColor(initialConfig.skinColor) || DEFAULT_AVATAR_CONFIG.skinColor,
         shape: initialConfig.shape || DEFAULT_AVATAR_CONFIG.shape,
         eyes: initialConfig.eyes || DEFAULT_AVATAR_CONFIG.eyes,
         mouth: initialConfig.mouth || DEFAULT_AVATAR_CONFIG.mouth,
@@ -47,6 +52,10 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
     const newConfig = { ...config, [key]: value };
     setConfig(newConfig);
     onChange(newConfig);
+  };
+
+  const handleColorChange = (hex: string) => {
+    updateConfig("skinColor", hex.toUpperCase());
   };
 
   const OptionButton = ({ 
@@ -82,6 +91,8 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
     </button>
   );
 
+  const currentColor = config.skinColor || DEFAULT_AVATAR_CONFIG.skinColor;
+
   return (
     <div className="space-y-6">
       {/* Avatar Preview */}
@@ -116,30 +127,101 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
         </TabsList>
 
         {/* Color Selection */}
-        <TabsContent value="color" className="mt-4">
+        <TabsContent value="color" className="mt-4 space-y-4">
           <Label className="font-mono text-xs uppercase text-muted-foreground mb-3 block">
-            Skin Color
+            Choose Your Color
           </Label>
-          <div className="grid grid-cols-4 gap-3">
-            {SKIN_COLORS.map((c) => (
-              <OptionButton
-                key={c.id}
-                selected={config.skinColor === c.id}
-                onClick={() => updateConfig("skinColor", c.id)}
-                color={SKIN_COLOR_VALUES[c.id]}
-              >
-                <div 
-                  className="w-10 h-10 rounded-lg mx-auto"
+          
+          {/* Color Picker */}
+          <div className="flex items-center gap-4">
+            <Popover open={colorPickerOpen} onOpenChange={setColorPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full h-14 relative overflow-hidden border-2 hover:border-primary/50"
                   style={{ 
-                    backgroundColor: SKIN_COLOR_VALUES[c.id],
-                    boxShadow: config.skinColor === c.id 
-                      ? `0 0 20px ${SKIN_COLOR_VALUES[c.id]}` 
-                      : undefined
+                    background: `linear-gradient(135deg, ${currentColor}40 0%, ${currentColor}20 100%)`,
+                    borderColor: currentColor 
                   }}
+                >
+                  <div 
+                    className="absolute left-4 w-10 h-10 rounded-lg shadow-lg"
+                    style={{ backgroundColor: currentColor }}
+                  />
+                  <div className="ml-12 flex flex-col items-start">
+                    <span className="text-xs text-muted-foreground">Selected Color</span>
+                    <span className="font-mono text-sm font-medium">{currentColor}</span>
+                  </div>
+                  <Pipette className="absolute right-4 w-5 h-5 text-muted-foreground" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64 p-4" align="center">
+                <div className="space-y-4">
+                  <Label className="font-mono text-xs uppercase text-muted-foreground">
+                    Pick Any Color
+                  </Label>
+                  
+                  {/* Native Color Picker */}
+                  <div className="relative">
+                    <input
+                      type="color"
+                      value={currentColor}
+                      onChange={(e) => handleColorChange(e.target.value)}
+                      className="w-full h-32 rounded-lg cursor-pointer border-2 border-border/50 hover:border-primary/50 transition-colors"
+                      style={{ 
+                        backgroundColor: 'transparent',
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Hex Input */}
+                  <div className="flex gap-2">
+                    <Input
+                      value={currentColor}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (/^#[0-9A-Fa-f]{0,6}$/.test(val)) {
+                          if (val.length === 7) {
+                            handleColorChange(val);
+                          } else {
+                            setConfig(prev => ({ ...prev, skinColor: val }));
+                          }
+                        }
+                      }}
+                      placeholder="#FFFFFF"
+                      className="font-mono text-sm"
+                      maxLength={7}
+                    />
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Preset Colors */}
+          <div>
+            <Label className="font-mono text-xs uppercase text-muted-foreground mb-3 block">
+              Quick Presets
+            </Label>
+            <div className="grid grid-cols-8 gap-2">
+              {PRESET_COLORS.map((c) => (
+                <button
+                  key={c.hex}
+                  type="button"
+                  onClick={() => handleColorChange(c.hex)}
+                  className={`
+                    w-full aspect-square rounded-lg transition-all duration-200 
+                    hover:scale-110 hover:shadow-lg
+                    ${currentColor === c.hex ? 'ring-2 ring-primary ring-offset-2 ring-offset-background scale-110' : ''}
+                  `}
+                  style={{ 
+                    backgroundColor: c.hex,
+                    boxShadow: currentColor === c.hex ? `0 0 20px ${c.hex}` : undefined
+                  }}
+                  title={c.label}
                 />
-                <div className="text-xs mt-2 font-medium text-center">{c.label}</div>
-              </OptionButton>
-            ))}
+              ))}
+            </div>
           </div>
         </TabsContent>
 
