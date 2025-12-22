@@ -997,7 +997,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         userId={currentUserId}
         userBaseLat={locationLat ?? userLat}
         userBaseLng={locationLng ?? userLng}
-        onSuccess={fetchQuests}
+        onSuccess={(newQuest) => {
+          // Add the new quest to state immediately for instant UI update
+          setQuests(prev => [...prev, newQuest]);
+        }}
       />
 
       <QuestLobby
@@ -1006,6 +1009,18 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         quest={selectedQuest}
         currentUserId={currentUserId}
         onDelete={fetchQuests}
+        onJoin={(questId) => {
+          // Add to joined quest IDs immediately for instant marker highlight
+          setJoinedQuestIds(prev => new Set([...prev, questId]));
+        }}
+        onLeave={(questId) => {
+          // Remove from joined quest IDs immediately
+          setJoinedQuestIds(prev => {
+            const next = new Set(prev);
+            next.delete(questId);
+            return next;
+          });
+        }}
       />
     </>
   );

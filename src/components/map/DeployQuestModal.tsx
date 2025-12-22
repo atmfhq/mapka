@@ -50,6 +50,19 @@ const calculateDistanceMeters = (
 
 const MAX_RANGE_METERS = 5000; // 5km range limit
 
+interface Quest {
+  id: string;
+  title: string;
+  category: string;
+  start_time: string;
+  duration_minutes: number;
+  max_participants: number | null;
+  lat: number;
+  lng: number;
+  host_id: string;
+  is_private?: boolean;
+}
+
 interface DeployQuestModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -57,7 +70,7 @@ interface DeployQuestModalProps {
   userId: string;
   userBaseLat: number;
   userBaseLng: number;
-  onSuccess: () => void;
+  onSuccess: (quest: Quest) => void;
 }
 
 const DeployQuestModal = ({ 
@@ -171,7 +184,7 @@ const DeployQuestModal = ({
     // Save the activity label as the category (for backwards compatibility and filtering)
     const activityData = getActivityById(selectedActivity);
     
-    const { error } = await supabase.from('megaphones').insert({
+    const { data, error } = await supabase.from('megaphones').insert({
       title,
       description: description.trim() || null,
       category: activityData?.label || selectedActivity, // Store activity label
@@ -180,14 +193,14 @@ const DeployQuestModal = ({
       lat: coordinates.lat,
       lng: coordinates.lng,
       host_id: userId,
-    });
+    }).select().single();
 
     setLoading(false);
 
-    if (error) {
+    if (error || !data) {
       toast({
         title: "Deploy failed",
-        description: error.message,
+        description: error?.message || "Failed to create quest",
         variant: "destructive",
       });
       return;
@@ -206,7 +219,9 @@ const DeployQuestModal = ({
     setDate(undefined);
     setTime('18:00');
     setDuration(2);
-    onSuccess();
+    
+    // Pass the created quest to parent for immediate state update
+    onSuccess(data);
     onOpenChange(false);
   };
 
