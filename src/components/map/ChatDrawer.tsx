@@ -505,7 +505,7 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                           className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-success/10 transition-colors min-w-[72px]"
                         >
                           <div className="relative">
-                            <div className="w-14 h-14 rounded-xl overflow-hidden shadow-lg shadow-success/30">
+                            <div className="w-14 h-14 rounded-xl overflow-hidden shadow-md">
                               <AvatarDisplay
                                 config={user.avatar_config} 
                                 size={56} 
