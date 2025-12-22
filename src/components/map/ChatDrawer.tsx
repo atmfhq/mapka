@@ -384,7 +384,7 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </Button>
-                <div className="w-9 h-9 rounded-xl overflow-hidden shadow-md">
+                <div className="w-9 h-9 rounded-xl overflow-hidden">
                   <AvatarDisplay 
                     config={selectedUserData?.avatar_config} 
                     size={36} 
@@ -435,7 +435,7 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                         className="p-3 rounded-lg bg-warning/10 border border-warning/30 space-y-3"
                       >
                         <div className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10 rounded-xl shadow-md">
+                          <Avatar className="w-10 h-10 rounded-xl">
                             <AvatarImage src={inv.sender?.avatar_url || undefined} className="rounded-xl" />
                             <AvatarFallback className="bg-warning/20 text-warning rounded-xl">
                               {inv.sender?.nick?.[0]?.toUpperCase() || '?'}
@@ -504,7 +504,7 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                           className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-success/10 transition-colors min-w-[72px]"
                         >
                           <div className="relative">
-                            <div className="w-14 h-14 rounded-xl overflow-hidden shadow-md">
+                            <div className="w-14 h-14 rounded-xl overflow-hidden">
                               <AvatarDisplay
                                 config={user.avatar_config} 
                                 size={56} 
