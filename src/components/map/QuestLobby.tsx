@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useRef } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { format, startOfDay, isToday } from 'date-fns';
 import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
-import UserPopup from './UserPopup';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -47,6 +46,8 @@ interface Profile {
   avatar_config: AvatarConfig | null;
   bio: string | null;
   tags: string[] | null;
+  location_lat: number | null;
+  location_lng: number | null;
 }
 
 interface Participant {
@@ -65,6 +66,7 @@ interface QuestLobbyProps {
   onJoin?: (questId: string) => void;
   onLeave?: (questId: string) => void;
   onUpdate?: (quest: Quest) => void;
+  onViewUserProfile?: (user: Profile) => void;
 }
 
 const getActivityByLabel = (label: string) => {
@@ -109,18 +111,14 @@ const QuestLobby = ({
   onDelete,
   onJoin,
   onLeave,
-  onUpdate
+  onUpdate,
+  onViewUserProfile
 }: QuestLobbyProps) => {
   const [host, setHost] = useState<Profile | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
-  
-  // User popup state
-  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
-  const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
-  const sheetContentRef = useRef<HTMLDivElement>(null);
   
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -193,7 +191,7 @@ const QuestLobby = ({
     const fetchData = async () => {
       const { data: hostData } = await supabase
         .from('profiles')
-        .select('id, nick, avatar_url, avatar_config, bio, tags')
+        .select('id, nick, avatar_url, avatar_config, bio, tags, location_lat, location_lng')
         .eq('id', quest.host_id)
         .maybeSingle();
       
@@ -208,7 +206,7 @@ const QuestLobby = ({
         const userIds = participantsData.map(p => p.user_id);
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, nick, avatar_url, avatar_config, bio, tags')
+          .select('id, nick, avatar_url, avatar_config, bio, tags, location_lat, location_lng')
           .in('id', userIds);
 
         const participantsWithProfiles = participantsData.map(p => ({
@@ -236,7 +234,7 @@ const QuestLobby = ({
       const userIds = data.map(p => p.user_id);
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, nick, avatar_url, avatar_config, bio, tags')
+        .select('id, nick, avatar_url, avatar_config, bio, tags, location_lat, location_lng')
         .in('id', userIds);
 
       const participantsWithProfiles = data.map(p => ({
@@ -683,11 +681,10 @@ const QuestLobby = ({
                   Mission Commander
                 </h4>
                 <button
-                  onClick={(e) => {
+                  onClick={() => {
                     if (host) {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      setPopupPosition({ x: rect.left + rect.width / 2, y: rect.top });
-                      setSelectedUser(host);
+                      onOpenChange(false);
+                      onViewUserProfile?.(host);
                     }
                   }}
                   className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors w-full text-left"
@@ -717,11 +714,10 @@ const QuestLobby = ({
                       {participants.slice(0, 10).map((p) => (
                         <button
                           key={p.id}
-                          onClick={(e) => {
+                          onClick={() => {
                             if (p.profile) {
-                              const rect = e.currentTarget.getBoundingClientRect();
-                              setPopupPosition({ x: rect.left + rect.width / 2, y: rect.top });
-                              setSelectedUser(p.profile);
+                              onOpenChange(false);
+                              onViewUserProfile?.(p.profile);
                             }
                           }}
                           className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-primary/10 transition-colors min-w-[72px]"
@@ -808,20 +804,6 @@ const QuestLobby = ({
           </Tabs>
         )}
       </SheetContent>
-
-      {/* User Profile Popup */}
-      {selectedUser && popupPosition && (
-        <UserPopup
-          user={selectedUser}
-          position={popupPosition}
-          currentUserId={currentUserId}
-          isConnected={false}
-          onClose={() => {
-            setSelectedUser(null);
-            setPopupPosition(null);
-          }}
-        />
-      )}
     </Sheet>
   );
 };

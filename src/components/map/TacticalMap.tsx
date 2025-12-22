@@ -1083,6 +1083,36 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           setQuests(prev => prev.map(q => q.id === updatedQuest.id ? updatedQuest : q));
           setSelectedQuest(updatedQuest);
         }}
+        onViewUserProfile={(user) => {
+          // Fly to user's location if available
+          const userLat = user.location_lat;
+          const userLng = user.location_lng;
+          if (userLat && userLng) {
+            flyTo(userLat, userLng);
+          }
+          
+          // Show user popup in center of screen after a brief delay for modal close
+          setTimeout(() => {
+            setSelectedUser({
+              id: user.id,
+              nick: user.nick,
+              avatar_url: user.avatar_url,
+              avatar_config: user.avatar_config,
+              tags: user.tags,
+              bio: user.bio,
+              base_lat: null,
+              base_lng: null,
+              location_lat: user.location_lat,
+              location_lng: user.location_lng,
+              is_active: true,
+            });
+            // Position popup in center of viewport
+            setPopupPosition({ 
+              x: window.innerWidth / 2, 
+              y: window.innerHeight / 2 - 100 
+            });
+          }, 300);
+        }}
       />
     </>
   );
