@@ -55,7 +55,7 @@ interface TacticalMapProps {
   baseLat: number;
   baseLng: number;
   currentUserId: string;
-  activeActivity: string | null;
+  activeActivities: string[];
   dateFilter: DateFilter;
   currentUserAvatarConfig?: AvatarConfig | null;
   locationLat?: number | null;
@@ -190,7 +190,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   baseLat,
   baseLng,
   currentUserId, 
-  activeActivity,
+  activeActivities,
   dateFilter,
   currentUserAvatarConfig,
   locationLat,
@@ -224,10 +224,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   // Get connected users
   const { connectedUserIds, getInvitationIdForUser, refetch: refetchConnections } = useConnectedUsers(currentUserId);
 
-  const activeActivityData = activeActivity ? getActivityById(activeActivity) : null;
-  const activeActivityLabel = activeActivityData?.label?.toLowerCase();
+  // Get active activity labels for filtering
+  const activeActivityLabels = useMemo(() => 
+    activeActivities.map(id => getActivityById(id)?.label?.toLowerCase()).filter(Boolean) as string[],
+    [activeActivities]
+  );
 
-  // Filter profiles based on active activity AND is_active status
+  // Filter profiles based on active activities AND is_active status
   // Rule: Only show active users, EXCEPT always show current user (themselves)
   const filteredProfiles = useMemo(() => {
     // First filter by is_active (but always include current user)
@@ -235,14 +238,17 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       profile.is_active || profile.id === currentUserId
     );
     
-    // Then filter by activity if one is selected
-    if (!activeActivity || !activeActivityLabel) return activeProfiles;
+    // Then filter by activities if any are selected
+    if (activeActivities.length === 0) return activeProfiles;
     
     return activeProfiles.filter(profile => {
       if (!profile.tags || profile.tags.length === 0) return false;
-      return profile.tags.some(tag => tag.toLowerCase() === activeActivityLabel);
+      // Show profile if ANY of their tags match ANY of the active filters
+      return profile.tags.some(tag => 
+        activeActivityLabels.includes(tag.toLowerCase())
+      );
     });
-  }, [profiles, activeActivity, activeActivityLabel, currentUserId]);
+  }, [profiles, activeActivities, activeActivityLabels, currentUserId]);
 
   // Filter quests - HIDE PRIVATE EVENTS from map, apply date filter
   const filteredQuests = useMemo(() => {
@@ -288,14 +294,18 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       return startTime <= dateCutoff;
     });
     
-    // Apply activity filter if active
-    if (!activeActivity || !activeActivityLabel) return dateFilteredQuests;
+    // Apply activity filter if any are active
+    if (activeActivities.length === 0) return dateFilteredQuests;
     
     return dateFilteredQuests.filter(q => {
       const questCat = q.category.toLowerCase();
-      return questCat === activeActivityLabel || questCat === activeActivity;
+      // Show quest if its category matches ANY of the active filters
+      return activeActivities.some(activityId => {
+        const activityLabel = getActivityById(activityId)?.label?.toLowerCase();
+        return questCat === activityLabel || questCat === activityId;
+      });
     });
-  }, [quests, activeActivity, activeActivityLabel, dateFilter]);
+  }, [quests, activeActivities, dateFilter]);
 
   // Fetch nearby profiles using spatial RPC - refetch when location changes
   const fetchProfiles = useCallback(async () => {

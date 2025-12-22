@@ -21,7 +21,7 @@ const Dashboard = () => {
   const { user, profile, loading, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [activeActivity, setActiveActivity] = useState<string | null>(null);
+  const [activeActivities, setActiveActivities] = useState<string[]>([]);
   const [dateFilter, setDateFilter] = useState<'today' | '3days' | '7days'>('7days');
   const [chatOpenUserId, setChatOpenUserId] = useState<string | null>(null);
   const [relocateModalOpen, setRelocateModalOpen] = useState(false);
@@ -59,8 +59,16 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  const handleActivityChange = (activity: string | null) => {
-    setActiveActivity(activity);
+  const handleActivityToggle = (activity: string) => {
+    setActiveActivities(prev => 
+      prev.includes(activity)
+        ? prev.filter(a => a !== activity)
+        : [...prev, activity]
+    );
+  };
+
+  const handleClearFilters = () => {
+    setActiveActivities([]);
   };
 
   const handleMissionCreated = () => {
@@ -130,7 +138,7 @@ const Dashboard = () => {
   const userLat = currentLocation.lat ?? profile.location_lat ?? 40.7128;
   const userLng = currentLocation.lng ?? profile.location_lng ?? -74.006;
 
-  const activeActivityData = activeActivity ? getActivityById(activeActivity) : null;
+  
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background">
@@ -142,7 +150,7 @@ const Dashboard = () => {
         baseLat={userLat}
         baseLng={userLng}
         currentUserId={user!.id}
-        activeActivity={activeActivity}
+        activeActivities={activeActivities}
         dateFilter={dateFilter}
         currentUserAvatarConfig={profile.avatar_config as AvatarConfig | null}
         locationLat={currentLocation.lat}
@@ -171,8 +179,9 @@ const Dashboard = () => {
 
       {/* Map Filter HUD - Floating below navbar */}
       <MapFilterHUD
-        activeActivity={activeActivity}
-        onActivityChange={handleActivityChange}
+        activeActivities={activeActivities}
+        onActivityToggle={handleActivityToggle}
+        onClearFilters={handleClearFilters}
         dateFilter={dateFilter}
         onDateFilterChange={setDateFilter}
       />
@@ -185,18 +194,6 @@ const Dashboard = () => {
         currentLocationName={currentLocation.name ?? undefined}
         onLocationUpdated={handleLocationUpdated}
       />
-
-      {/* Filter active indicator - positioned below filter HUD */}
-      {activeActivityData && (
-        <div className="absolute top-[140px] md:top-[130px] left-1/2 -translate-x-1/2 z-20">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/20 border border-primary/40 backdrop-blur-sm">
-            <span className="text-sm">{activeActivityData.icon}</span>
-            <span className="font-rajdhani text-xs text-primary font-medium">
-              Filtering: {activeActivityData.label}
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* Status indicator - positioned for mobile safe area */}
       <div className="absolute bottom-4 left-4 z-20 safe-area-bottom safe-area-left">
