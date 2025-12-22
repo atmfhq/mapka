@@ -61,29 +61,9 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Desktop: Date filters + Categories row */}
+      {/* Desktop: Categories row + Spacer + Date filters */}
       <div className="hidden md:flex items-center gap-2">
-        {/* Date Filter Pills */}
-        <div className="flex items-center gap-1 mr-2 pr-3 border-r border-border/50">
-          {DATE_FILTER_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              onClick={() => onDateFilterChange(option.id)}
-              className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-all duration-300",
-                "font-rajdhani text-sm font-medium whitespace-nowrap",
-                dateFilter === option.id
-                  ? "bg-warning/20 border-warning text-warning"
-                  : "bg-card/50 border-border/50 text-muted-foreground hover:border-warning/50 hover:text-warning/80"
-              )}
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              <span>{option.label}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* Category filters */}
+        {/* Category filters (left group) */}
         {ACTIVITY_CATEGORIES.map((category) => {
           const isExpanded = expandedCategory === category.id;
           const hasActiveActivity = activeActivityData?.category === category.id;
@@ -93,7 +73,7 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
               key={category.id}
               onClick={() => handleCategoryClick(category.id)}
               className={cn(
-                "relative flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-300",
+                "relative flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-300 flex-shrink-0",
                 "font-rajdhani text-sm font-medium whitespace-nowrap",
                 isExpanded || hasActiveActivity
                   ? "bg-primary/20 border-primary text-primary"
@@ -117,12 +97,35 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
               onActivityChange(null);
               setExpandedCategory(null);
             }}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-destructive/50 text-destructive hover:bg-destructive/10 transition-all font-rajdhani text-sm"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-destructive/50 text-destructive hover:bg-destructive/10 transition-all font-rajdhani text-sm flex-shrink-0"
           >
             <X className="w-4 h-4" />
             Clear
           </button>
         )}
+
+        {/* Spacer to push date filters right */}
+        <div className="ml-8" />
+
+        {/* Date Filter Pills (right group) */}
+        <div className="flex items-center gap-1 pl-3 border-l border-border/50 flex-shrink-0">
+          {DATE_FILTER_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              onClick={() => onDateFilterChange(option.id)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-all duration-300 flex-shrink-0",
+                "font-rajdhani text-sm font-medium whitespace-nowrap",
+                dateFilter === option.id
+                  ? "bg-warning/20 border-warning text-warning"
+                  : "bg-card/50 border-border/50 text-muted-foreground hover:border-warning/50 hover:text-warning/80"
+              )}
+            >
+              <Calendar className="w-3.5 h-3.5" />
+              <span>{option.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Desktop: Activities sub-row (when category is expanded) */}
@@ -156,27 +159,8 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
         </div>
       )}
 
-      {/* Mobile: Filter button + Date pills + Drawer */}
+      {/* Mobile: Category drawer + spacer + Date pills */}
       <div className="flex md:hidden items-center gap-2">
-        {/* Mobile Date Filter Pills */}
-        <div className="flex items-center gap-1">
-          {DATE_FILTER_OPTIONS.map((option) => (
-            <button
-              key={option.id}
-              onClick={() => onDateFilterChange(option.id)}
-              className={cn(
-                "px-2.5 py-1.5 rounded-lg border transition-all duration-200",
-                "font-rajdhani text-xs font-medium whitespace-nowrap",
-                dateFilter === option.id
-                  ? "bg-warning/20 border-warning text-warning"
-                  : "bg-card/50 border-border/50 text-muted-foreground"
-              )}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-
         <Drawer open={drawerOpen} onOpenChange={(open) => {
           setDrawerOpen(open);
           if (!open) setExpandedCategory(null);
@@ -186,7 +170,7 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
               variant="outline"
               size="sm"
               className={cn(
-                "min-h-[44px] gap-2 font-rajdhani",
+                "min-h-[44px] gap-2 font-rajdhani flex-shrink-0",
                 activeActivity && "border-primary text-primary"
               )}
             >
@@ -284,6 +268,28 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
             </div>
           </DrawerContent>
         </Drawer>
+
+        {/* Spacer to push date filters right */}
+        <div className="flex-1" />
+
+        {/* Mobile Date Filter Pills (right group) */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {DATE_FILTER_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              onClick={() => onDateFilterChange(option.id)}
+              className={cn(
+                "px-2.5 py-2 rounded-lg border transition-all duration-200 flex-shrink-0",
+                "font-rajdhani text-xs font-medium whitespace-nowrap",
+                dateFilter === option.id
+                  ? "bg-warning/20 border-warning text-warning"
+                  : "bg-card/50 border-border/50 text-muted-foreground"
+              )}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );
