@@ -9,29 +9,64 @@ export interface AvatarPartOption {
 }
 
 // ============================================
-// SKIN COLORS
+// SKIN COLORS - Now supports any hex color
 // ============================================
-export const SKIN_COLORS: AvatarPartOption[] = [
-  { id: "cyan", label: "Cyan" },
-  { id: "magenta", label: "Magenta" },
-  { id: "lime", label: "Lime" },
-  { id: "orange", label: "Orange" },
-  { id: "purple", label: "Purple" },
-  { id: "yellow", label: "Yellow" },
-  { id: "teal", label: "Teal" },
-  { id: "pink", label: "Pink" },
+// Preset colors for quick selection
+export const PRESET_COLORS: { hex: string; label: string }[] = [
+  { hex: "#00FFFF", label: "Cyan" },
+  { hex: "#FF00FF", label: "Magenta" },
+  { hex: "#00FF00", label: "Lime" },
+  { hex: "#FF8C00", label: "Orange" },
+  { hex: "#9B30FF", label: "Purple" },
+  { hex: "#FFD700", label: "Yellow" },
+  { hex: "#20B2AA", label: "Teal" },
+  { hex: "#FF69B4", label: "Pink" },
 ];
 
-export const SKIN_COLOR_VALUES: Record<string, string> = {
-  cyan: "hsl(180, 100%, 50%)",
-  magenta: "hsl(300, 100%, 60%)",
-  lime: "hsl(120, 100%, 50%)",
-  orange: "hsl(30, 100%, 55%)",
-  purple: "hsl(270, 100%, 60%)",
-  yellow: "hsl(50, 100%, 55%)",
-  teal: "hsl(170, 80%, 45%)",
-  pink: "hsl(330, 100%, 65%)",
+// Default color (cyan)
+export const DEFAULT_SKIN_COLOR = "#00FFFF";
+
+// Legacy color mapping for backwards compatibility
+export const LEGACY_COLOR_MAP: Record<string, string> = {
+  cyan: "#00FFFF",
+  magenta: "#FF00FF",
+  lime: "#00FF00",
+  orange: "#FF8C00",
+  purple: "#9B30FF",
+  yellow: "#FFD700",
+  teal: "#20B2AA",
+  pink: "#FF69B4",
 };
+
+// Helper to resolve any color value (legacy ID or hex) to hex
+export const resolveColor = (colorValue: string | undefined): string => {
+  if (!colorValue) return DEFAULT_SKIN_COLOR;
+  // If it's a legacy color ID, convert to hex
+  if (LEGACY_COLOR_MAP[colorValue]) {
+    return LEGACY_COLOR_MAP[colorValue];
+  }
+  // If it starts with #, assume it's already hex
+  if (colorValue.startsWith("#")) {
+    return colorValue;
+  }
+  // Fallback to default
+  return DEFAULT_SKIN_COLOR;
+};
+
+// Helper to darken a hex color
+export const darkenHexColor = (hex: string, percent: number = 20): string => {
+  const num = parseInt(hex.replace("#", ""), 16);
+  const r = Math.max(0, (num >> 16) - Math.round(255 * (percent / 100)));
+  const g = Math.max(0, ((num >> 8) & 0x00FF) - Math.round(255 * (percent / 100)));
+  const b = Math.max(0, (num & 0x0000FF) - Math.round(255 * (percent / 100)));
+  return `#${(1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1).toUpperCase()}`;
+};
+
+// DEPRECATED: Keep for backwards compatibility but don't use in new code
+export const SKIN_COLORS: AvatarPartOption[] = PRESET_COLORS.map(c => ({ id: c.hex, label: c.label }));
+export const SKIN_COLOR_VALUES: Record<string, string> = Object.fromEntries(
+  PRESET_COLORS.map(c => [c.hex, c.hex])
+);
 
 // ============================================
 // BASE SHAPES
@@ -69,7 +104,7 @@ export const MOUTHS: AvatarPartOption[] = [
 
 // Default avatar configuration
 export const DEFAULT_AVATAR_CONFIG = {
-  skinColor: "cyan",
+  skinColor: "#00FFFF", // Cyan hex
   shape: "circle",
   eyes: "normal",
   mouth: "smile",
