@@ -656,11 +656,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       
       const root = createRoot(container);
       root.render(
-        <div className={`w-10 h-10 rounded-full overflow-hidden border-2 bg-background ${
-          isConnected 
-            ? 'border-green-500 shadow-[0_0_12px_rgba(34,197,94,0.6)]' 
-            : 'border-white/60'
-        }`}>
+        <div className={`user-avatar-marker ${isConnected ? 'connected' : ''}`}>
           <AvatarDisplay 
             config={profile.avatar_config} 
             size={40} 
@@ -722,7 +718,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       <div className={`my-avatar-ring ${isGhostMode ? 'ghost' : ''}`}>
         <AvatarDisplay 
           config={currentUserAvatarConfig} 
-          size={48} 
+          size={44} 
           showGlow={false}
         />
       </div>
@@ -805,29 +801,47 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           width: 40px;
           height: 40px;
         }
+        /* Floating head style for user avatars */
+        .user-avatar-marker {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          overflow: hidden;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .user-avatar-marker:hover {
+          transform: scale(1.1);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+        /* Connected user - subtle green glow */
+        .user-avatar-marker.connected {
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 12px rgba(34, 197, 94, 0.5);
+        }
+        .user-avatar-marker.connected:hover {
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 0 16px rgba(34, 197, 94, 0.6);
+        }
         .my-marker {
           cursor: pointer;
         }
         .my-marker-container {
           position: relative;
-          width: 52px;
-          height: 52px;
+          width: 44px;
+          height: 44px;
         }
+        /* Current user marker - slightly larger floating head with golden accent */
         .my-avatar-ring {
-          width: 48px;
-          height: 48px;
+          width: 44px;
+          height: 44px;
           border-radius: 50%;
           overflow: hidden;
-          border: 3px solid #fbbf24;
-          box-shadow: 0 0 12px rgba(251, 191, 36, 0.5);
-          background: hsl(var(--background));
+          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), 0 0 16px rgba(251, 191, 36, 0.4);
           transition: all 0.3s ease;
         }
         .my-avatar-ring.ghost {
           opacity: 0.5;
           filter: grayscale(100%);
-          border-color: #6b7280;
-          box-shadow: 0 0 8px rgba(107, 114, 128, 0.4);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
         .my-marker.ghost-mode {
           opacity: 0.6;
