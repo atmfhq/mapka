@@ -275,6 +275,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_megaphone_access: {
+        Args: { megaphone_id: string; user_id: string }
+        Returns: boolean
+      }
+      check_participant_access: {
+        Args: {
+          participant_event_id: string
+          participant_user_id: string
+          requesting_user_id: string
+        }
+        Returns: boolean
+      }
       delete_user_account: { Args: never; Returns: undefined }
       get_nearby_megaphones: {
         Args: { p_lat: number; p_lng: number; p_radius_meters?: number }
