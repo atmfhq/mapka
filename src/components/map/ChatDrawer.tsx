@@ -385,7 +385,7 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </Button>
-                <div className="w-9 h-9 rounded-full overflow-hidden border-2 border-success">
+                <div className="w-9 h-9 rounded-xl overflow-hidden border-2 border-success">
                   <AvatarDisplay 
                     config={selectedUserData?.avatar_config} 
                     size={36} 
@@ -505,8 +505,8 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                           className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-success/10 transition-colors min-w-[72px]"
                         >
                           <div className="relative">
-                            <div className="w-14 h-14 rounded-full overflow-hidden border-2 border-success shadow-[0_0_12px_rgba(34,197,94,0.4)]">
-                              <AvatarDisplay 
+                            <div className="w-14 h-14 rounded-xl overflow-hidden border-2 border-success shadow-[0_0_12px_rgba(34,197,94,0.4)]">
+                              <AvatarDisplay
                                 config={user.avatar_config} 
                                 size={56} 
                                 showGlow={false} 

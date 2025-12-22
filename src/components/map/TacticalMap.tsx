@@ -801,11 +801,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           width: 40px;
           height: 40px;
         }
-        /* Floating head style for user avatars */
+        /* Squircle style for user avatars - full image visible */
         .user-avatar-marker {
           width: 40px;
           height: 40px;
-          border-radius: 50%;
+          border-radius: 12px;
           overflow: hidden;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
           transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -829,11 +829,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           width: 44px;
           height: 44px;
         }
-        /* Current user marker - slightly larger floating head with golden accent */
+        /* Current user marker - slightly larger squircle with golden accent */
         .my-avatar-ring {
           width: 44px;
           height: 44px;
-          border-radius: 50%;
+          border-radius: 14px;
           overflow: hidden;
           box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), 0 0 16px rgba(251, 191, 36, 0.4);
           transition: all 0.3s ease;

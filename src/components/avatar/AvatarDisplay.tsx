@@ -229,7 +229,7 @@ const AvatarDisplay = ({
       {/* Glow effect */}
       {showGlow && (
         <div 
-          className="absolute inset-0 rounded-full blur-xl opacity-40"
+          className="absolute inset-0 rounded-xl blur-xl opacity-40"
           style={{ backgroundColor: color }}
         />
       )}
