@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
-import { Bell, MapPin, Calendar, Users } from 'lucide-react';
+import { Bell, MapPin, Calendar, Users, Crown } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { getActivityById } from '@/constants/activities';
 
@@ -20,16 +21,19 @@ interface PublicEvent {
     nick: string | null;
     avatar_url: string | null;
   };
+  participant_count?: number;
 }
 
 interface AlertsDrawerProps {
   currentUserId: string;
   onOpenMission?: (missionId: string) => void;
+  onFlyToQuest?: (lat: number, lng: number) => void;
 }
 
-const AlertsDrawer = ({ currentUserId, onOpenMission }: AlertsDrawerProps) => {
+const AlertsDrawer = ({ currentUserId, onOpenMission, onFlyToQuest }: AlertsDrawerProps) => {
   const [open, setOpen] = useState(false);
   const [events, setEvents] = useState<PublicEvent[]>([]);
+  const [myQuests, setMyQuests] = useState<PublicEvent[]>([]);
   const [newEventCount, setNewEventCount] = useState(0);
 
   const fetchEvents = useCallback(async () => {
@@ -64,12 +68,48 @@ const AlertsDrawer = ({ currentUserId, onOpenMission }: AlertsDrawerProps) => {
     }
   }, []);
 
+  const fetchMyQuests = useCallback(async () => {
+    if (!currentUserId) return;
+
+    const { data, error } = await supabase
+      .from('megaphones')
+      .select('id, title, category, start_time, lat, lng, host_id, is_private, duration_minutes')
+      .eq('host_id', currentUserId)
+      .order('start_time', { ascending: false })
+      .limit(20);
+
+    if (!error && data) {
+      // Filter to only active/future events
+      const now = Date.now();
+      const activeQuests = data.filter(m => {
+        const endTime = new Date(m.start_time).getTime() + (m.duration_minutes * 60 * 1000);
+        return endTime > now;
+      });
+
+      // Fetch participant counts
+      const questIds = activeQuests.map(q => q.id);
+      const { data: participants } = await supabase
+        .from('event_participants')
+        .select('event_id')
+        .in('event_id', questIds)
+        .eq('status', 'joined');
+
+      const questsWithCounts = activeQuests.map(quest => ({
+        ...quest,
+        participant_count: participants?.filter(p => p.event_id === quest.id).length || 0,
+      }));
+
+      setMyQuests(questsWithCounts);
+    }
+  }, [currentUserId]);
+
   useEffect(() => {
     if (open) {
       fetchEvents();
+      fetchMyQuests();
       setNewEventCount(0);
     }
-  }, [open, fetchEvents]);
+  }, [open, fetchEvents, fetchMyQuests]);
 
   // Subscribe to new public events
   useEffect(() => {
@@ -96,6 +136,60 @@ const AlertsDrawer = ({ currentUserId, onOpenMission }: AlertsDrawerProps) => {
     };
   }, []);
 
+  const handleQuestClick = (quest: PublicEvent) => {
+    onFlyToQuest?.(quest.lat, quest.lng);
+    onOpenMission?.(quest.id);
+    setOpen(false);
+  };
+
+  const renderEventCard = (event: PublicEvent, isMyQuest = false) => {
+    const activityData = getActivityById(event.category);
+    const isUpcoming = new Date(event.start_time).getTime() > Date.now();
+    
+    return (
+      <button
+        key={event.id}
+        onClick={() => handleQuestClick(event)}
+        className="w-full p-4 rounded-lg bg-muted/20 border border-border/50 hover:border-primary/50 transition-colors text-left"
+      >
+        <div className="flex items-start gap-3">
+          <div className={`w-12 h-12 rounded-lg flex items-center justify-center text-2xl ${
+            isMyQuest 
+              ? 'bg-primary/30 border-2 border-primary' 
+              : 'bg-primary/20 border border-primary/40'
+          }`}>
+            {activityData?.icon || '📍'}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h4 className="font-semibold truncate">{event.title}</h4>
+              {isUpcoming && (
+                <Badge variant="outline" className="bg-success/20 text-success border-success/40 text-xs shrink-0">
+                  Upcoming
+                </Badge>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+              <Calendar className="w-3 h-3" />
+              {format(new Date(event.start_time), 'MMM d, h:mm a')}
+            </p>
+            {isMyQuest ? (
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <Users className="w-3 h-3" />
+                {event.participant_count || 0} participant{(event.participant_count || 0) !== 1 ? 's' : ''}
+              </p>
+            ) : event.host && (
+              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                <Users className="w-3 h-3" />
+                Hosted by {event.host.nick || 'Unknown'}
+              </p>
+            )}
+          </div>
+        </div>
+      </button>
+    );
+  };
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
@@ -116,65 +210,63 @@ const AlertsDrawer = ({ currentUserId, onOpenMission }: AlertsDrawerProps) => {
         <SheetHeader>
           <SheetTitle className="font-orbitron text-xl flex items-center gap-2">
             <Bell className="w-5 h-5 text-warning" />
-            Area Alerts
+            Command Center
           </SheetTitle>
         </SheetHeader>
 
-        <ScrollArea className="h-[60vh] mt-4">
-          <div className="space-y-3">
-            {events.length === 0 ? (
-              <div className="text-center py-12">
-                <MapPin className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
-                <p className="text-muted-foreground text-sm">No public events nearby</p>
-                <p className="text-muted-foreground/60 text-xs mt-1">
-                  Tap the map to deploy a megaphone
-                </p>
+        <Tabs defaultValue="alerts" className="mt-4">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="alerts" className="gap-2">
+              <Bell className="w-4 h-4" />
+              Area Alerts
+            </TabsTrigger>
+            <TabsTrigger value="my-quests" className="gap-2">
+              <Crown className="w-4 h-4" />
+              My Quests
+              {myQuests.length > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                  {myQuests.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="alerts">
+            <ScrollArea className="h-[55vh]">
+              <div className="space-y-3">
+                {events.length === 0 ? (
+                  <div className="text-center py-12">
+                    <MapPin className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
+                    <p className="text-muted-foreground text-sm">No public events nearby</p>
+                    <p className="text-muted-foreground/60 text-xs mt-1">
+                      Tap the map to deploy a megaphone
+                    </p>
+                  </div>
+                ) : (
+                  events.map((event) => renderEventCard(event, false))
+                )}
               </div>
-            ) : (
-              events.map((event) => {
-                const activityData = getActivityById(event.category);
-                const isUpcoming = new Date(event.start_time).getTime() > Date.now();
-                
-                return (
-                  <button
-                    key={event.id}
-                    onClick={() => {
-                      onOpenMission?.(event.id);
-                      setOpen(false);
-                    }}
-                    className="w-full p-4 rounded-lg bg-muted/20 border border-border/50 hover:border-primary/50 transition-colors text-left"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center text-2xl">
-                        {activityData?.icon || '📍'}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h4 className="font-semibold truncate">{event.title}</h4>
-                          {isUpcoming && (
-                            <Badge variant="outline" className="bg-success/20 text-success border-success/40 text-xs shrink-0">
-                              Upcoming
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" />
-                          {format(new Date(event.start_time), 'MMM d, h:mm a')}
-                        </p>
-                        {event.host && (
-                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                            <Users className="w-3 h-3" />
-                            Hosted by {event.host.nick || 'Unknown'}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </ScrollArea>
+            </ScrollArea>
+          </TabsContent>
+
+          <TabsContent value="my-quests">
+            <ScrollArea className="h-[55vh]">
+              <div className="space-y-3">
+                {myQuests.length === 0 ? (
+                  <div className="text-center py-12">
+                    <Crown className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
+                    <p className="text-muted-foreground text-sm">You haven't created any quests</p>
+                    <p className="text-muted-foreground/60 text-xs mt-1">
+                      Long-press on the map to deploy your first quest
+                    </p>
+                  </div>
+                ) : (
+                  myQuests.map((quest) => renderEventCard(quest, true))
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   );

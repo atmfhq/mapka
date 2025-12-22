@@ -71,6 +71,10 @@ const Dashboard = () => {
     mapRef.current?.openMissionById(missionId);
   };
 
+  const handleFlyToQuest = (lat: number, lng: number) => {
+    mapRef.current?.flyTo(lat, lng);
+  };
+
   const handleOpenChatWithUser = (userId: string) => {
     console.log('Dashboard: Opening chat with user:', userId);
     setChatOpenUserId(userId);
@@ -159,6 +163,7 @@ const Dashboard = () => {
         onSignOut={handleSignOut}
         onMissionCreated={handleMissionCreated}
         onOpenMission={handleOpenMission}
+        onFlyToQuest={handleFlyToQuest}
         chatOpenUserId={chatOpenUserId}
         onChatOpenChange={handleChatOpenChange}
         onRelocateClick={() => setRelocateModalOpen(true)}
