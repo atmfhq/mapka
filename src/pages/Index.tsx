@@ -6,27 +6,28 @@ import { MapPin, Users, Radio, Gamepad2, Target, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-
 const Index = () => {
-  const { user, profile } = useAuth();
-  const { toast } = useToast();
-  
+  const {
+    user,
+    profile
+  } = useAuth();
+  const {
+    toast
+  } = useToast();
+
   // Determine where to navigate based on auth state
   const getAppLink = () => {
     if (!user) return "/auth";
     if (profile && !profile.is_onboarded) return "/onboarding";
     return "/dashboard";
   };
-  
   const handleWatchDemo = () => {
     toast({
       title: "Coming Soon",
-      description: "Demo video is under production. Stay tuned!",
+      description: "Demo video is under production. Stay tuned!"
     });
   };
-
-  return (
-    <div className="min-h-screen bg-background tactical-grid relative overflow-hidden">
+  return <div className="min-h-screen bg-background tactical-grid relative overflow-hidden">
       {/* Background gradient overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
       
@@ -44,19 +45,16 @@ const Index = () => {
           
           <nav className="hidden md:flex items-center gap-6">
             <span className="text-muted-foreground font-mono text-sm uppercase tracking-widest">
-              v1.0 tactical
+              v1.0 tactical beta 
             </span>
           </nav>
           
           <div className="flex items-center gap-3">
-            {user ? (
-              <Link to={getAppLink()}>
+            {user ? <Link to={getAppLink()}>
                 <Button variant="neonCyan" size="sm">
                   Dashboard
                 </Button>
-              </Link>
-            ) : (
-              <>
+              </Link> : <>
                 <Link to="/auth">
                   <Button variant="ghost" size="sm" className="font-mono">
                     Login
@@ -67,8 +65,7 @@ const Index = () => {
                     Deploy
                   </Button>
                 </Link>
-              </>
-            )}
+              </>}
           </div>
         </div>
       </header>
@@ -107,11 +104,7 @@ const Index = () => {
                   Enter The Map
                 </Button>
               </Link>
-              <Button 
-                variant="outline" 
-                size="xl"
-                onClick={handleWatchDemo}
-              >
+              <Button variant="outline" size="xl" onClick={handleWatchDemo}>
                 <Gamepad2 className="w-5 h-5" />
                 Watch Demo
               </Button>
@@ -135,17 +128,23 @@ const Index = () => {
           </div>
           
           {/* Radar visualization */}
-          <div className="relative animate-fade-in-up delay-200 opacity-0" style={{ animationFillMode: 'forwards' }}>
+          <div className="relative animate-fade-in-up delay-200 opacity-0" style={{
+          animationFillMode: 'forwards'
+        }}>
             <HeroRadar />
             
             {/* Floating labels */}
             <div className="absolute top-[15%] right-[10%] px-3 py-1 rounded bg-card/80 backdrop-blur border border-primary/30 font-mono text-xs text-primary animate-float">
               @runner_pro
             </div>
-            <div className="absolute bottom-[25%] left-[5%] px-3 py-1 rounded bg-card/80 backdrop-blur border border-accent/30 font-mono text-xs text-accent animate-float" style={{ animationDelay: '0.5s' }}>
+            <div className="absolute bottom-[25%] left-[5%] px-3 py-1 rounded bg-card/80 backdrop-blur border border-accent/30 font-mono text-xs text-accent animate-float" style={{
+            animationDelay: '0.5s'
+          }}>
               🎮 Gaming Night
             </div>
-            <div className="absolute top-[40%] right-[5%] px-3 py-1 rounded bg-card/80 backdrop-blur border border-success/30 font-mono text-xs text-success animate-float" style={{ animationDelay: '1s' }}>
+            <div className="absolute top-[40%] right-[5%] px-3 py-1 rounded bg-card/80 backdrop-blur border border-success/30 font-mono text-xs text-success animate-float" style={{
+            animationDelay: '1s'
+          }}>
               ⚽ 3v3 Match
             </div>
           </div>
@@ -165,7 +164,9 @@ const Index = () => {
         </div>
         
         <div className="grid md:grid-cols-3 gap-6">
-          <TacticalCard glowColor="cyan" className="animate-fade-in-up delay-100 opacity-0" style={{ animationFillMode: 'forwards' }}>
+          <TacticalCard glowColor="cyan" className="animate-fade-in-up delay-100 opacity-0" style={{
+          animationFillMode: 'forwards'
+        }}>
             <FeatureIcon icon={MapPin} color="cyan" />
             <h3 className="font-orbitron text-xl font-semibold mt-4 mb-2">
               Tactical Map
@@ -175,7 +176,9 @@ const Index = () => {
             </p>
           </TacticalCard>
           
-          <TacticalCard glowColor="magenta" className="animate-fade-in-up delay-200 opacity-0" style={{ animationFillMode: 'forwards' }}>
+          <TacticalCard glowColor="magenta" className="animate-fade-in-up delay-200 opacity-0" style={{
+          animationFillMode: 'forwards'
+        }}>
             <FeatureIcon icon={Radio} color="magenta" />
             <h3 className="font-orbitron text-xl font-semibold mt-4 mb-2">
               Megaphones
@@ -185,7 +188,9 @@ const Index = () => {
             </p>
           </TacticalCard>
           
-          <TacticalCard glowColor="lime" className="animate-fade-in-up delay-300 opacity-0" style={{ animationFillMode: 'forwards' }}>
+          <TacticalCard glowColor="lime" className="animate-fade-in-up delay-300 opacity-0" style={{
+          animationFillMode: 'forwards'
+        }}>
             <FeatureIcon icon={Users} color="lime" />
             <h3 className="font-orbitron text-xl font-semibold mt-4 mb-2">
               Character Profiles
@@ -226,8 +231,6 @@ const Index = () => {
           </span>
         </div>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Index;
