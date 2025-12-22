@@ -104,14 +104,6 @@ const getCategoryColor = (label: string): string => {
   return CATEGORY_COLORS.Other;
 };
 
-// Apply random jitter for privacy (100-400m)
-const applyPrivacyJitter = (lat: number, lng: number): [number, number] => {
-  const distance = 100 + Math.random() * 300;
-  const angle = Math.random() * 2 * Math.PI;
-  const latOffset = (distance * Math.cos(angle)) / 111320;
-  const lngOffset = (distance * Math.sin(angle)) / (111320 * Math.cos(lat * (Math.PI / 180)));
-  return [lat + latOffset, lng + lngOffset];
-};
 
 // Generate circle coordinates (approximated with 64 points)
 const generateCircleCoords = (centerLng: number, centerLat: number, radiusMeters: number): [number, number][] => {
@@ -652,7 +644,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       if (!profileLat || !profileLng) return;
       if (profile.id === currentUserId) return;
 
-      const [jitteredLat, jitteredLng] = applyPrivacyJitter(profileLat, profileLng);
       const isConnected = connectedUserIds.has(profile.id);
 
       const el = document.createElement('div');
@@ -697,7 +688,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       });
 
       const marker = new mapboxgl.Marker({ element: el })
-        .setLngLat([jitteredLng, jitteredLat])
+        .setLngLat([profileLng, profileLat])
         .addTo(map.current!);
 
       userMarkersRef.current.push(marker);
