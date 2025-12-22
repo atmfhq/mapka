@@ -685,7 +685,7 @@ const QuestLobby = ({
                   }}
                   className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors w-full text-left"
                 >
-                  <div className="w-12 h-12 rounded-xl overflow-hidden shadow-md">
+                  <div className="w-12 h-12 rounded-xl overflow-hidden">
                     <AvatarDisplay 
                       config={host?.avatar_config} 
                       size={48} 
@@ -718,7 +718,7 @@ const QuestLobby = ({
                           }}
                           className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-primary/10 transition-colors min-w-[72px]"
                         >
-                          <div className="w-12 h-12 rounded-xl overflow-hidden shadow-md">
+                          <div className="w-12 h-12 rounded-xl overflow-hidden">
                             <AvatarDisplay 
                               config={p.profile?.avatar_config} 
                               size={48} 

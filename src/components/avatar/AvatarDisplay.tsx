@@ -53,7 +53,7 @@ const AvatarDisplay = ({
   config, 
   size = 120, 
   className = "",
-  showGlow = true 
+  showGlow = false 
 }: AvatarDisplayProps) => {
   const cfg = {
     skinColor: config?.skinColor || DEFAULT_AVATAR_CONFIG.skinColor,

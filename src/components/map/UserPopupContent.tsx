@@ -100,7 +100,7 @@ const UserPopupContent = ({
 
         {/* Content */}
         <div className="flex items-start gap-3">
-          <div className="w-14 h-14 rounded-xl overflow-hidden flex items-center justify-center shadow-md">
+          <div className="w-14 h-14 rounded-xl overflow-hidden flex items-center justify-center">
             <AvatarDisplay 
               config={user.avatar_config} 
               size={56} 
