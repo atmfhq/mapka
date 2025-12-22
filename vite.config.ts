@@ -43,6 +43,10 @@ export default defineConfig(({ mode }) => ({
         lang: "en",
       },
       workbox: {
+        // Ensure users don't get stuck on a partially-updated PWA cache
+        clientsClaim: true,
+        skipWaiting: true,
+        cleanupOutdatedCaches: true,
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5 MB limit
         runtimeCaching: [
