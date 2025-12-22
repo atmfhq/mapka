@@ -14,21 +14,19 @@ const DATE_FILTER_OPTIONS: { id: DateFilter; label: string }[] = [
 ];
 
 interface FilterBarProps {
-  activeActivity: string | null;
-  onActivityChange: (activity: string | null) => void;
+  activeActivities: string[];
+  onActivityToggle: (activity: string) => void;
+  onClearFilters: () => void;
   dateFilter: DateFilter;
   onDateFilterChange: (filter: DateFilter) => void;
 }
 
-const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterChange }: FilterBarProps) => {
+const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFilter, onDateFilterChange }: FilterBarProps) => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [expandedCategory, setExpandedCategory] = useState<ActivityCategory | null>(null);
 
-  // Get activity data for display
-  const activeActivityData = activeActivity ? getActivityById(activeActivity) : null;
-  const activeCategoryInfo = activeActivityData 
-    ? ACTIVITY_CATEGORIES.find(c => c.id === activeActivityData.category)
-    : null;
+  // Get all active activity data for display
+  const activeActivityDataList = activeActivities.map(id => getActivityById(id)).filter(Boolean);
 
   const handleCategoryClick = (categoryId: ActivityCategory) => {
     if (expandedCategory === categoryId) {
@@ -39,12 +37,7 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
   };
 
   const handleActivityClick = (activityId: string) => {
-    if (activeActivity === activityId) {
-      onActivityChange(null); // Toggle off
-    } else {
-      onActivityChange(activityId);
-    }
-    setExpandedCategory(null);
+    onActivityToggle(activityId);
   };
 
   const handleMobileCategorySelect = (categoryId: ActivityCategory) => {
@@ -52,12 +45,18 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
   };
 
   const handleMobileActivitySelect = (activityId: string) => {
-    handleActivityClick(activityId);
-    setDrawerOpen(false);
+    onActivityToggle(activityId);
+    // Don't close drawer - allow multi-select
   };
 
   const expandedActivities = expandedCategory ? getActivitiesByCategory(expandedCategory) : [];
   const expandedCategoryInfo = expandedCategory ? ACTIVITY_CATEGORIES.find(c => c.id === expandedCategory) : null;
+
+  // Check if category has any active activities
+  const getCategoryActiveCount = (categoryId: ActivityCategory) => {
+    const categoryActivities = getActivitiesByCategory(categoryId);
+    return categoryActivities.filter(a => activeActivities.includes(a.id)).length;
+  };
 
   return (
     <div className="flex flex-col gap-2">
@@ -67,7 +66,8 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
         <div className="flex items-center gap-2">
           {ACTIVITY_CATEGORIES.map((category) => {
             const isExpanded = expandedCategory === category.id;
-            const hasActiveActivity = activeActivityData?.category === category.id;
+            const activeCount = getCategoryActiveCount(category.id);
+            const hasActiveActivity = activeCount > 0;
             
             return (
               <button
@@ -83,6 +83,11 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
               >
                 <span className="text-base">{category.icon}</span>
                 <span>{category.label}</span>
+                {activeCount > 0 && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                    {activeCount}
+                  </span>
+                )}
                 <ChevronDown className={cn(
                   "w-4 h-4 transition-transform",
                   isExpanded && "rotate-180"
@@ -92,16 +97,16 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
           })}
           
           {/* Clear filter button */}
-          {activeActivity && (
+          {activeActivities.length > 0 && (
             <button
               onClick={() => {
-                onActivityChange(null);
+                onClearFilters();
                 setExpandedCategory(null);
               }}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-destructive/50 text-destructive hover:bg-destructive/10 transition-all font-rajdhani text-sm flex-shrink-0"
             >
               <X className="w-4 h-4" />
-              Clear
+              Clear ({activeActivities.length})
             </button>
           )}
         </div>
@@ -135,7 +140,7 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
           </span>
           <div className="flex items-center gap-1.5">
             {expandedActivities.map((activity) => {
-              const isActive = activeActivity === activity.id;
+              const isActive = activeActivities.includes(activity.id);
               
               return (
                 <button
@@ -170,14 +175,16 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
               size="sm"
               className={cn(
                 "min-h-[44px] gap-2 font-rajdhani flex-shrink-0",
-                activeActivity && "border-primary text-primary"
+                activeActivities.length > 0 && "border-primary text-primary"
               )}
             >
               <SlidersHorizontal className="w-4 h-4" />
-              {activeActivityData ? (
+              {activeActivities.length > 0 ? (
                 <>
-                  <span>{activeActivityData.icon}</span>
-                  <span>{activeActivityData.label}</span>
+                  <span>Filters</span>
+                  <span className="px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                    {activeActivities.length}
+                  </span>
                 </>
               ) : (
                 <span>Activity</span>
@@ -228,7 +235,7 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
               {expandedCategory && (
                 <div className="grid grid-cols-2 gap-2">
                   {expandedActivities.map((activity) => {
-                    const isActive = activeActivity === activity.id;
+                    const isActive = activeActivities.includes(activity.id);
                     
                     return (
                       <button
@@ -244,6 +251,7 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
                       >
                         <span className="text-lg">{activity.icon}</span>
                         <span className="truncate">{activity.label}</span>
+                        {isActive && <span className="ml-auto text-primary">✓</span>}
                       </button>
                     );
                   })}
@@ -251,17 +259,17 @@ const FilterBar = ({ activeActivity, onActivityChange, dateFilter, onDateFilterC
               )}
               
               {/* Clear filter button */}
-              {activeActivity && (
+              {activeActivities.length > 0 && (
                 <Button
                   variant="outline"
                   onClick={() => {
-                    onActivityChange(null);
+                    onClearFilters();
                     setDrawerOpen(false);
                   }}
                   className="w-full mt-4 border-destructive/50 text-destructive hover:bg-destructive/10 min-h-[48px]"
                 >
                   <X className="w-4 h-4 mr-2" />
-                  Clear Filter
+                  Clear All ({activeActivities.length})
                 </Button>
               )}
             </div>
