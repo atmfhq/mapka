@@ -6,14 +6,10 @@ import { MapPin, Users, Radio, Gamepad2, Target, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+
 const Index = () => {
-  const {
-    user,
-    profile
-  } = useAuth();
-  const {
-    toast
-  } = useToast();
+  const { user, profile } = useAuth();
+  const { toast } = useToast();
 
   // Determine where to navigate based on auth state
   const getAppLink = () => {
