@@ -194,14 +194,19 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "megaphones_host_id_fkey"
+            columns: ["host_id"]
+            isOneToOne: false
+            referencedRelation: "public_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
         Row: {
           avatar_config: Json | null
           avatar_url: string | null
-          base_lat: number | null
-          base_lng: number | null
           bio: string | null
           created_at: string | null
           id: string
@@ -217,8 +222,6 @@ export type Database = {
         Insert: {
           avatar_config?: Json | null
           avatar_url?: string | null
-          base_lat?: number | null
-          base_lng?: number | null
           bio?: string | null
           created_at?: string | null
           id: string
@@ -234,8 +237,6 @@ export type Database = {
         Update: {
           avatar_config?: Json | null
           avatar_url?: string | null
-          base_lat?: number | null
-          base_lng?: number | null
           bio?: string | null
           created_at?: string | null
           id?: string
@@ -252,7 +253,42 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_profiles: {
+        Row: {
+          avatar_config: Json | null
+          avatar_url: string | null
+          bio: string | null
+          id: string | null
+          is_active: boolean | null
+          location_lat: number | null
+          location_lng: number | null
+          nick: string | null
+          tags: string[] | null
+        }
+        Insert: {
+          avatar_config?: Json | null
+          avatar_url?: string | null
+          bio?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          location_lat?: number | null
+          location_lng?: number | null
+          nick?: string | null
+          tags?: string[] | null
+        }
+        Update: {
+          avatar_config?: Json | null
+          avatar_url?: string | null
+          bio?: string | null
+          id?: string | null
+          is_active?: boolean | null
+          location_lat?: number | null
+          location_lng?: number | null
+          nick?: string | null
+          tags?: string[] | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       accept_invitation: {
@@ -309,8 +345,6 @@ export type Database = {
         Returns: {
           avatar_config: Json
           avatar_url: string
-          base_lat: number
-          base_lng: number
           bio: string
           id: string
           is_active: boolean
