@@ -1,4 +1,5 @@
 import { resolveColor, darkenHexColor, DEFAULT_AVATAR_CONFIG } from "./avatarParts";
+import { AVAILABLE_EYES, AVAILABLE_MOUTHS, getEyeAssetPath, getMouthAssetPath } from "@/config/avatarAssets";
 
 interface AvatarConfig {
   skinColor?: string;
@@ -6,6 +7,40 @@ interface AvatarConfig {
   eyes?: string;
   mouth?: string;
 }
+
+// Check if an eye ID corresponds to a PNG asset file
+const isEyeAsset = (eyeId: string): boolean => {
+  return AVAILABLE_EYES.some(filename => {
+    const id = filename.replace(/\.[^/.]+$/, '').replace(/^eye_/, '');
+    return id === eyeId;
+  });
+};
+
+// Check if a mouth ID corresponds to a PNG asset file
+const isMouthAsset = (mouthId: string): boolean => {
+  return AVAILABLE_MOUTHS.some(filename => {
+    const id = filename.replace(/\.[^/.]+$/, '').replace(/^mouth_/, '');
+    return id === mouthId;
+  });
+};
+
+// Get the full path for an eye asset
+const getEyePath = (eyeId: string): string | null => {
+  const match = AVAILABLE_EYES.find(filename => {
+    const id = filename.replace(/\.[^/.]+$/, '').replace(/^eye_/, '');
+    return id === eyeId;
+  });
+  return match ? getEyeAssetPath(match) : null;
+};
+
+// Get the full path for a mouth asset
+const getMouthPath = (mouthId: string): string | null => {
+  const match = AVAILABLE_MOUTHS.find(filename => {
+    const id = filename.replace(/\.[^/.]+$/, '').replace(/^mouth_/, '');
+    return id === mouthId;
+  });
+  return match ? getMouthAssetPath(match) : null;
+};
 
 interface AvatarDisplayProps {
   config: AvatarConfig | null;
@@ -72,10 +107,28 @@ const AvatarDisplay = ({
     }
   };
 
-  // Eyes SVG paths
+  // Eyes SVG paths or PNG images
   const renderEyes = () => {
     const eyeColor = "#0a0a0a";
     
+    // Check if this is a PNG asset
+    if (isEyeAsset(cfg.eyes)) {
+      const path = getEyePath(cfg.eyes);
+      if (path) {
+        return (
+          <image 
+            href={path} 
+            x="10" 
+            y="25" 
+            width="100" 
+            height="50" 
+            preserveAspectRatio="xMidYMid meet"
+          />
+        );
+      }
+    }
+    
+    // Fallback to SVG eyes
     switch (cfg.eyes) {
       case "normal":
         return (
@@ -142,10 +195,28 @@ const AvatarDisplay = ({
     }
   };
 
-  // Mouth SVG paths
+  // Mouth SVG paths or PNG images
   const renderMouth = () => {
     const mouthColor = "#0a0a0a";
     
+    // Check if this is a PNG asset
+    if (isMouthAsset(cfg.mouth)) {
+      const path = getMouthPath(cfg.mouth);
+      if (path) {
+        return (
+          <image 
+            href={path} 
+            x="25" 
+            y="65" 
+            width="70" 
+            height="40" 
+            preserveAspectRatio="xMidYMid meet"
+          />
+        );
+      }
+    }
+    
+    // Fallback to SVG mouths
     switch (cfg.mouth) {
       case "smile":
         return (
