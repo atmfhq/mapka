@@ -3,7 +3,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { createRoot, Root } from 'react-dom/client';
 import { supabase } from '@/integrations/supabase/client';
-import UserPopup from './UserPopup';
+import UserPopupContent from './UserPopupContent';
 import DeployQuestModal from './DeployQuestModal';
 import QuestLobby from './QuestLobby';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
@@ -213,7 +213,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [quests, setQuests] = useState<Quest[]>([]);
   const [joinedQuestIds, setJoinedQuestIds] = useState<Set<string>>(new Set());
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
-  const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
+  const [selectedUserCoords, setSelectedUserCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const userPopupRef = useRef<mapboxgl.Popup | null>(null);
+  const userPopupRootRef = useRef<Root | null>(null);
   
   const [deployModalOpen, setDeployModalOpen] = useState(false);
   const [clickedCoords, setClickedCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -547,7 +549,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         setClickedCoords({ lat: e.lngLat.lat, lng: e.lngLat.lng });
         setDeployModalOpen(true);
         setSelectedUser(null);
-        setPopupPosition(null);
+        setSelectedUserCoords(null);
       });
     } catch (error) {
       console.error('Failed to initialize map:', error);
@@ -681,8 +683,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           });
         }
         setSelectedUser(profile);
-        const rect = el.getBoundingClientRect();
-        setPopupPosition({ x: rect.left + rect.width / 2, y: rect.top });
+        // Store geo coordinates for the popup (use the actual profile location, not jittered)
+        if (userLat && userLng) {
+          setSelectedUserCoords({ lat: userLat, lng: userLng });
+        }
       });
 
       const marker = new mapboxgl.Marker({ element: el })
@@ -808,9 +812,97 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     });
   }, [filteredQuests, currentUserId, joinedQuestIds]);
 
+  // Helper function to close the user popup
+  const closeUserPopup = useCallback(() => {
+    if (userPopupRef.current) {
+      userPopupRef.current.remove();
+      userPopupRef.current = null;
+    }
+    if (userPopupRootRef.current) {
+      userPopupRootRef.current.unmount();
+      userPopupRootRef.current = null;
+    }
+    setSelectedUser(null);
+    setSelectedUserCoords(null);
+  }, []);
+
+  // Manage Mapbox Popup for user profile - anchored to geo coordinates
+  useEffect(() => {
+    if (!map.current || !selectedUser || !selectedUserCoords) {
+      // Clean up if no user selected
+      if (userPopupRef.current) {
+        userPopupRef.current.remove();
+        userPopupRef.current = null;
+      }
+      if (userPopupRootRef.current) {
+        userPopupRootRef.current.unmount();
+        userPopupRootRef.current = null;
+      }
+      return;
+    }
+
+    // Clean up previous popup
+    if (userPopupRef.current) {
+      userPopupRef.current.remove();
+    }
+    if (userPopupRootRef.current) {
+      userPopupRootRef.current.unmount();
+    }
+
+    // Create container for React content
+    const container = document.createElement('div');
+    container.className = 'user-popup-container';
+
+    // Render React content into container
+    const root = createRoot(container);
+    userPopupRootRef.current = root;
+    
+    const isConnected = connectedUserIds.has(selectedUser.id);
+    const invitationId = getInvitationIdForUser(selectedUser.id);
+
+    root.render(
+      <UserPopupContent
+        user={selectedUser}
+        currentUserId={currentUserId}
+        isConnected={isConnected}
+        invitationId={invitationId}
+        onClose={closeUserPopup}
+        onOpenChat={onOpenChatWithUser}
+        onDisconnect={refetchConnections}
+        onCloseChat={onCloseChat}
+      />
+    );
+
+    // Create Mapbox Popup anchored to geo coordinates
+    const popup = new mapboxgl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      anchor: 'bottom',
+      offset: [0, -20], // Offset above the avatar
+      className: 'user-profile-popup',
+      maxWidth: 'none',
+    })
+      .setLngLat([selectedUserCoords.lng, selectedUserCoords.lat])
+      .setDOMContent(container)
+      .addTo(map.current);
+
+    userPopupRef.current = popup;
+
+    return () => {
+      // Defer cleanup to avoid unmounting during render
+      const popupToRemove = userPopupRef.current;
+      const rootToUnmount = userPopupRootRef.current;
+      userPopupRef.current = null;
+      userPopupRootRef.current = null;
+      
+      queueMicrotask(() => {
+        popupToRemove?.remove();
+        rootToUnmount?.unmount();
+      });
+    };
+  }, [selectedUser, selectedUserCoords, currentUserId, connectedUserIds, getInvitationIdForUser, onOpenChatWithUser, refetchConnections, onCloseChat, closeUserPopup]);
+
   const isTokenMissing = !MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN_HERE';
-  const isSelectedUserConnected = selectedUser ? connectedUserIds.has(selectedUser.id) : false;
-  const selectedUserInvitationId = selectedUser ? getInvitationIdForUser(selectedUser.id) : undefined;
 
   return (
     <>
@@ -948,6 +1040,32 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         .quest-marker:active .quest-icon {
           transform: scale(1.04);
         }
+        /* Mapbox Popup custom styles for user profile */
+        .user-profile-popup {
+          z-index: 50 !important;
+        }
+        .user-profile-popup .mapboxgl-popup-content {
+          background: transparent !important;
+          box-shadow: none !important;
+          padding: 0 !important;
+          border-radius: 0 !important;
+        }
+        .user-profile-popup .mapboxgl-popup-tip {
+          display: none !important;
+        }
+        .user-popup-container {
+          animation: popup-enter 0.2s ease-out;
+        }
+        @keyframes popup-enter {
+          from {
+            opacity: 0;
+            transform: scale(0.95) translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
+        }
       `}</style>
       
       <div ref={mapContainer} className="absolute inset-0" />
@@ -1052,22 +1170,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         </div>
       )}
       
-      {selectedUser && popupPosition && (
-        <UserPopup 
-          user={selectedUser} 
-          position={popupPosition}
-          currentUserId={currentUserId}
-          isConnected={isSelectedUserConnected}
-          invitationId={selectedUserInvitationId}
-          onClose={() => {
-            setSelectedUser(null);
-            setPopupPosition(null);
-          }}
-          onOpenChat={onOpenChatWithUser}
-          onDisconnect={refetchConnections}
-          onCloseChat={onCloseChat}
-        />
-      )}
+      {/* User popup is now rendered via Mapbox Popup in useEffect above */}
 
       <DeployQuestModal
         open={deployModalOpen}
@@ -1111,29 +1214,25 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           const userLng = user.location_lng;
           if (userLat && userLng) {
             flyTo(userLat, userLng);
+            
+            // Show user popup at their geo location after a brief delay for modal close
+            setTimeout(() => {
+              setSelectedUser({
+                id: user.id,
+                nick: user.nick,
+                avatar_url: user.avatar_url,
+                avatar_config: user.avatar_config,
+                tags: user.tags,
+                bio: user.bio,
+                base_lat: null,
+                base_lng: null,
+                location_lat: user.location_lat,
+                location_lng: user.location_lng,
+                is_active: true,
+              });
+              setSelectedUserCoords({ lat: userLat, lng: userLng });
+            }, 300);
           }
-          
-          // Show user popup in center of screen after a brief delay for modal close
-          setTimeout(() => {
-            setSelectedUser({
-              id: user.id,
-              nick: user.nick,
-              avatar_url: user.avatar_url,
-              avatar_config: user.avatar_config,
-              tags: user.tags,
-              bio: user.bio,
-              base_lat: null,
-              base_lng: null,
-              location_lat: user.location_lat,
-              location_lng: user.location_lng,
-              is_active: true,
-            });
-            // Position popup in center of viewport
-            setPopupPosition({ 
-              x: window.innerWidth / 2, 
-              y: window.innerHeight / 2 - 100 
-            });
-          }, 300);
         }}
       />
     </>
