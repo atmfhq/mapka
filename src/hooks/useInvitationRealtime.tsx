@@ -38,12 +38,10 @@ export const useInvitationRealtime = (currentUserId: string | null) => {
     }
 
     if (data && data.length > 0) {
-      // Fetch sender profiles from public_profiles view
+      // Fetch sender profiles using secure RPC function
       const senderIds = [...new Set(data.map(inv => inv.sender_id))];
       const { data: profiles } = await supabase
-        .from('public_profiles')
-        .select('id, nick, avatar_url')
-        .in('id', senderIds);
+        .rpc('get_public_profiles_by_ids', { user_ids: senderIds });
 
       const invitationsWithSenders = data.map(inv => ({
         ...inv,
@@ -80,12 +78,11 @@ export const useInvitationRealtime = (currentUserId: string | null) => {
         async (payload) => {
           console.log('New invitation received:', payload);
           
-          // Fetch sender profile for the notification from public_profiles view
-          const { data: senderProfile } = await supabase
-            .from('public_profiles')
-            .select('nick, avatar_url')
-            .eq('id', payload.new.sender_id)
-            .maybeSingle();
+          // Fetch sender profile using secure RPC function
+          const { data: senderProfiles } = await supabase
+            .rpc('get_public_profiles_by_ids', { user_ids: [payload.new.sender_id] });
+          
+          const senderProfile = senderProfiles?.[0];
 
           const newInvitation: PendingInvitation = {
             id: payload.new.id,
@@ -174,12 +171,11 @@ export const useInvitationRealtime = (currentUserId: string | null) => {
           if (isAccepted && wasNotAccepted) {
             console.log('Invitation accepted! Showing toast...');
             
-            // Fetch receiver profile for the notification from public_profiles view
-            const { data: receiverProfile } = await supabase
-              .from('public_profiles')
-              .select('nick')
-              .eq('id', payload.new.receiver_id)
-              .maybeSingle();
+            // Fetch receiver profile using secure RPC function
+            const { data: receiverProfiles } = await supabase
+              .rpc('get_public_profiles_by_ids', { user_ids: [payload.new.receiver_id] });
+            
+            const receiverProfile = receiverProfiles?.[0];
 
             toast({
               title: '🎯 Signal Connected!',

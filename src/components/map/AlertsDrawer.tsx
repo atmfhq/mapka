@@ -52,12 +52,10 @@ const AlertsDrawer = ({ currentUserId, onOpenMission, onFlyToQuest }: AlertsDraw
         return startTime > now - 2 * 60 * 60 * 1000; // Within last 2h or future
       });
 
-      // Fetch host profiles from public_profiles view
+      // Fetch host profiles using secure RPC function
       const hostIds = [...new Set(activeEvents.map(e => e.host_id))];
       const { data: profiles } = await supabase
-        .from('public_profiles')
-        .select('id, nick, avatar_url')
-        .in('id', hostIds);
+        .rpc('get_public_profiles_by_ids', { user_ids: hostIds });
 
       const eventsWithHosts = activeEvents.map(event => ({
         ...event,
