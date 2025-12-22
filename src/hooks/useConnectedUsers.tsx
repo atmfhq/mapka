@@ -10,8 +10,8 @@ interface AvatarConfig {
 
 interface ConnectedUser {
   id: string;
-  nick: string | null;
-  avatar_url: string | null;
+  nick: string;
+  avatar_url: string;
   avatar_config: AvatarConfig | null;
   invitationId: string;
   missionId: string | null;

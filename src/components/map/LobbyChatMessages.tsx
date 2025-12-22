@@ -7,16 +7,25 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
+interface PublicProfile {
+  id: string;
+  nick: string;
+  avatar_url: string;
+  avatar_config: unknown;
+  bio: string;
+  tags: string[];
+  location_lat: number;
+  location_lng: number;
+  is_active: boolean;
+}
+
 interface ChatMessage {
   id: string;
   event_id: string;
   user_id: string;
   content: string;
   created_at: string;
-  profile?: {
-    nick: string | null;
-    avatar_url: string | null;
-  };
+  profile?: PublicProfile;
 }
 
 interface LobbyChatMessagesProps {

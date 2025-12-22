@@ -2,15 +2,24 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
+interface PublicProfile {
+  id: string;
+  nick: string;
+  avatar_url: string;
+  avatar_config: unknown;
+  bio: string;
+  tags: string[];
+  location_lat: number;
+  location_lng: number;
+  is_active: boolean;
+}
+
 interface PendingInvitation {
   id: string;
   sender_id: string;
   activity_type: string;
   created_at: string;
-  sender?: {
-    nick: string | null;
-    avatar_url: string | null;
-  };
+  sender?: PublicProfile;
 }
 
 export const useInvitationRealtime = (currentUserId: string | null) => {

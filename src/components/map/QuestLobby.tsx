@@ -41,13 +41,13 @@ interface AvatarConfig {
 
 interface Profile {
   id: string;
-  nick: string | null;
-  avatar_url: string | null;
+  nick: string;
+  avatar_url: string;
   avatar_config: AvatarConfig | null;
-  bio: string | null;
-  tags: string[] | null;
-  location_lat: number | null;
-  location_lng: number | null;
+  bio: string;
+  tags: string[];
+  location_lat: number;
+  location_lng: number;
 }
 
 interface Participant {
