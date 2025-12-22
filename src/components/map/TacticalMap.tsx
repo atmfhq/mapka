@@ -668,6 +668,18 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       el.addEventListener('click', (e) => {
         e.stopPropagation();
+        // Fly to user location smoothly
+        const userLat = profile.location_lat ?? profile.base_lat;
+        const userLng = profile.location_lng ?? profile.base_lng;
+        if (userLat && userLng && map.current) {
+          map.current.flyTo({
+            center: [userLng, userLat],
+            zoom: 15,
+            pitch: 45,
+            duration: 1500,
+            essential: true
+          });
+        }
         setSelectedUser(profile);
         const rect = el.getBoundingClientRect();
         setPopupPosition({ x: rect.left + rect.width / 2, y: rect.top });
@@ -774,6 +786,16 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       el.addEventListener('click', (e) => {
         e.stopPropagation();
+        // Fly to quest location smoothly
+        if (map.current) {
+          map.current.flyTo({
+            center: [quest.lng, quest.lat],
+            zoom: 15,
+            pitch: 45,
+            duration: 1500,
+            essential: true
+          });
+        }
         setSelectedQuest(quest);
         setLobbyOpen(true);
       });
