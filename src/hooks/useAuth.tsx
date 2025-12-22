@@ -81,6 +81,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log("[Auth] Event:", event, "Session:", !!session);
+        
+        // Handle different auth events appropriately
+        if (event === 'TOKEN_REFRESHED') {
+          // Token was refreshed - just update state, don't sign out
+          console.log("[Auth] Token refreshed successfully");
+          setSession(session);
+          setUser(session?.user ?? null);
+          return;
+        }
+        
+        if (event === 'SIGNED_OUT') {
+          // User explicitly signed out
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+          setLoading(false);
+          return;
+        }
+        
+        // For SIGNED_IN, INITIAL_SESSION, USER_UPDATED events
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -96,16 +117,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchProfile(session.user.id).then(setProfile);
+    // Aggressively try to restore session on mount
+    const restoreSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("[Auth] Error restoring session:", error);
+          setLoading(false);
+          return;
+        }
+        
+        console.log("[Auth] Session restored:", !!session);
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          const profileData = await fetchProfile(session.user.id);
+          setProfile(profileData);
+        }
+        setLoading(false);
+      } catch (err) {
+        console.error("[Auth] Unexpected error restoring session:", err);
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+    
+    restoreSession();
 
     return () => subscription.unsubscribe();
   }, []);
