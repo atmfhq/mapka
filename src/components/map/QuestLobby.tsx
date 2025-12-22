@@ -1,10 +1,12 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { format, startOfDay, isToday } from 'date-fns';
 import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import AvatarDisplay from '@/components/avatar/AvatarDisplay';
+import UserPopup from './UserPopup';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -31,10 +33,20 @@ interface Quest {
   is_private?: boolean;
 }
 
+interface AvatarConfig {
+  skinColor?: string;
+  shape?: string;
+  eyes?: string;
+  mouth?: string;
+}
+
 interface Profile {
   id: string;
   nick: string | null;
   avatar_url: string | null;
+  avatar_config: AvatarConfig | null;
+  bio: string | null;
+  tags: string[] | null;
 }
 
 interface Participant {
@@ -104,6 +116,11 @@ const QuestLobby = ({
   const [loading, setLoading] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
+  
+  // User popup state
+  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
+  const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
+  const sheetContentRef = useRef<HTMLDivElement>(null);
   
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -176,11 +193,11 @@ const QuestLobby = ({
     const fetchData = async () => {
       const { data: hostData } = await supabase
         .from('profiles')
-        .select('id, nick, avatar_url')
+        .select('id, nick, avatar_url, avatar_config, bio, tags')
         .eq('id', quest.host_id)
         .maybeSingle();
       
-      if (hostData) setHost(hostData);
+      if (hostData) setHost(hostData as Profile);
 
       const { data: participantsData } = await supabase
         .from('event_participants')
@@ -191,12 +208,12 @@ const QuestLobby = ({
         const userIds = participantsData.map(p => p.user_id);
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, nick, avatar_url')
+          .select('id, nick, avatar_url, avatar_config, bio, tags')
           .in('id', userIds);
 
         const participantsWithProfiles = participantsData.map(p => ({
           ...p,
-          profile: profiles?.find(pr => pr.id === p.user_id),
+          profile: profiles?.find(pr => pr.id === p.user_id) as Profile | undefined,
         }));
 
         setParticipants(participantsWithProfiles);
@@ -219,12 +236,12 @@ const QuestLobby = ({
       const userIds = data.map(p => p.user_id);
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, nick, avatar_url')
+        .select('id, nick, avatar_url, avatar_config, bio, tags')
         .in('id', userIds);
 
       const participantsWithProfiles = data.map(p => ({
         ...p,
-        profile: profiles?.find(pr => pr.id === p.user_id),
+        profile: profiles?.find(pr => pr.id === p.user_id) as Profile | undefined,
       }));
 
       setParticipants(participantsWithProfiles);
@@ -665,18 +682,28 @@ const QuestLobby = ({
                 <h4 className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
                   Mission Commander
                 </h4>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
-                  <Avatar className="w-10 h-10 border-2 border-warning">
-                    <AvatarImage src={host?.avatar_url || undefined} />
-                    <AvatarFallback className="bg-warning/20 text-warning">
-                      {host?.nick?.[0]?.toUpperCase() || 'H'}
-                    </AvatarFallback>
-                  </Avatar>
+                <button
+                  onClick={(e) => {
+                    if (host) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      setPopupPosition({ x: rect.left + rect.width / 2, y: rect.top });
+                      setSelectedUser(host);
+                    }
+                  }}
+                  className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors w-full text-left"
+                >
+                  <div className="w-12 h-12 rounded-xl overflow-hidden shadow-md">
+                    <AvatarDisplay 
+                      config={host?.avatar_config} 
+                      size={48} 
+                      showGlow={false}
+                    />
+                  </div>
                   <div>
-                    <p className="font-semibold">{host?.nick || 'Unknown'}</p>
+                    <p className="font-semibold text-warning">{host?.nick || 'Unknown'}</p>
                     <p className="text-xs text-muted-foreground">Host</p>
                   </div>
-                </div>
+                </button>
               </div>
 
               {/* Participants */}
@@ -685,24 +712,42 @@ const QuestLobby = ({
                   <h4 className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
                     Squad Members ({participants.length})
                   </h4>
-                  <div className="grid grid-cols-2 gap-2">
-                    {participants.map((p) => (
-                      <div 
-                        key={p.id}
-                        className="flex items-center gap-2 p-2 rounded-lg bg-muted/20 border border-border/30"
-                      >
-                        <Avatar className="w-8 h-8 border border-primary/50">
-                          <AvatarImage src={p.profile?.avatar_url || undefined} />
-                          <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                            {p.profile?.nick?.[0]?.toUpperCase() || '?'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm truncate">
-                          {p.profile?.nick || 'Anonymous'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                  <ScrollArea className="w-full">
+                    <div className="flex gap-3 pb-2">
+                      {participants.slice(0, 10).map((p) => (
+                        <button
+                          key={p.id}
+                          onClick={(e) => {
+                            if (p.profile) {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setPopupPosition({ x: rect.left + rect.width / 2, y: rect.top });
+                              setSelectedUser(p.profile);
+                            }
+                          }}
+                          className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-primary/10 transition-colors min-w-[72px]"
+                        >
+                          <div className="w-12 h-12 rounded-xl overflow-hidden shadow-md">
+                            <AvatarDisplay 
+                              config={p.profile?.avatar_config} 
+                              size={48} 
+                              showGlow={false}
+                            />
+                          </div>
+                          <span className="text-xs font-medium text-foreground truncate max-w-[64px]">
+                            {p.profile?.nick || 'Anonymous'}
+                          </span>
+                        </button>
+                      ))}
+                      {participants.length > 10 && (
+                        <div className="flex items-center justify-center min-w-[72px] p-2">
+                          <span className="text-xs text-muted-foreground font-medium">
+                            +{participants.length - 10} more
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <ScrollBar orientation="horizontal" />
+                  </ScrollArea>
                 </div>
               )}
 
@@ -763,6 +808,20 @@ const QuestLobby = ({
           </Tabs>
         )}
       </SheetContent>
+
+      {/* User Profile Popup */}
+      {selectedUser && popupPosition && (
+        <UserPopup
+          user={selectedUser}
+          position={popupPosition}
+          currentUserId={currentUserId}
+          isConnected={false}
+          onClose={() => {
+            setSelectedUser(null);
+            setPopupPosition(null);
+          }}
+        />
+      )}
     </Sheet>
   );
 };
