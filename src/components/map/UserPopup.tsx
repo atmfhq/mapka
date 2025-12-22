@@ -105,12 +105,10 @@ const UserPopup = ({ user, position, currentUserId, isConnected, invitationId, o
 
           {/* Content */}
           <div className="flex items-start gap-3">
-            <div className={`w-14 h-14 rounded-lg border-2 overflow-hidden flex items-center justify-center bg-background ${
-              isConnected ? 'border-success' : 'border-primary/40'
-            }`}>
+            <div className="w-14 h-14 rounded-xl overflow-hidden flex items-center justify-center shadow-md">
               <AvatarDisplay 
                 config={user.avatar_config} 
-                size={52} 
+                size={56} 
                 showGlow={false}
               />
             </div>
