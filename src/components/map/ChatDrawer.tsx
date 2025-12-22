@@ -512,7 +512,7 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                                 showGlow={false} 
                               />
                             </div>
-                            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-success rounded-full border-2 border-background" />
+                            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-success rounded-full border-2 border-background z-10" />
                           </div>
                           <span className="text-xs font-medium text-foreground truncate max-w-[64px]">
                             {user.nick || 'Unknown'}
