@@ -58,10 +58,6 @@ export const AVAILABLE_EYES: string[] = [
   'eyes_039.png',
   'eyes_040.png',
   'eyes_041.png',
-  'eyes_042.png',
-  'eyes_043.png',
-  'eyes_044.png',
-  'eyes_045.png',
   
   // Add more eye assets here...
   // 'eye_7.png',
