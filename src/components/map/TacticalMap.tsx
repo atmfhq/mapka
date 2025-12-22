@@ -756,14 +756,21 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       const categoryColor = getCategoryColor(quest.category);
       // Highlight if user is host OR participant
       const isMyQuest = quest.host_id === currentUserId || joinedQuestIds.has(quest.id);
+      
+      // Check if quest is "Live Now"
+      const now = Date.now();
+      const startTime = new Date(quest.start_time).getTime();
+      const endTime = startTime + (quest.duration_minutes * 60 * 1000);
+      const isLiveNow = startTime <= now && endTime >= now;
 
       const el = document.createElement('div');
-      el.className = `quest-marker ${isMyQuest ? 'my-quest' : ''}`;
+      el.className = `quest-marker ${isMyQuest ? 'my-quest' : ''} ${isLiveNow ? 'live-now' : ''}`;
       el.style.zIndex = '20';
 
       el.innerHTML = `
         <div class="quest-container" style="--category-color: ${categoryColor}">
-          <div class="quest-icon ${isMyQuest ? 'my-quest-icon' : ''}">
+          ${isLiveNow ? '<div class="live-pulse"></div>' : ''}
+          <div class="quest-icon ${isMyQuest ? 'my-quest-icon' : ''} ${isLiveNow ? 'live-icon' : ''}">
             ${activityIcon}
           </div>
         </div>
@@ -857,6 +864,37 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           border: 3px solid hsl(var(--primary));
           box-shadow: 0 0 16px hsl(var(--primary) / 0.5), inset 0 0 8px hsl(var(--primary) / 0.1);
         }
+        /* Live Now green glow effect */
+        .live-pulse {
+          position: absolute;
+          inset: -6px;
+          border-radius: 18px;
+          background: transparent;
+          border: 2px solid #22c55e;
+          box-shadow: 0 0 20px rgba(34, 197, 94, 0.6), 0 0 40px rgba(34, 197, 94, 0.3);
+          animation: live-pulse-glow 2s ease-in-out infinite;
+          z-index: 0;
+        }
+        @keyframes live-pulse-glow {
+          0%, 100% {
+            opacity: 0.6;
+            transform: scale(1);
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.6), 0 0 40px rgba(34, 197, 94, 0.3);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.05);
+            box-shadow: 0 0 30px rgba(34, 197, 94, 0.8), 0 0 60px rgba(34, 197, 94, 0.4);
+          }
+        }
+        .quest-icon.live-icon {
+          box-shadow: 0 0 12px rgba(34, 197, 94, 0.4);
+        }
+        /* Combined: My Quest + Live Now */
+        .quest-icon.my-quest-icon.live-icon {
+          border: 3px solid hsl(var(--primary));
+          box-shadow: 0 0 16px hsl(var(--primary) / 0.5), 0 0 24px rgba(34, 197, 94, 0.4), inset 0 0 8px hsl(var(--primary) / 0.1);
+        }
         .quest-marker:hover .quest-icon {
           transform: scale(1.08);
           background: hsl(var(--primary) / 0.2);
@@ -865,6 +903,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         }
         .quest-marker.my-quest:hover .quest-icon {
           box-shadow: 0 0 20px hsl(var(--primary) / 0.6), inset 0 0 10px hsl(var(--primary) / 0.15);
+        }
+        .quest-marker.live-now:hover .live-pulse {
+          animation-play-state: paused;
+          opacity: 1;
+          transform: scale(1.08);
         }
         .quest-marker:active .quest-icon {
           transform: scale(1.04);
