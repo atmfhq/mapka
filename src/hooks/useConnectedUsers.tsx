@@ -69,11 +69,9 @@ export const useConnectedUsers = (currentUserId: string) => {
       const otherUserIds = otherUserData.map(d => d.otherId);
       console.log('useConnectedUsers: Other user IDs:', otherUserIds);
 
-      // Fetch their profiles from public_profiles view (secure read-only access)
+      // Fetch their profiles using secure RPC function
       const { data: profiles, error: profileError } = await supabase
-        .from('public_profiles')
-        .select('id, nick, avatar_url, avatar_config')
-        .in('id', otherUserIds);
+        .rpc('get_public_profiles_by_ids', { user_ids: otherUserIds });
 
       console.log('useConnectedUsers: Fetched profiles:', profiles, 'Error:', profileError);
 

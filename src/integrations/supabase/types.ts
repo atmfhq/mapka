@@ -326,6 +326,20 @@ export type Database = {
           tags: string[]
         }[]
       }
+      get_public_profiles_by_ids: {
+        Args: { user_ids: string[] }
+        Returns: {
+          avatar_config: Json
+          avatar_url: string
+          bio: string
+          id: string
+          is_active: boolean
+          location_lat: number
+          location_lng: number
+          nick: string
+          tags: string[]
+        }[]
+      }
       get_unread_message_count: { Args: { p_user_id: string }; Returns: number }
       is_event_member: {
         Args: { event_uuid: string; user_uuid: string }

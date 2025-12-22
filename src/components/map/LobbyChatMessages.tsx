@@ -47,12 +47,10 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
       }
 
       if (data) {
-        // Fetch profiles for all messages from public_profiles view
+        // Fetch profiles using secure RPC function
         const userIds = [...new Set(data.map(m => m.user_id))];
         const { data: profiles } = await supabase
-          .from('public_profiles')
-          .select('id, nick, avatar_url')
-          .in('id', userIds);
+          .rpc('get_public_profiles_by_ids', { user_ids: userIds });
 
         const messagesWithProfiles = data.map(msg => ({
           ...msg,
@@ -81,12 +79,11 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
         async (payload) => {
           const newMsg = payload.new as ChatMessage;
           
-          // Fetch profile for new message from public_profiles view
-          const { data: profile } = await supabase
-            .from('public_profiles')
-            .select('id, nick, avatar_url')
-            .eq('id', newMsg.user_id)
-            .maybeSingle();
+          // Fetch profile using secure RPC function
+          const { data: profiles } = await supabase
+            .rpc('get_public_profiles_by_ids', { user_ids: [newMsg.user_id] });
+          
+          const profile = profiles?.[0];
 
           setMessages(prev => [...prev, { ...newMsg, profile: profile || undefined }]);
         }
