@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import AvatarDisplay from "./AvatarDisplay";
 import { 
   PRESET_COLORS,
@@ -13,6 +14,11 @@ import {
   DEFAULT_AVATAR_CONFIG,
   resolveColor 
 } from "./avatarParts";
+import { 
+  AVAILABLE_EYES, 
+  AVAILABLE_MOUTHS, 
+  getAssetDisplayName 
+} from "@/config/avatarAssets";
 import { Palette, Shapes, Eye, Smile, Pipette } from "lucide-react";
 
 interface AvatarConfig {
@@ -248,50 +254,66 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
           </div>
         </TabsContent>
 
-        {/* Eyes Selection */}
+        {/* Eyes Selection - Scrollable Grid */}
         <TabsContent value="eyes" className="mt-4">
           <Label className="font-mono text-xs uppercase text-muted-foreground mb-3 block">
-            Eyes Style
+            Eyes Style ({AVAILABLE_EYES.length} options)
           </Label>
-          <div className="grid grid-cols-3 gap-3">
-            {EYES.map((e) => (
-              <OptionButton
-                key={e.id}
-                selected={config.eyes === e.id}
-                onClick={() => updateConfig("eyes", e.id)}
-              >
-                <AvatarDisplay 
-                  config={{ ...config, eyes: e.id }} 
-                  size={48} 
-                  showGlow={false}
-                />
-                <div className="text-xs mt-2 font-medium text-center">{e.label}</div>
-              </OptionButton>
-            ))}
-          </div>
+          <ScrollArea className="h-64 rounded-lg border border-border/50 bg-muted/20 p-2">
+            <div className="grid grid-cols-4 gap-2">
+              {AVAILABLE_EYES.map((filename) => {
+                // Extract the ID from filename (remove extension and prefix)
+                const eyeId = filename.replace(/\.[^/.]+$/, '').replace(/^eye_/, '');
+                return (
+                  <OptionButton
+                    key={filename}
+                    selected={config.eyes === eyeId}
+                    onClick={() => updateConfig("eyes", eyeId)}
+                  >
+                    <AvatarDisplay 
+                      config={{ ...config, eyes: eyeId }} 
+                      size={40} 
+                      showGlow={false}
+                    />
+                    <div className="text-[10px] mt-1 font-medium text-center truncate w-full">
+                      {getAssetDisplayName(filename)}
+                    </div>
+                  </OptionButton>
+                );
+              })}
+            </div>
+          </ScrollArea>
         </TabsContent>
 
-        {/* Mouth Selection */}
+        {/* Mouth Selection - Scrollable Grid */}
         <TabsContent value="mouth" className="mt-4">
           <Label className="font-mono text-xs uppercase text-muted-foreground mb-3 block">
-            Mouth Style
+            Mouth Style ({AVAILABLE_MOUTHS.length} options)
           </Label>
-          <div className="grid grid-cols-3 gap-3">
-            {MOUTHS.map((m) => (
-              <OptionButton
-                key={m.id}
-                selected={config.mouth === m.id}
-                onClick={() => updateConfig("mouth", m.id)}
-              >
-                <AvatarDisplay 
-                  config={{ ...config, mouth: m.id }} 
-                  size={48} 
-                  showGlow={false}
-                />
-                <div className="text-xs mt-2 font-medium text-center">{m.label}</div>
-              </OptionButton>
-            ))}
-          </div>
+          <ScrollArea className="h-64 rounded-lg border border-border/50 bg-muted/20 p-2">
+            <div className="grid grid-cols-4 gap-2">
+              {AVAILABLE_MOUTHS.map((filename) => {
+                // Extract the ID from filename (remove extension and prefix)
+                const mouthId = filename.replace(/\.[^/.]+$/, '').replace(/^mouth_/, '');
+                return (
+                  <OptionButton
+                    key={filename}
+                    selected={config.mouth === mouthId}
+                    onClick={() => updateConfig("mouth", mouthId)}
+                  >
+                    <AvatarDisplay 
+                      config={{ ...config, mouth: mouthId }} 
+                      size={40} 
+                      showGlow={false}
+                    />
+                    <div className="text-[10px] mt-1 font-medium text-center truncate w-full">
+                      {getAssetDisplayName(filename)}
+                    </div>
+                  </OptionButton>
+                );
+              })}
+            </div>
+          </ScrollArea>
         </TabsContent>
       </Tabs>
     </div>
