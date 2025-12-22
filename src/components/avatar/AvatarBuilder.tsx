@@ -261,26 +261,22 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
           </Label>
           <ScrollArea className="h-64 rounded-lg border border-border/50 bg-muted/20 p-2">
             <div className="grid grid-cols-4 gap-2">
-              {AVAILABLE_EYES.map((filename) => {
-                // Extract the ID from filename (remove extension and prefix)
-                const eyeId = filename.replace(/\.[^/.]+$/, '').replace(/^eye_/, '');
-                return (
-                  <OptionButton
-                    key={filename}
-                    selected={config.eyes === eyeId}
-                    onClick={() => updateConfig("eyes", eyeId)}
-                  >
-                    <AvatarDisplay 
-                      config={{ ...config, eyes: eyeId }} 
-                      size={40} 
-                      showGlow={false}
-                    />
-                    <div className="text-[10px] mt-1 font-medium text-center truncate w-full">
-                      {getAssetDisplayName(filename)}
-                    </div>
-                  </OptionButton>
-                );
-              })}
+              {AVAILABLE_EYES.map((filename) => (
+                <OptionButton
+                  key={filename}
+                  selected={config.eyes === filename}
+                  onClick={() => updateConfig("eyes", filename)}
+                >
+                  <AvatarDisplay 
+                    config={{ ...config, eyes: filename }} 
+                    size={40} 
+                    showGlow={false}
+                  />
+                  <div className="text-[10px] mt-1 font-medium text-center truncate w-full">
+                    {getAssetDisplayName(filename)}
+                  </div>
+                </OptionButton>
+              ))}
             </div>
           </ScrollArea>
         </TabsContent>
@@ -292,26 +288,22 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
           </Label>
           <ScrollArea className="h-64 rounded-lg border border-border/50 bg-muted/20 p-2">
             <div className="grid grid-cols-4 gap-2">
-              {AVAILABLE_MOUTHS.map((filename) => {
-                // Extract the ID from filename (remove extension and prefix)
-                const mouthId = filename.replace(/\.[^/.]+$/, '').replace(/^mouth_/, '');
-                return (
-                  <OptionButton
-                    key={filename}
-                    selected={config.mouth === mouthId}
-                    onClick={() => updateConfig("mouth", mouthId)}
-                  >
-                    <AvatarDisplay 
-                      config={{ ...config, mouth: mouthId }} 
-                      size={40} 
-                      showGlow={false}
-                    />
-                    <div className="text-[10px] mt-1 font-medium text-center truncate w-full">
-                      {getAssetDisplayName(filename)}
-                    </div>
-                  </OptionButton>
-                );
-              })}
+              {AVAILABLE_MOUTHS.map((filename) => (
+                <OptionButton
+                  key={filename}
+                  selected={config.mouth === filename}
+                  onClick={() => updateConfig("mouth", filename)}
+                >
+                  <AvatarDisplay 
+                    config={{ ...config, mouth: filename }} 
+                    size={40} 
+                    showGlow={false}
+                  />
+                  <div className="text-[10px] mt-1 font-medium text-center truncate w-full">
+                    {getAssetDisplayName(filename)}
+                  </div>
+                </OptionButton>
+              ))}
             </div>
           </ScrollArea>
         </TabsContent>

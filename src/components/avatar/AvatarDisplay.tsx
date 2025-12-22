@@ -10,18 +10,24 @@ interface AvatarConfig {
 
 // Check if an eye ID corresponds to a PNG asset file
 const isEyeAsset = (eyeId: string): boolean => {
-  return AVAILABLE_EYES.includes(eyeId);
+  const result = AVAILABLE_EYES.includes(eyeId);
+  console.log(`[Avatar] isEyeAsset check: "${eyeId}" -> ${result}`);
+  return result;
 };
 
 // Check if a mouth ID corresponds to a PNG asset file
 const isMouthAsset = (mouthId: string): boolean => {
-  return AVAILABLE_MOUTHS.includes(mouthId);
+  const result = AVAILABLE_MOUTHS.includes(mouthId);
+  console.log(`[Avatar] isMouthAsset check: "${mouthId}" -> ${result}`);
+  return result;
 };
 
 // Get the full path for an eye asset
 const getEyePath = (eyeId: string): string | null => {
   if (AVAILABLE_EYES.includes(eyeId)) {
-    return getEyeAssetPath(eyeId);
+    const path = getEyeAssetPath(eyeId);
+    console.log(`[Avatar] Eye path constructed: "${path}"`);
+    return path;
   }
   return null;
 };
@@ -29,7 +35,9 @@ const getEyePath = (eyeId: string): string | null => {
 // Get the full path for a mouth asset
 const getMouthPath = (mouthId: string): string | null => {
   if (AVAILABLE_MOUTHS.includes(mouthId)) {
-    return getMouthAssetPath(mouthId);
+    const path = getMouthAssetPath(mouthId);
+    console.log(`[Avatar] Mouth path constructed: "${path}"`);
+    return path;
   }
   return null;
 };
