@@ -9,6 +9,18 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { getActivityById } from '@/constants/activities';
 
+interface PublicProfile {
+  id: string;
+  nick: string;
+  avatar_url: string;
+  avatar_config: unknown;
+  bio: string;
+  tags: string[];
+  location_lat: number;
+  location_lng: number;
+  is_active: boolean;
+}
+
 interface PublicEvent {
   id: string;
   title: string;
@@ -17,10 +29,7 @@ interface PublicEvent {
   lat: number;
   lng: number;
   host_id: string;
-  host?: {
-    nick: string | null;
-    avatar_url: string | null;
-  };
+  host?: PublicProfile;
   participant_count?: number;
 }
 
