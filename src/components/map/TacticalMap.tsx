@@ -104,6 +104,19 @@ const getCategoryColor = (label: string): string => {
   return CATEGORY_COLORS.Other;
 };
 
+// Deterministic jitter based on user ID (stable across renders)
+// Returns offsets of roughly +/- 400m (approx +/- 0.004 degrees)
+const getDeterministicOffset = (id: string): { lat: number; lng: number } => {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) {
+    hash = id.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  // Normalize to range -0.004 to +0.004 (approx 400m)
+  const latOffset = ((hash % 1000) / 1000) * 0.008 - 0.004;
+  const lngOffset = (((hash >> 8) % 1000) / 1000) * 0.008 - 0.004;
+  return { lat: latOffset, lng: lngOffset };
+};
+
 
 // Generate circle coordinates (approximated with 64 points)
 const generateCircleCoords = (centerLng: number, centerLat: number, radiusMeters: number): [number, number][] => {
@@ -644,6 +657,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       if (!profileLat || !profileLng) return;
       if (profile.id === currentUserId) return;
 
+      // Apply deterministic jitter for visual scatter (stable per user ID)
+      const offset = getDeterministicOffset(profile.id);
+      const jitteredLat = profileLat + offset.lat;
+      const jitteredLng = profileLng + offset.lng;
+
       const isConnected = connectedUserIds.has(profile.id);
 
       const el = document.createElement('div');
@@ -668,12 +686,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       el.addEventListener('click', (e) => {
         e.stopPropagation();
-        // Fly to user location smoothly
-        const userLat = profile.location_lat;
-        const userLng = profile.location_lng;
-        if (userLat && userLng && map.current) {
+        // Fly to jittered location (where marker is displayed)
+        if (map.current) {
           map.current.flyTo({
-            center: [userLng, userLat],
+            center: [jitteredLng, jitteredLat],
             zoom: 15,
             pitch: 45,
             duration: 1500,
@@ -681,14 +697,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           });
         }
         setSelectedUser(profile);
-        // Store geo coordinates for the popup (use the actual profile location, not jittered)
-        if (userLat && userLng) {
-          setSelectedUserCoords({ lat: userLat, lng: userLng });
-        }
+        // Store jittered coords for the popup (matches marker position)
+        setSelectedUserCoords({ lat: jitteredLat, lng: jitteredLng });
       });
 
       const marker = new mapboxgl.Marker({ element: el })
-        .setLngLat([profileLng, profileLat])
+        .setLngLat([jitteredLng, jitteredLat])
         .addTo(map.current!);
 
       userMarkersRef.current.push(marker);
