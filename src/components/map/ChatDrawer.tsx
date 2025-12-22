@@ -505,7 +505,6 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                           className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-success/10 transition-colors min-w-[72px]"
                         >
                           <div className="relative">
-                            <div className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-success rounded-full border-2 border-background z-10" />
                             <div className="w-14 h-14 rounded-xl overflow-hidden shadow-md">
                               <AvatarDisplay
                                 config={user.avatar_config} 
@@ -513,6 +512,7 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                                 showGlow={false} 
                               />
                             </div>
+                            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-success rounded-full border-2 border-background" />
                           </div>
                           <span className="text-xs font-medium text-foreground truncate max-w-[64px]">
                             {user.nick || 'Unknown'}
