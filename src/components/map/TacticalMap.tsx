@@ -28,8 +28,6 @@ interface Profile {
   avatar_url: string | null;
   avatar_config: AvatarConfig | null;
   tags: string[] | null;
-  base_lat: number | null;
-  base_lng: number | null;
   location_lat: number | null;
   location_lng: number | null;
   bio: string | null;
@@ -480,11 +478,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           console.log('🔔 Realtime: Profile updated:', payload.new);
           const updatedProfile = payload.new as Profile;
           
-          // Update the profile in state if it has valid coordinates (location_lat/lng OR base_lat/lng)
+          // Update the profile in state if it has valid coordinates
           const hasLocation = updatedProfile.location_lat !== null && updatedProfile.location_lng !== null;
-          const hasBase = updatedProfile.base_lat !== null && updatedProfile.base_lng !== null;
           
-          if (hasLocation || hasBase) {
+          if (hasLocation) {
             setProfiles(prev => {
               const exists = prev.some(p => p.id === updatedProfile.id);
               if (exists) {
@@ -638,9 +635,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     userMarkersRef.current = [];
 
     filteredProfiles.forEach(profile => {
-      // Prioritize location_lat/lng (teleport) over base_lat/lng (original position)
-      const profileLat = profile.location_lat ?? profile.base_lat;
-      const profileLng = profile.location_lng ?? profile.base_lng;
+      // Use location_lat/lng for user position
+      const profileLat = profile.location_lat;
+      const profileLng = profile.location_lng;
       
       if (!profileLat || !profileLng) return;
       if (profile.id === currentUserId) return;
@@ -671,8 +668,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       el.addEventListener('click', (e) => {
         e.stopPropagation();
         // Fly to user location smoothly
-        const userLat = profile.location_lat ?? profile.base_lat;
-        const userLng = profile.location_lng ?? profile.base_lng;
+        const userLat = profile.location_lat;
+        const userLng = profile.location_lng;
         if (userLat && userLng && map.current) {
           map.current.flyTo({
             center: [userLng, userLat],
@@ -716,7 +713,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       myMarkerRef.current = null;
     }
 
-    // Use location_lat/lng if available, otherwise fall back to base_lat/lng
+    // Use location_lat/lng
     const myLat = locationLat ?? userLat;
     const myLng = locationLng ?? userLng;
 
@@ -1224,8 +1221,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
                 avatar_config: user.avatar_config,
                 tags: user.tags,
                 bio: user.bio,
-                base_lat: null,
-                base_lng: null,
                 location_lat: user.location_lat,
                 location_lng: user.location_lng,
                 is_active: true,

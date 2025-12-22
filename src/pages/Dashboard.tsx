@@ -37,8 +37,8 @@ const Dashboard = () => {
   useEffect(() => {
     if (profile) {
       setCurrentLocation({
-        lat: profile.location_lat ?? profile.base_lat ?? null,
-        lng: profile.location_lng ?? profile.base_lng ?? null,
+        lat: profile.location_lat ?? null,
+        lng: profile.location_lng ?? null,
         name: profile.location_name ?? null,
       });
       setIsActive(profile.is_active ?? true);
@@ -126,9 +126,9 @@ const Dashboard = () => {
     return <LoadingScreen />;
   }
 
-  // Use location_lat/lng if available, otherwise fall back to base_lat/lng
-  const userLat = currentLocation.lat ?? profile.base_lat ?? 40.7128;
-  const userLng = currentLocation.lng ?? profile.base_lng ?? -74.006;
+  // Use location_lat/lng with fallback to defaults
+  const userLat = currentLocation.lat ?? profile.location_lat ?? 40.7128;
+  const userLng = currentLocation.lng ?? profile.location_lng ?? -74.006;
 
   const activeActivityData = activeActivity ? getActivityById(activeActivity) : null;
 
@@ -139,8 +139,8 @@ const Dashboard = () => {
         ref={mapRef}
         userLat={userLat}
         userLng={userLng}
-        baseLat={profile.base_lat ?? userLat}
-        baseLng={profile.base_lng ?? userLng}
+        baseLat={userLat}
+        baseLng={userLng}
         currentUserId={user!.id}
         activeActivity={activeActivity}
         dateFilter={dateFilter}
