@@ -43,6 +43,8 @@ interface QuestLobbyProps {
   quest: Quest | null;
   currentUserId: string;
   onDelete: () => void;
+  onJoin?: (questId: string) => void;
+  onLeave?: (questId: string) => void;
 }
 
 // Get activity data by label (case insensitive)
@@ -80,7 +82,9 @@ const QuestLobby = ({
   onOpenChange, 
   quest, 
   currentUserId,
-  onDelete 
+  onDelete,
+  onJoin,
+  onLeave
 }: QuestLobbyProps) => {
   const [host, setHost] = useState<Profile | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -182,6 +186,9 @@ const QuestLobby = ({
     toast({ title: "Quest joined!", description: "You're now part of the squad." });
     setHasJoined(true);
     
+    // Notify parent to update joined quest IDs immediately
+    onJoin?.(quest.id);
+    
     await refreshParticipants();
     setActiveTab('comms');
   };
@@ -210,6 +217,9 @@ const QuestLobby = ({
     toast({ title: "Left quest" });
     setHasJoined(false);
     setParticipants(prev => prev.filter(p => p.user_id !== currentUserId));
+    
+    // Notify parent to update joined quest IDs immediately
+    onLeave?.(quest.id);
   };
 
   const handleDelete = async () => {
