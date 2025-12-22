@@ -211,6 +211,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
+  const [joinedQuestIds, setJoinedQuestIds] = useState<Set<string>>(new Set());
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [popupPosition, setPopupPosition] = useState<{ x: number; y: number } | null>(null);
   
@@ -342,6 +343,24 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       console.error('Error fetching nearby quests:', error);
     }
   }, [locationLat, locationLng, userLat, userLng]);
+
+  // Fetch quests the current user has joined
+  const fetchJoinedQuestIds = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('event_participants')
+      .select('event_id')
+      .eq('user_id', currentUserId)
+      .eq('status', 'joined');
+    
+    if (!error && data) {
+      setJoinedQuestIds(new Set(data.map(p => p.event_id)));
+    }
+  }, [currentUserId]);
+
+  // Fetch joined quests on mount and when quests change
+  useEffect(() => {
+    fetchJoinedQuestIds();
+  }, [fetchJoinedQuestIds, quests]);
 
   const openMissionById = useCallback(async (missionId: string) => {
     const { data } = await supabase
@@ -735,7 +754,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       // Get dynamic icon and color based on activity
       const activityIcon = getActivityIcon(quest.category);
       const categoryColor = getCategoryColor(quest.category);
-      const isMyQuest = quest.host_id === currentUserId;
+      // Highlight if user is host OR participant
+      const isMyQuest = quest.host_id === currentUserId || joinedQuestIds.has(quest.id);
 
       const el = document.createElement('div');
       el.className = `quest-marker ${isMyQuest ? 'my-quest' : ''}`;
@@ -761,7 +781,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       questMarkersRef.current.push(marker);
     });
-  }, [filteredQuests]);
+  }, [filteredQuests, currentUserId, joinedQuestIds]);
 
   const isTokenMissing = !MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN_HERE';
   const isSelectedUserConnected = selectedUser ? connectedUserIds.has(selectedUser.id) : false;
