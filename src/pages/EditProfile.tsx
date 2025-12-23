@@ -273,8 +273,8 @@ const EditProfile = () => {
         <TacticalCard className="mb-6 border-destructive/30 bg-destructive/5">
           <div className="flex items-center gap-2 mb-4">
             <AlertTriangle className="w-5 h-5 text-destructive" />
-            <h3 className="font-orbitron text-sm font-semibold text-destructive">
-              DANGER ZONE
+            <h3 className="font-fredoka text-sm font-semibold text-destructive">
+              Danger Zone
             </h3>
           </div>
           
@@ -304,7 +304,7 @@ const EditProfile = () => {
             </AlertDialogTrigger>
             <AlertDialogContent className="bg-card border-destructive/30">
               <AlertDialogHeader>
-                <AlertDialogTitle className="font-orbitron flex items-center gap-2">
+              <AlertDialogTitle className="font-fredoka flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5 text-destructive" />
                   Delete Account Permanently?
                 </AlertDialogTitle>

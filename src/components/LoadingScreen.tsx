@@ -2,45 +2,35 @@ import { Target } from "lucide-react";
 
 const LoadingScreen = () => {
   return (
-    <div className="min-h-screen bg-background tactical-grid flex items-center justify-center">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
       
       <div className="relative z-10 text-center">
-        {/* Spinning radar effect */}
+        {/* Friendly loading animation */}
         <div className="relative w-32 h-32 mx-auto mb-8">
           {/* Outer ring */}
-          <div className="absolute inset-0 rounded-full border-2 border-primary/30 animate-pulse" />
+          <div className="absolute inset-0 rounded-full border-4 border-primary/30 animate-pulse" />
           
           {/* Middle ring */}
-          <div className="absolute inset-4 rounded-full border border-primary/20" />
+          <div className="absolute inset-4 rounded-full border-3 border-primary/20" />
           
           {/* Inner ring */}
-          <div className="absolute inset-8 rounded-full border border-primary/15" />
-          
-          {/* Sweep line */}
-          <div className="absolute inset-0 radar-sweep">
-            <div 
-              className="absolute top-1/2 left-1/2 w-1/2 h-0.5 origin-left"
-              style={{
-                background: "linear-gradient(90deg, hsl(180 100% 50% / 0.8), transparent)",
-              }}
-            />
-          </div>
+          <div className="absolute inset-8 rounded-full border-2 border-primary/15" />
           
           {/* Center icon */}
           <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-12 h-12 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center animate-pulse">
-              <Target className="w-6 h-6 text-primary" />
+            <div className="w-14 h-14 rounded-xl bg-primary/20 border-3 border-primary/40 flex items-center justify-center shadow-hard animate-bounce-in">
+              <Target className="w-7 h-7 text-primary" />
             </div>
           </div>
         </div>
         
         {/* Loading text */}
-        <div className="font-orbitron text-xl font-bold mb-2">
+        <div className="font-fredoka text-2xl font-bold mb-2">
           SQUAD<span className="text-primary">MAP</span>
         </div>
-        <div className="font-mono text-sm text-muted-foreground uppercase tracking-widest animate-pulse">
-          Establishing Connection...
+        <div className="font-nunito text-sm text-muted-foreground animate-pulse">
+          Loading your adventure...
         </div>
       </div>
     </div>

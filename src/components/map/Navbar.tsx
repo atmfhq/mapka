@@ -58,10 +58,10 @@ const Navbar = ({
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             {/* Logo */}
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-              <div className="w-10 h-10 sm:w-9 sm:h-9 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
+              <div className="w-10 h-10 sm:w-9 sm:h-9 rounded-xl bg-primary/20 border-2 border-primary/40 flex items-center justify-center shadow-hard-sm">
                 <Target className="w-5 h-5 text-primary" />
               </div>
-              <span className="font-orbitron text-base sm:text-lg font-bold tracking-wider hidden sm:block">
+              <span className="font-fredoka text-base sm:text-lg font-bold tracking-tight hidden sm:block">
                 SQUAD<span className="text-primary">MAP</span>
               </span>
             </div>
@@ -107,21 +107,21 @@ const Navbar = ({
                 <SheetTrigger asChild>
                 <button 
                     onClick={() => setSettingsOpen(true)}
-                    className="w-10 h-10 rounded-xl overflow-hidden hover:opacity-80 transition-opacity"
+                    className="w-10 h-10 hover:opacity-80 transition-opacity"
                   >
                     <AvatarDisplay config={avatarConfig} size={40} showGlow={false} />
                   </button>
                 </SheetTrigger>
                 <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh]">
                   <SheetHeader className="pb-4 border-b border-border/50">
-                    <SheetTitle className="font-orbitron text-xl flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-xl overflow-hidden">
+                    <SheetTitle className="font-fredoka text-xl flex items-center gap-3">
+                      <div className="w-12 h-12">
                         <AvatarDisplay config={avatarConfig} size={48} showGlow={false} />
                       </div>
                       <div className="text-left">
                         <div>{nick}</div>
-                        <div className="text-sm font-rajdhani font-normal text-muted-foreground">
-                          Operative Profile
+                        <div className="text-sm font-nunito font-normal text-muted-foreground">
+                          Adventurer Profile
                         </div>
                       </div>
                     </SheetTitle>

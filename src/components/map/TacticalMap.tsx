@@ -596,14 +596,14 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           data: fogMaskData
         });
 
-        // Dark fill covering everything EXCEPT the circle
+        // Fog fill covering everything EXCEPT the circle - softer opacity for adventure feel
         map.current?.addLayer({
           id: 'fog-of-war-fill',
           type: 'fill',
           source: 'fog-of-war',
           paint: {
-            'fill-color': '#000000',
-            'fill-opacity': 0.7
+            'fill-color': '#1a3a2a',
+            'fill-opacity': 0.5
           }
         });
 
@@ -613,15 +613,15 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           data: circleBorderData
         });
 
-        // Border/stroke layer on the circle edge
+        // Border/stroke layer on the circle edge - solid line for adventure feel
         map.current?.addLayer({
           id: 'range-circle-border',
           type: 'line',
           source: 'range-border',
           paint: {
-            'line-color': 'hsl(180, 100%, 50%)', // Primary cyan
-            'line-width': 2,
-            'line-dasharray': [4, 2] // Dashed line for tactical feel
+            'line-color': 'hsl(122, 39%, 49%)', // Adventure green
+            'line-width': 3,
+            'line-opacity': 0.7
           }
         });
       }
@@ -933,50 +933,39 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         }
         .marker-container {
           position: relative;
-          width: 40px;
-          height: 40px;
+          width: 44px;
+          height: 44px;
         }
-        /* Squircle style for user avatars - full image visible */
+        /* Adventure style for user avatars - no clipping */
         .user-avatar-marker {
-          width: 40px;
-          height: 40px;
-          border-radius: 12px;
-          overflow: hidden;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          width: 44px;
+          height: 44px;
+          transition: transform 0.2s ease;
         }
         .user-avatar-marker:hover {
           transform: scale(1.1);
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
         }
-        /* Connected user - no glow, same shadow */
+        /* Connected user - same clean look */
         .user-avatar-marker.connected {
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 3px rgba(0, 0, 0, 0.2);
-        }
-        .user-avatar-marker.connected:hover {
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.3);
+          /* no extra styling */
         }
         .my-marker {
           cursor: pointer;
         }
         .my-marker-container {
           position: relative;
-          width: 44px;
-          height: 44px;
+          width: 48px;
+          height: 48px;
         }
-        /* Current user marker - slightly larger squircle, no glow */
+        /* Current user marker - clean, no extra ring */
         .my-avatar-ring {
-          width: 44px;
-          height: 44px;
-          border-radius: 14px;
-          overflow: hidden;
-          box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+          width: 48px;
+          height: 48px;
           transition: all 0.3s ease;
         }
         .my-avatar-ring.ghost {
           opacity: 0.5;
           filter: grayscale(100%);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         }
         .my-marker.ghost-mode {
           opacity: 0.6;
@@ -997,7 +986,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           z-index: 1;
           width: 56px;
           height: 56px;
-          border-radius: 14px;
+          border-radius: 16px;
           background: hsl(var(--card) / 0.9);
           backdrop-filter: blur(12px);
           border: 1px solid hsl(var(--primary) / 0.3);
@@ -1180,11 +1169,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       
       {isTokenMissing && (
         <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="text-center p-6 rounded-lg border border-destructive/50 bg-card max-w-md">
-            <h3 className="font-orbitron text-lg font-bold text-destructive mb-2">
+          <div className="text-center p-6 rounded-2xl border-3 border-destructive/50 bg-card shadow-hard max-w-md">
+            <h3 className="font-fredoka text-lg font-bold text-destructive mb-2">
               Map Token Required
             </h3>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-muted-foreground text-sm font-nunito">
               Please configure your Mapbox token in the .env file.
             </p>
           </div>

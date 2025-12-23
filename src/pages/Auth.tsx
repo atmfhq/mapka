@@ -70,50 +70,45 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background tactical-grid flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       {/* Background effects */}
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
       
       <div className="relative z-10 w-full max-w-md">
         {/* Back link */}
         <Link
           to="/"
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors mb-8 font-mono text-sm"
+          className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors mb-8 font-nunito text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Base
+          Back to Home
         </Link>
 
         {/* Auth card */}
-        <div className="relative bg-card/50 backdrop-blur-sm border border-border rounded-lg p-8">
-          {/* Corner accents */}
-          <div className="absolute top-0 left-0 w-6 h-6 border-l-2 border-t-2 border-primary/50 rounded-tl" />
-          <div className="absolute top-0 right-0 w-6 h-6 border-r-2 border-t-2 border-primary/50 rounded-tr" />
-          <div className="absolute bottom-0 left-0 w-6 h-6 border-l-2 border-b-2 border-primary/50 rounded-bl" />
-          <div className="absolute bottom-0 right-0 w-6 h-6 border-r-2 border-b-2 border-primary/50 rounded-br" />
+        <div className="relative bg-card border-3 border-border rounded-2xl p-8 shadow-hard">
 
           {/* Header */}
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-primary/20 border-2 border-primary/40 flex items-center justify-center shadow-hard-sm">
               <Target className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h1 className="font-orbitron text-xl font-bold">
+              <h1 className="font-fredoka text-xl font-bold">
                 SQUAD<span className="text-primary">MAP</span>
               </h1>
-              <p className="font-mono text-xs text-muted-foreground uppercase">
-                {isLogin ? "Operator Login" : "Create Character"}
+              <p className="font-nunito text-xs text-muted-foreground">
+                {isLogin ? "Welcome Back!" : "Create Your Character"}
               </p>
             </div>
           </div>
 
           {/* Toggle */}
-          <div className="flex mb-6 bg-muted rounded-lg p-1">
+          <div className="flex mb-6 bg-muted rounded-xl p-1 border-2 border-border">
             <button
               onClick={() => setIsLogin(true)}
-              className={`flex-1 py-2 px-4 rounded-md font-rajdhani font-semibold text-sm transition-all ${
+              className={`flex-1 py-2 px-4 rounded-lg font-nunito font-bold text-sm transition-all ${
                 isLogin
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary text-primary-foreground shadow-hard-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -121,9 +116,9 @@ const Auth = () => {
             </button>
             <button
               onClick={() => setIsLogin(false)}
-              className={`flex-1 py-2 px-4 rounded-md font-rajdhani font-semibold text-sm transition-all ${
+              className={`flex-1 py-2 px-4 rounded-lg font-nunito font-bold text-sm transition-all ${
                 !isLogin
-                  ? "bg-primary text-primary-foreground"
+                  ? "bg-primary text-primary-foreground shadow-hard-sm"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
@@ -134,7 +129,7 @@ const Auth = () => {
           {/* Form */}
           <form onSubmit={handleAuth} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email" className="font-mono text-xs uppercase text-muted-foreground">
+              <Label htmlFor="email" className="font-nunito text-sm font-medium text-foreground">
                 Email Address
               </Label>
               <div className="relative">
@@ -144,15 +139,15 @@ const Auth = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="operator@squad.map"
-                  className="pl-10 bg-muted/50 border-border focus:border-primary"
+                  placeholder="adventurer@squadmap.com"
+                  className="pl-10 bg-muted/50 border-2 border-border focus:border-primary rounded-xl"
                   required
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password" className="font-mono text-xs uppercase text-muted-foreground">
+              <Label htmlFor="password" className="font-nunito text-sm font-medium text-foreground">
                 Password
               </Label>
               <div className="relative">
@@ -163,7 +158,7 @@ const Auth = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="pl-10 bg-muted/50 border-border focus:border-primary"
+                  className="pl-10 bg-muted/50 border-2 border-border focus:border-primary rounded-xl"
                   required
                   minLength={6}
                 />
@@ -194,23 +189,23 @@ const Auth = () => {
           </form>
 
           {/* Footer */}
-          <p className="text-center text-muted-foreground text-xs mt-6 font-mono">
+          <p className="text-center text-muted-foreground text-sm mt-6 font-nunito">
             {isLogin ? (
               <>
-                New operator?{" "}
+                New adventurer?{" "}
                 <button
                   onClick={() => setIsLogin(false)}
-                  className="text-primary hover:underline"
+                  className="text-primary hover:underline font-bold"
                 >
                   Create character
                 </button>
               </>
             ) : (
               <>
-                Already deployed?{" "}
+                Already have an account?{" "}
                 <button
                   onClick={() => setIsLogin(true)}
-                  className="text-primary hover:underline"
+                  className="text-primary hover:underline font-bold"
                 >
                   Login
                 </button>
@@ -221,9 +216,9 @@ const Auth = () => {
 
         {/* Status indicator */}
         <div className="text-center mt-6">
-          <span className="inline-flex items-center gap-2 font-mono text-xs text-muted-foreground">
+          <span className="inline-flex items-center gap-2 font-nunito text-xs text-muted-foreground">
             <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
-            Secure Connection Active
+            Ready to Adventure
           </span>
         </div>
       </div>
