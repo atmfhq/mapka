@@ -743,55 +743,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     };
   }, []);
 
-  // Realtime subscription for profile location updates
-  useEffect(() => {
-    console.log('Setting up profiles realtime subscription...');
-    
-    const channel = supabase
-      .channel('profiles-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'profiles',
-        },
-        (payload) => {
-          console.log('🔔 Realtime: Profile updated:', payload.new);
-          const updatedProfile = payload.new as Profile;
-          
-          // Update the profile in state if it has valid coordinates
-          const hasLocation = updatedProfile.location_lat !== null && updatedProfile.location_lng !== null;
-          
-          if (hasLocation) {
-            setProfiles(prev => {
-              const exists = prev.some(p => p.id === updatedProfile.id);
-              if (exists) {
-                return prev.map(p => 
-                  p.id === updatedProfile.id 
-                    ? { ...p, ...updatedProfile, avatar_config: updatedProfile.avatar_config as AvatarConfig | null }
-                    : p
-                );
-              } else {
-                // New user with coordinates, add them
-                return [...prev, { ...updatedProfile, avatar_config: updatedProfile.avatar_config as AvatarConfig | null }];
-              }
-            });
-          } else {
-            // User no longer has coordinates, remove them
-            setProfiles(prev => prev.filter(p => p.id !== updatedProfile.id));
-          }
-        }
-      )
-      .subscribe((status) => {
-        console.log('Profiles realtime subscription status:', status);
-      });
-
-    return () => {
-      console.log('Cleaning up profiles realtime subscription');
-      supabase.removeChannel(channel);
-    };
-  }, []);
+  // NOTE: We intentionally do NOT subscribe to `postgres_changes` on `profiles`.
+  // With strict profile RLS (users can only SELECT their own row), those realtime payloads are
+  // silently filtered for other users, which breaks passive observation.
+  // Live map movement/reactions are handled via Broadcast + secure RPC re-fetch (useProfilesRealtime).
 
   // Store initial coords in a ref to avoid re-creating map
   const initialCoordsRef = useRef({ lat: userLat, lng: userLng });
