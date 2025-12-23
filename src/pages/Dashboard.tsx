@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useActiveArea } from "@/hooks/useActiveArea";
 import { supabase } from "@/integrations/supabase/client";
 import TacticalMap, { TacticalMapHandle } from "@/components/map/TacticalMap";
 import Navbar from "@/components/map/Navbar";
@@ -17,12 +18,9 @@ interface AvatarConfig {
   mouth?: string;
 }
 
-// Default location (NYC) for guests
-const DEFAULT_LAT = 40.7128;
-const DEFAULT_LNG = -74.006;
-
 const Dashboard = () => {
   const { user, profile, loading, signOut, refreshProfile } = useAuth();
+  const { lat: activeAreaLat, lng: activeAreaLng, loading: activeAreaLoading } = useActiveArea();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [activeActivities, setActiveActivities] = useState<string[]>([]);
@@ -34,13 +32,17 @@ const Dashboard = () => {
     lng: number | null;
     name: string | null;
   }>({ lat: null, lng: null, name: null });
-  const [guestLocation, setGuestLocation] = useState<{ lat: number; lng: number }>({
-    lat: DEFAULT_LAT,
-    lng: DEFAULT_LNG,
-  });
+  const [guestLocation, setGuestLocation] = useState<{ lat: number; lng: number } | null>(null);
   const mapRef = useRef<TacticalMapHandle | null>(null);
 
   const isGuest = !user;
+
+  // Set guest location once active area is loaded
+  useEffect(() => {
+    if (isGuest && !activeAreaLoading && !guestLocation) {
+      setGuestLocation({ lat: activeAreaLat, lng: activeAreaLng });
+    }
+  }, [isGuest, activeAreaLoading, activeAreaLat, activeAreaLng, guestLocation]);
 
   // Initialize location and active status from profile (for logged-in users)
   useEffect(() => {
@@ -146,8 +148,8 @@ const Dashboard = () => {
     mapRef.current?.flyTo(lat, lng);
   };
 
-  // Show loading only for logged-in users waiting for profile
-  if (loading) {
+  // Show loading for guests waiting for active area, or logged-in users waiting for profile
+  if (loading || (isGuest && activeAreaLoading)) {
     return <LoadingScreen />;
   }
 
@@ -156,13 +158,11 @@ const Dashboard = () => {
     return <LoadingScreen />;
   }
 
-  // Determine map center
-  const mapLat = isGuest 
-    ? guestLocation.lat 
-    : (currentLocation.lat ?? profile?.location_lat ?? DEFAULT_LAT);
-  const mapLng = isGuest 
-    ? guestLocation.lng 
-    : (currentLocation.lng ?? profile?.location_lng ?? DEFAULT_LNG);
+  // Determine map center - use active area for guests until they search
+  const guestLat = guestLocation?.lat ?? activeAreaLat;
+  const guestLng = guestLocation?.lng ?? activeAreaLng;
+  const mapLat = isGuest ? guestLat : (currentLocation.lat ?? profile?.location_lat ?? activeAreaLat);
+  const mapLng = isGuest ? guestLng : (currentLocation.lng ?? profile?.location_lng ?? activeAreaLng);
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background">
@@ -177,8 +177,8 @@ const Dashboard = () => {
         activeActivities={activeActivities}
         dateFilter={dateFilter}
         currentUserAvatarConfig={profile?.avatar_config as AvatarConfig | null}
-        locationLat={isGuest ? guestLocation.lat : currentLocation.lat}
-        locationLng={isGuest ? guestLocation.lng : currentLocation.lng}
+        locationLat={isGuest ? guestLat : currentLocation.lat}
+        locationLng={isGuest ? guestLng : currentLocation.lng}
         isGhostMode={isGuest || !isActive}
         isGuest={isGuest}
         onOpenChatWithUser={handleOpenChatWithUser}
