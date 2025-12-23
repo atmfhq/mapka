@@ -238,6 +238,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const [isTacticalView, setIsTacticalView] = useState(true);
+  const [mapStyleLoaded, setMapStyleLoaded] = useState(false); // Track when style is ready for markers
   
   const navigate = useNavigate();
 
@@ -589,6 +590,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         pitch: 45,
       });
 
+      // Track when style is loaded so marker effects can run
+      map.current.on('load', () => {
+        setMapStyleLoaded(true);
+      });
+
       // No default controls - we use custom ones
 
       map.current.on('click', (e) => {
@@ -750,15 +756,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       });
     });
 
-    // Skip if map not ready (style not loaded)
-    if (!map.current.isStyleLoaded()) {
-      const onLoad = () => {
-        // Re-trigger this effect after style loads
-        map.current?.off('load', onLoad);
-      };
-      map.current.on('load', onLoad);
-      return;
-    }
+    // Skip if map style not ready yet - will re-run when mapStyleLoaded changes
+    if (!mapStyleLoaded) return;
 
     filteredProfiles.forEach(profile => {
       // Use location_lat/lng for user position
@@ -834,7 +833,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         });
       });
     };
-  }, [filteredProfiles, currentUserId, connectedUserIds]);
+  }, [filteredProfiles, currentUserId, connectedUserIds, mapStyleLoaded]);
 
   // Render "My Avatar" marker at current location (skip for guests)
   useEffect(() => {
@@ -861,8 +860,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     // Skip rendering for guests
     if (isGuest) return;
     
-    // Skip if map not ready
-    if (!map.current.isStyleLoaded()) return;
+    // Skip if map style not ready yet
+    if (!mapStyleLoaded) return;
 
     // Use location_lat/lng
     const myLat = locationLat ?? userLat;
@@ -912,7 +911,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         });
       }
     };
-  }, [locationLat, locationLng, userLat, userLng, currentUserAvatarConfig, isGhostMode, isGuest]);
+  }, [locationLat, locationLng, userLat, userLng, currentUserAvatarConfig, isGhostMode, isGuest, mapStyleLoaded]);
 
   // Render quest markers (public only) with dynamic activity icons
   useEffect(() => {
@@ -923,8 +922,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     questMarkersRef.current = [];
     oldMarkers.forEach(marker => marker.remove());
     
-    // Skip if map not ready
-    if (!map.current.isStyleLoaded()) return;
+    // Skip if map style not ready yet
+    if (!mapStyleLoaded) return;
 
     filteredQuests.forEach(quest => {
       // Get dynamic icon and color based on activity
@@ -985,7 +984,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       questMarkersRef.current.push(marker);
     });
-  }, [filteredQuests, currentUserId, joinedQuestIds]);
+  }, [filteredQuests, currentUserId, joinedQuestIds, mapStyleLoaded]);
 
   // Helper function to close the user popup
   const closeUserPopup = useCallback(() => {
