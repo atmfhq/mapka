@@ -8,6 +8,7 @@ import DeployQuestModal from './DeployQuestModal';
 import QuestLobby from './QuestLobby';
 import GuestPromptModal from './GuestPromptModal';
 import GuestSpawnTooltip from './GuestSpawnTooltip';
+import MapContextMenu from './MapContextMenu';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Json } from '@/integrations/supabase/types';
 import { ACTIVITIES, getCategoryForActivity, getActivityById } from '@/constants/activities';
@@ -228,6 +229,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [guestPromptOpen, setGuestPromptOpen] = useState(false);
   const [guestPromptVariant, setGuestPromptVariant] = useState<'join' | 'connect' | 'create'>('create');
   const [clickedCoords, setClickedCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [contextMenuCoords, setContextMenuCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [contextMenuScreenPos, setContextMenuScreenPos] = useState<{ x: number; y: number } | null>(null);
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const [isTacticalView, setIsTacticalView] = useState(true);
@@ -578,8 +581,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           return;
         }
         
-        setClickedCoords({ lat: e.lngLat.lat, lng: e.lngLat.lng });
-        setDeployModalOpen(true);
+        // Logged-in user clicked - show context menu
+        setContextMenuCoords({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+        setContextMenuScreenPos({ x: e.point.x, y: e.point.y });
         setSelectedUser(null);
         setSelectedUserCoords(null);
       });
@@ -1216,6 +1220,34 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       )}
       
       {/* User popup is now rendered via Mapbox Popup in useEffect above */}
+
+      {/* Context Menu for logged-in users */}
+      {currentUserId && contextMenuCoords && contextMenuScreenPos && (
+        <MapContextMenu
+          coords={contextMenuCoords}
+          screenPosition={contextMenuScreenPos}
+          currentUserId={currentUserId}
+          onClose={() => {
+            setContextMenuCoords(null);
+            setContextMenuScreenPos(null);
+          }}
+          onMoveComplete={(lat, lng) => {
+            // Fly to the new location after move
+            if (map.current) {
+              map.current.flyTo({
+                center: [lng, lat],
+                zoom: 14,
+                pitch: 45,
+                duration: 2000,
+              });
+            }
+          }}
+          onAddEvent={(lat, lng) => {
+            setClickedCoords({ lat, lng });
+            setDeployModalOpen(true);
+          }}
+        />
+      )}
 
       {/* Only render deploy modal for logged-in users */}
       {currentUserId && (
