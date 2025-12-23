@@ -37,23 +37,15 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
+            {/* Map is now the default - accessible to guests */}
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/landing" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route
               path="/onboarding"
               element={
                 <ProtectedRoute requireOnboarding={false}>
                   <Onboarding />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <OnboardingGuard>
-                    <Dashboard />
-                  </OnboardingGuard>
                 </ProtectedRoute>
               }
             />
