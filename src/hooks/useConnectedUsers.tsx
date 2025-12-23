@@ -53,7 +53,8 @@ export const useConnectedUsers = (currentUserId: string) => {
       console.log('useConnectedUsers: My invitations:', myInvitations, 'currentUserId:', currentUserId);
 
       if (myInvitations.length === 0) {
-        console.log('useConnectedUsers: No accepted invitations found for user');
+        // Note: This is OK - connectedUsers is for friend highlighting only, NOT for map visibility
+        // All nearby users are still shown on map via get_nearby_profiles RPC
         setConnectedUsers([]);
         setConnectedUserIds(new Set());
         setLoading(false);
