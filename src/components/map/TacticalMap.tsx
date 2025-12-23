@@ -1258,12 +1258,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           overflow: visible;
           animation: marker-pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
           will-change: transform, opacity;
-          transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
-          transform-origin: center bottom !important;
+          transition: transform 0.2s ease-out !important;
+          transform-origin: center center !important;
           pointer-events: auto !important;
         }
         .user-marker:hover .marker-container {
-          transform: scale(1.2) translateY(-4px) !important;
+          transform: scale(1.08) !important;
         }
         /* Adventure style for user avatars */
         .user-avatar-marker {
@@ -1284,12 +1284,16 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           height: 48px;
           animation: marker-pop-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
           will-change: transform, opacity;
+          transition: transform 0.2s ease-out;
+        }
+        .my-marker:hover .my-marker-container {
+          transform: scale(1.08);
         }
         /* Current user marker - clean, no extra ring */
         .my-avatar-ring {
           width: 48px;
           height: 48px;
-          transition: all 0.3s ease;
+          transition: all 0.2s ease-out;
         }
         .my-avatar-ring.ghost {
           opacity: 0.5;
