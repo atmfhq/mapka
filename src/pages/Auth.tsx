@@ -7,6 +7,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useKeyboardAvoidance } from "@/hooks/useKeyboardAvoidance";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -16,6 +17,7 @@ const Auth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, profile, loading: authLoading } = useAuth();
+  const keyboardRef = useKeyboardAvoidance();
 
   // Read initial mode from URL query param
   useEffect(() => {
@@ -81,7 +83,7 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-dvh bg-background overflow-y-auto">
+    <div ref={keyboardRef} className="min-h-dvh bg-background overflow-y-auto">
       {/* Background effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
       
