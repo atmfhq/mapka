@@ -188,6 +188,9 @@ export const useProfilesRealtime = ({
     channelsRef.current = channelKeys.map(key => {
       const channel = supabase
         .channel(key)
+        // New canonical event name
+        .on('broadcast', { event: 'POS_UPDATE' }, handleBroadcast)
+        // Backwards compatibility
         .on('broadcast', { event: 'profile_update' }, handleBroadcast)
         .subscribe((status) => {
           if (status === 'SUBSCRIBED') {
@@ -259,7 +262,7 @@ export const broadcastProfileUpdate = async (
     if (status === 'SUBSCRIBED') {
       channel.send({
         type: 'broadcast',
-        event: 'profile_update',
+        event: 'POS_UPDATE',
         payload
       });
       

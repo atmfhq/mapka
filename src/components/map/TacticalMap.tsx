@@ -497,30 +497,34 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     userLng: locationLng ?? userLng,
     radiusMeters: 5000,
     enabled: true, // Always enabled - guests can watch, only logged-in users can broadcast
-    onProfileUpdate: useCallback((profile: any) => {
+    onProfileUpdate: useCallback((incoming: any) => {
       // Skip our own updates (only applies to logged-in users)
-      if (currentUserId && profile.id === currentUserId) return;
-      
-      if (profile.location_lat && profile.location_lng) {
-        // Surgical update - only move this specific user's marker
-        updateUserMarkerPosition(profile.id, profile.location_lat, profile.location_lng);
-        
-        // Also update local profiles state for consistency
-        setProfiles(prev => {
-          const exists = prev.some(p => p.id === profile.id);
-          if (exists) {
-            return prev.map(p => p.id === profile.id ? { ...p, ...profile } : p);
-          } else {
-            // New user appeared - add to list
-            return [...prev, profile];
-          }
-        });
-      }
-      
-      // Handle is_active changes
-      if (profile.is_active === false) {
-        // User went inactive - remove from profiles
-        setProfiles(prev => prev.filter(p => p.id !== profile.id));
+      if (currentUserId && incoming.id === currentUserId) return;
+
+      console.log('[Realtime] Broadcast profile update -> setProfiles merge:', incoming?.id);
+
+      // CRITICAL: Always update React state via functional update to force re-render
+      setProfiles((prev) => {
+        const id = incoming?.id;
+        if (!id) return prev;
+
+        // If user went inactive, remove immediately
+        if (incoming.is_active === false) {
+          return prev.filter((p) => p.id !== id);
+        }
+
+        const exists = prev.some((p) => p.id === id);
+        if (exists) {
+          return prev.map((p) => (p.id === id ? { ...p, ...incoming } : p));
+        }
+
+        // New user appeared - add to list
+        return [...prev, incoming];
+      });
+
+      // Move marker immediately if we have coordinates (allow 0 values)
+      if (incoming.location_lat != null && incoming.location_lng != null) {
+        updateUserMarkerPosition(incoming.id, incoming.location_lat, incoming.location_lng);
       }
     }, [currentUserId, updateUserMarkerPosition]),
     onBounceUpdate: triggerRemoteUserBounce
