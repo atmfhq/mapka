@@ -6,14 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '@/components/ui/dialog';
 import AlertsDrawer from './AlertsDrawer';
 import ChatDrawer from './ChatDrawer';
 import InstallPrompt from '@/components/InstallPrompt';
@@ -74,9 +66,7 @@ const Navbar = ({
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
-  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
-  const [pendingLocation, setPendingLocation] = useState<SearchResult | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isTeleporting, setIsTeleporting] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigate = useNavigate();
@@ -139,29 +129,11 @@ const Navbar = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelectResult = (result: SearchResult) => {
+  // Instant teleport - no confirmation dialog
+  const handleSelectResult = async (result: SearchResult) => {
     const [lng, lat] = result.center;
-    setPendingLocation(result);
-    setConfirmDialogOpen(true);
     setShowResults(false);
-  };
-
-  const handleJustView = () => {
-    if (pendingLocation) {
-      const [lng, lat] = pendingLocation.center;
-      onFlyTo(lat, lng);
-      setQuery(pendingLocation.place_name);
-    }
-    setConfirmDialogOpen(false);
-    setPendingLocation(null);
-    setResults([]);
-  };
-
-  const handleUpdateLocation = async () => {
-    if (!pendingLocation || !currentUserId) return;
-    
-    setIsSaving(true);
-    const [lng, lat] = pendingLocation.center;
+    setIsTeleporting(true);
     
     try {
       const { error } = await supabase
@@ -169,30 +141,28 @@ const Navbar = ({
         .update({
           location_lat: lat,
           location_lng: lng,
-          location_name: pendingLocation.place_name,
+          location_name: result.place_name,
         })
         .eq('id', currentUserId);
 
       if (error) throw error;
 
       toast({
-        title: 'Location Updated',
-        description: 'Your position has been relocated',
+        title: 'Teleported!',
+        description: result.place_name,
       });
 
       onFlyTo(lat, lng);
-      onLocationUpdated?.(lat, lng, pendingLocation.place_name);
-      setQuery(pendingLocation.place_name);
+      onLocationUpdated?.(lat, lng, result.place_name);
+      setQuery(result.place_name);
     } catch (error: any) {
       toast({
-        title: 'Update Failed',
-        description: error.message || 'Could not update location',
+        title: 'Teleport Failed',
+        description: error.message || 'Could not teleport',
         variant: 'destructive',
       });
     } finally {
-      setIsSaving(false);
-      setConfirmDialogOpen(false);
-      setPendingLocation(null);
+      setIsTeleporting(false);
       setResults([]);
     }
   };
@@ -226,12 +196,12 @@ const Navbar = ({
               className="relative flex-1 max-w-md pointer-events-auto"
             >
               <div className="flex items-center bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-hard overflow-hidden">
-                <div className="pl-3 text-muted-foreground">
-                  {isLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Search className="w-4 h-4" />
-                  )}
+              <div className="pl-3 text-muted-foreground">
+                {isLoading || isTeleporting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Search className="w-4 h-4" />
+                )}
                 </div>
                 <Input
                   value={query}
@@ -382,53 +352,6 @@ const Navbar = ({
         </div>
       </header>
 
-      {/* Confirmation Dialog for updating location */}
-      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="font-fredoka flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-primary" />
-              Move to this location?
-            </DialogTitle>
-            <DialogDescription className="font-nunito">
-              {pendingLocation?.place_name}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-4 space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Do you want to update your position on the map, or just view this area?
-            </p>
-          </div>
-
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button
-              variant="outline"
-              onClick={handleJustView}
-              className="w-full sm:w-auto"
-            >
-              Just View
-            </Button>
-            <Button
-              onClick={handleUpdateLocation}
-              disabled={isSaving}
-              className="w-full sm:w-auto"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <MapPin className="w-4 h-4" />
-                  Update My Location
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 };
