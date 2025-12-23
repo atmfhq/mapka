@@ -17,11 +17,22 @@ const Auth = () => {
   const { toast } = useToast();
   const { user, profile, loading: authLoading } = useAuth();
 
+  // Read initial mode from URL query param
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const mode = params.get('mode');
+    if (mode === 'signup') {
+      setIsLogin(false);
+    } else if (mode === 'login') {
+      setIsLogin(true);
+    }
+  }, []);
+
   // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && user) {
       if (profile?.is_onboarded) {
-        navigate("/dashboard");
+        navigate("/");
       } else {
         navigate("/onboarding");
       }
@@ -81,7 +92,7 @@ const Auth = () => {
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors mb-8 font-nunito text-sm font-medium"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Home
+          Back to Map
         </Link>
 
         {/* Auth card */}
