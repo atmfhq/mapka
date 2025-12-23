@@ -217,6 +217,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const map = useRef<mapboxgl.Map | null>(null);
   const userMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const userMarkerRootsRef = useRef<Root[]>([]);
+  const renderedUserIdsRef = useRef<Set<string>>(new Set()); // Track which users have been rendered to avoid re-animating
+  const renderedQuestIdsRef = useRef<Set<string>>(new Set()); // Track which quests have been rendered
   const questMarkersRef = useRef<mapboxgl.Marker[]>([]);
   const myMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const myMarkerRootRef = useRef<Root | null>(null);
@@ -806,6 +808,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     // Skip rendering user markers if showUsers is false
     if (!showUsers) return;
 
+    // Track current render cycle's user IDs
+    const currentRenderUserIds = new Set<string>();
+
     filteredProfiles.forEach(profile => {
       // Use location_lat/lng for user position
       const profileLat = profile.location_lat;
@@ -813,6 +818,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       
       if (!profileLat || !profileLng) return;
       if (profile.id === currentUserId) return;
+
+      currentRenderUserIds.add(profile.id);
 
       // Apply deterministic jitter for visual scatter (stable per user ID)
       const offset = getDeterministicOffset(profile.id);
@@ -830,6 +837,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       if (currentBounce) {
         bounceTimestampsRef.current.set(profile.id, currentBounce);
       }
+      
+      // Check if this user was already rendered (skip pop-in animation)
+      const alreadyRendered = renderedUserIdsRef.current.has(profile.id);
 
       const el = document.createElement('div');
       el.className = 'user-marker';
@@ -845,11 +855,15 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       // Calculate staggered delay for pop-in animation (random between 0-400ms)
       const randomDelay = Math.floor(Math.random() * 400);
       
+      // Build class list: skip pop-in for already-rendered users, add bounce if needed
+      const animationClass = alreadyRendered ? 'already-rendered' : '';
+      const bounceClass = shouldBounce ? 'animate-bounce-wave' : '';
+      
       const root = createRoot(container);
       root.render(
         <div 
-          className={`user-avatar-marker marker-pop-in ${isConnected ? 'connected' : ''} ${shouldBounce ? 'animate-bounce-wave' : ''}`}
-          style={{ animationDelay: shouldBounce ? '0ms' : `${randomDelay}ms` }}
+          className={`user-avatar-marker marker-pop-in ${animationClass} ${isConnected ? 'connected' : ''} ${bounceClass}`}
+          style={{ animationDelay: (shouldBounce || alreadyRendered) ? '0ms' : `${randomDelay}ms` }}
         >
           <AvatarDisplay 
             config={profile.avatar_config} 
@@ -883,6 +897,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       userMarkersRef.current.push(marker);
     });
+    
+    // Update rendered user IDs ref for next render cycle
+    renderedUserIdsRef.current = currentRenderUserIds;
 
     return () => {
       // Cleanup on unmount - defer root unmounts
@@ -998,7 +1015,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     // Skip if map style not ready yet
     if (!mapStyleLoaded) return;
 
+    // Track current render cycle's quest IDs
+    const currentRenderQuestIds = new Set<string>();
+
     filteredQuests.forEach(quest => {
+      currentRenderQuestIds.add(quest.id);
+      
       // Get dynamic icon and color based on activity
       const activityIcon = getActivityIcon(quest.category);
       const categoryColor = getCategoryColor(quest.category);
@@ -1010,6 +1032,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       const startTime = new Date(quest.start_time).getTime();
       const endTime = startTime + (quest.duration_minutes * 60 * 1000);
       const isLiveNow = startTime <= now && endTime >= now;
+      
+      // Check if this quest was already rendered (skip pop-in animation)
+      const alreadyRendered = renderedQuestIdsRef.current.has(quest.id);
 
       const el = document.createElement('div');
       el.className = `quest-marker ${isMyQuest ? 'my-quest' : ''} ${isLiveNow ? 'live-now' : ''}`;
@@ -1019,12 +1044,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       // Build DOM safely to prevent XSS - no innerHTML with dynamic content
       const container = document.createElement('div');
-      container.className = 'quest-container marker-pop-in';
+      container.className = `quest-container marker-pop-in ${alreadyRendered ? 'already-rendered' : ''}`;
       container.style.setProperty('--category-color', categoryColor);
       
       // Calculate staggered delay for pop-in animation (random between 0-400ms)
       const randomDelay = Math.floor(Math.random() * 400);
-      container.style.animationDelay = `${randomDelay}ms`;
+      container.style.animationDelay = alreadyRendered ? '0ms' : `${randomDelay}ms`;
 
       if (isLiveNow) {
         const pulse = document.createElement('div');
@@ -1061,6 +1086,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       questMarkersRef.current.push(marker);
     });
+    
+    // Update rendered quest IDs ref for next render cycle
+    renderedQuestIdsRef.current = currentRenderQuestIds;
   }, [filteredQuests, currentUserId, joinedQuestIds, mapStyleLoaded]);
 
   // Helper function to close the user popup
