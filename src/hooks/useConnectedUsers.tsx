@@ -13,225 +13,185 @@ interface ConnectedUser {
   nick: string;
   avatar_url: string;
   avatar_config: AvatarConfig | null;
-  invitationId: string;
-  missionId: string | null;
+  location_lat: number;
+  location_lng: number;
+  is_active: boolean;
+  tags: string[] | null;
+  bio: string | null;
 }
 
+/**
+ * MMO-style hook: Returns ALL users with location set.
+ * No invitation filtering - everyone sees everyone on the map.
+ */
 export const useConnectedUsers = (currentUserId: string) => {
   const [connectedUsers, setConnectedUsers] = useState<ConnectedUser[]>([]);
   const [connectedUserIds, setConnectedUserIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
+  // Fetch ALL users with location (excluding current user)
   const fetchConnectedUsers = useCallback(async () => {
     if (!currentUserId) {
-      console.log('useConnectedUsers: No currentUserId provided');
+      console.log('[MMO] No currentUserId provided');
+      setConnectedUsers([]);
+      setConnectedUserIds(new Set());
+      setLoading(false);
       return;
     }
 
     setLoading(true);
 
     try {
-      // Get accepted invitations where current user is involved (either as sender or receiver)
-      const { data: invitations, error: invError } = await supabase
-        .from('invitations')
-        .select('id, sender_id, receiver_id, status')
-        .eq('status', 'accepted');
+      // Query ALL profiles with location set (MMO visibility)
+      const { data: profiles, error } = await supabase
+        .from('profiles')
+        .select('id, nick, avatar_url, avatar_config, location_lat, location_lng, is_active, tags, bio')
+        .not('location_lat', 'is', null)
+        .not('location_lng', 'is', null)
+        .eq('is_onboarded', true)
+        .neq('id', currentUserId); // Exclude self
 
-      console.log('useConnectedUsers: All accepted invitations:', invitations, 'Error:', invError);
-
-      if (invError) {
-        console.error('Failed to fetch invitations:', invError);
+      if (error) {
+        console.error('[MMO] Failed to fetch profiles:', error);
         setLoading(false);
         return;
       }
 
-      // Filter to only include invitations where current user is involved
-      const myInvitations = invitations?.filter(inv => 
-        inv.sender_id === currentUserId || inv.receiver_id === currentUserId
-      ) || [];
+      console.log('[MMO] Fetched all users with location:', profiles?.length ?? 0);
 
-      console.log('useConnectedUsers: My invitations:', myInvitations, 'currentUserId:', currentUserId);
-
-      if (myInvitations.length === 0) {
-        // Note: This is OK - connectedUsers is for friend highlighting only, NOT for map visibility
-        // All nearby users are still shown on map via get_nearby_profiles RPC
-        setConnectedUsers([]);
-        setConnectedUserIds(new Set());
-        setLoading(false);
-        return;
-      }
-
-      // Get the other user IDs from the invitations
-      const otherUserData = myInvitations.map(inv => ({
-        otherId: inv.sender_id === currentUserId ? inv.receiver_id : inv.sender_id,
-        invitationId: inv.id,
+      const mappedUsers: ConnectedUser[] = (profiles || []).map((p) => ({
+        id: p.id,
+        nick: p.nick || 'Anonymous',
+        avatar_url: p.avatar_url || '',
+        avatar_config: p.avatar_config as AvatarConfig | null,
+        location_lat: p.location_lat!,
+        location_lng: p.location_lng!,
+        is_active: p.is_active,
+        tags: p.tags,
+        bio: p.bio,
       }));
 
-      const otherUserIds = otherUserData.map(d => d.otherId);
-      console.log('useConnectedUsers: Other user IDs:', otherUserIds);
-
-      // Fetch their profiles using secure RPC function
-      const { data: profiles, error: profileError } = await supabase
-        .rpc('get_public_profiles_by_ids', { user_ids: otherUserIds });
-
-      console.log('useConnectedUsers: Fetched profiles:', profiles, 'Error:', profileError);
-
-      if (profileError) {
-        console.error('Failed to fetch profiles:', profileError);
-        setLoading(false);
-        return;
-      }
-
-      // Find associated private missions for each connection
-      // When invite is accepted, receiver becomes host of a private megaphone
-      // and sender is added as participant
-      const connectedWithMissions: ConnectedUser[] = [];
-
-      for (const profile of profiles || []) {
-        const invData = otherUserData.find(d => d.otherId === profile.id);
-        
-        // Find the private mission between these two users
-        // Check megaphones where either user is host and both are participants
-        const { data: missions } = await supabase
-          .from('megaphones')
-          .select('id, host_id')
-          .eq('is_private', true)
-          .or(`host_id.eq.${currentUserId},host_id.eq.${profile.id}`);
-
-        let missionId: string | null = null;
-
-        if (missions?.length) {
-          // Find one where both users are involved
-          for (const mission of missions) {
-            const { data: participants } = await supabase
-              .from('event_participants')
-              .select('user_id')
-              .eq('event_id', mission.id)
-              .eq('status', 'joined');
-
-            const participantIds = participants?.map(p => p.user_id) || [];
-            const allInvolved = [mission.host_id, ...participantIds];
-            
-            if (allInvolved.includes(currentUserId) && allInvolved.includes(profile.id)) {
-              missionId = mission.id;
-              break;
-            }
-          }
-        }
-
-        connectedWithMissions.push({
-          id: profile.id,
-          nick: profile.nick,
-          avatar_url: profile.avatar_url,
-          avatar_config: profile.avatar_config as AvatarConfig | null,
-          invitationId: invData?.invitationId || '',
-          missionId,
-        });
-      }
-
-      console.log('useConnectedUsers: Final connected users:', connectedWithMissions);
-      
-      setConnectedUsers(connectedWithMissions);
-      setConnectedUserIds(new Set(connectedWithMissions.map(p => p.id)));
+      setConnectedUsers(mappedUsers);
+      setConnectedUserIds(new Set(mappedUsers.map((u) => u.id)));
     } catch (err) {
-      console.error('useConnectedUsers: Unexpected error:', err);
+      console.error('[MMO] Unexpected error:', err);
     }
-    
+
     setLoading(false);
   }, [currentUserId]);
 
+  // Initial fetch
   useEffect(() => {
     fetchConnectedUsers();
   }, [fetchConnectedUsers]);
 
-  // Subscribe to invitation changes - unique channel per user
+  // Realtime subscription for ALL profile changes (MMO style)
   useEffect(() => {
     if (!currentUserId) return;
 
-    console.log('useConnectedUsers: Setting up realtime subscription for user:', currentUserId);
+    console.log('[MMO] Setting up global profiles realtime subscription');
 
     const channel = supabase
-      .channel(`connected-users-${currentUserId}`)
+      .channel('mmo-profiles-global')
       .on(
         'postgres_changes',
-        { 
-          event: 'UPDATE', 
-          schema: 'public', 
-          table: 'invitations'
+        {
+          event: '*', // Listen to INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'profiles',
         },
         (payload) => {
-          console.log('useConnectedUsers: Invitation UPDATE received:', payload);
-          
-          // Check if this update involves the current user
-          const isInvolved = payload.new.sender_id === currentUserId || 
-                            payload.new.receiver_id === currentUserId;
-          
-          if (!isInvolved) {
-            console.log('useConnectedUsers: Update not for this user, ignoring');
+          const newRecord = payload.new as Record<string, any> | null;
+          const oldRecord = payload.old as Record<string, any> | null;
+          const recordId = newRecord?.id || oldRecord?.id;
+          console.log('[MMO] Profile change received:', payload.eventType, recordId);
+
+          if (payload.eventType === 'DELETE') {
+            const oldRecord = payload.old as { id?: string } | null;
+            const deletedId = oldRecord?.id;
+            if (deletedId) {
+              setConnectedUsers((prev) => prev.filter((u) => u.id !== deletedId));
+              setConnectedUserIds((prev) => {
+                const next = new Set(prev);
+                next.delete(deletedId);
+                return next;
+              });
+            }
             return;
           }
 
-          // Check if status changed to accepted (new connection) or cancelled (disconnection)
-          const statusChanged = payload.new.status === 'accepted' || payload.new.status === 'cancelled';
-          
-          if (statusChanged) {
-            console.log('useConnectedUsers: Status changed to', payload.new.status, '- refetching connections...');
-            // Small delay to ensure all related records (megaphone, participant) are created
-            setTimeout(() => fetchConnectedUsers(), 300);
+          const profile = payload.new as Record<string, any> | null;
+          if (!profile) return;
+
+          // Skip self
+          if (profile.id === currentUserId) return;
+
+          // Skip users without location or not onboarded
+          if (!profile.location_lat || !profile.location_lng || !profile.is_onboarded) {
+            // User lost location or not onboarded - remove from list
+            setConnectedUsers((prev) => prev.filter((u) => u.id !== profile.id));
+            setConnectedUserIds((prev) => {
+              const next = new Set(prev);
+              next.delete(profile.id);
+              return next;
+            });
+            return;
           }
-        }
-      )
-      .on(
-        'postgres_changes',
-        { 
-          event: 'INSERT', 
-          schema: 'public', 
-          table: 'invitations'
-        },
-        (payload) => {
-          console.log('useConnectedUsers: New invitation INSERT received:', payload);
-          
-          // If a new invitation is inserted as already accepted, refetch
-          if (payload.new.status === 'accepted') {
-            const isInvolved = payload.new.sender_id === currentUserId || 
-                              payload.new.receiver_id === currentUserId;
-            if (isInvolved) {
-              console.log('useConnectedUsers: New accepted invitation - refetching...');
-              setTimeout(() => fetchConnectedUsers(), 300);
+
+          const mappedUser: ConnectedUser = {
+            id: profile.id,
+            nick: profile.nick || 'Anonymous',
+            avatar_url: profile.avatar_url || '',
+            avatar_config: profile.avatar_config as AvatarConfig | null,
+            location_lat: profile.location_lat,
+            location_lng: profile.location_lng,
+            is_active: profile.is_active,
+            tags: profile.tags,
+            bio: profile.bio,
+          };
+
+          setConnectedUsers((prev) => {
+            const exists = prev.some((u) => u.id === profile.id);
+            if (exists) {
+              // Update existing
+              return prev.map((u) => (u.id === profile.id ? mappedUser : u));
             }
-          }
+            // Add new
+            return [...prev, mappedUser];
+          });
+
+          setConnectedUserIds((prev) => {
+            const next = new Set(prev);
+            next.add(profile.id);
+            return next;
+          });
         }
       )
       .subscribe((status) => {
-        console.log('useConnectedUsers: Subscription status:', status);
+        console.log('[MMO] Global profiles subscription status:', status);
       });
 
     return () => {
-      console.log('useConnectedUsers: Cleaning up subscription');
+      console.log('[MMO] Cleaning up global profiles subscription');
       supabase.removeChannel(channel);
     };
-  }, [currentUserId, fetchConnectedUsers]);
+  }, [currentUserId]);
 
-  const disconnectUser = async (invitationId: string) => {
-    const { error } = await supabase
-      .from('invitations')
-      .update({ status: 'cancelled' })
-      .eq('id', invitationId);
-
-    if (!error) {
-      fetchConnectedUsers();
-    }
-    return { error };
+  // Legacy functions - kept for compatibility but simplified
+  const disconnectUser = async (_invitationId: string) => {
+    // No-op in MMO mode - no invitations to cancel
+    console.log('[MMO] disconnectUser called - no-op in MMO mode');
+    return { error: null };
   };
 
-  const getMissionIdForUser = (userId: string): string | null => {
-    const user = connectedUsers.find(u => u.id === userId);
-    return user?.missionId || null;
+  const getMissionIdForUser = (_userId: string): string | null => {
+    // No missions in MMO mode
+    return null;
   };
 
-  const getInvitationIdForUser = (userId: string): string | undefined => {
-    const user = connectedUsers.find(u => u.id === userId);
-    return user?.invitationId;
+  const getInvitationIdForUser = (_userId: string): string | undefined => {
+    // No invitations in MMO mode
+    return undefined;
   };
 
   return {
