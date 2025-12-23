@@ -478,13 +478,13 @@ const QuestLobby = ({
           <div className="py-4 space-y-4 overflow-y-auto flex-1">
             {/* Title */}
             <div className="space-y-2">
-              <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+              <Label className="font-nunito text-sm font-medium text-foreground">
                 Title
               </Label>
               <Input
                 value={editTitle}
                 onChange={(e) => setEditTitle(e.target.value)}
-                className="bg-muted/50 border-border/50"
+                className="bg-muted/50 border-2 border-border rounded-xl"
                 maxLength={100}
               />
             </div>
@@ -492,13 +492,13 @@ const QuestLobby = ({
             {/* Activity Selection */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+                <Label className="font-nunito text-sm font-medium text-foreground">
                   Activity
                 </Label>
                 {(editCategory || editActivity) && (
                   <button
                     onClick={handleEditBack}
-                    className="text-xs text-primary hover:underline font-rajdhani"
+                    className="text-xs text-primary hover:underline font-nunito font-medium"
                   >
                     ← Back
                   </button>
@@ -530,7 +530,7 @@ const QuestLobby = ({
                       className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-all"
                     >
                       <span className="text-2xl">{category.icon}</span>
-                      <span className="font-rajdhani font-medium">{category.label}</span>
+                      <span className="font-nunito font-medium">{category.label}</span>
                       <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
                     </button>
                   ))}
@@ -541,7 +541,7 @@ const QuestLobby = ({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 px-2 py-1 text-sm text-muted-foreground">
                     <span>{selectedCategoryData?.icon}</span>
-                    <span className="font-rajdhani">{selectedCategoryData?.label}</span>
+                    <span className="font-nunito">{selectedCategoryData?.label}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 max-h-[150px] overflow-y-auto">
                     {categoryActivities.map((activity) => (
