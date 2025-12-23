@@ -1076,14 +1076,19 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   return (
     <>
       <style>{`
-        /* Marker pop-in animation */
+        /* Marker pop-in animation
+           IMPORTANT: Mapbox positions markers using a transform on the marker root.
+           If we animate transform on the root, markers get pinned to (0,0).
+           So we only animate the INNER containers.
+        */
         @keyframes marker-pop-in {
           0% {
             opacity: 0;
-            transform: scale(0);
+            transform: scale(0.6);
           }
           70% {
-            transform: scale(1.1);
+            opacity: 1;
+            transform: scale(1.08);
           }
           100% {
             opacity: 1;
@@ -1092,12 +1097,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         }
         .user-marker {
           cursor: pointer;
-          animation: marker-pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         .marker-container {
           position: relative;
           width: 44px;
           height: 44px;
+          animation: marker-pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          will-change: transform, opacity;
         }
         /* Adventure style for user avatars - no clipping */
         .user-avatar-marker {
@@ -1119,6 +1125,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           position: relative;
           width: 48px;
           height: 48px;
+          animation: marker-pop-in 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          will-change: transform, opacity;
         }
         /* Current user marker - clean, no extra ring */
         .my-avatar-ring {
@@ -1135,7 +1143,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         }
         .quest-marker {
           cursor: pointer;
-          animation: marker-pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         .quest-container {
           position: relative;
@@ -1144,6 +1151,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           display: flex;
           align-items: center;
           justify-content: center;
+          animation: marker-pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+          will-change: transform, opacity;
         }
         .quest-icon {
           position: relative;
