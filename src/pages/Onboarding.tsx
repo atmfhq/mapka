@@ -13,6 +13,7 @@ import LocationSearch from "@/components/LocationSearch";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useKeyboardAvoidance } from "@/hooks/useKeyboardAvoidance";
 import { ACTIVITIES } from "@/constants/activities";
 import { 
   User, 
@@ -55,6 +56,7 @@ const Onboarding = () => {
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const keyboardRef = useKeyboardAvoidance();
 
   // Check for spawn intent coordinates from sessionStorage
   useEffect(() => {
@@ -175,7 +177,7 @@ const Onboarding = () => {
   };
 
   return (
-    <div className="min-h-dvh bg-background tactical-grid overflow-y-auto">
+    <div ref={keyboardRef} className="min-h-dvh bg-background tactical-grid overflow-y-auto">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
       
       <div className="relative z-10 w-full max-w-2xl mx-auto p-4 py-8 pb-safe">

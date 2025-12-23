@@ -10,6 +10,7 @@ import AvatarBuilder from "@/components/avatar/AvatarBuilder";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useKeyboardAvoidance } from "@/hooks/useKeyboardAvoidance";
 import { ACTIVITIES } from "@/constants/activities";
 import type { Json } from "@/integrations/supabase/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -62,6 +63,7 @@ const EditProfile = () => {
   const { user, profile, refreshProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const keyboardRef = useKeyboardAvoidance();
 
   // Populate form with existing profile data
   useEffect(() => {
@@ -181,7 +183,7 @@ const EditProfile = () => {
   }
 
   return (
-    <div className="min-h-dvh bg-background overflow-y-auto">
+    <div ref={keyboardRef} className="min-h-dvh bg-background overflow-y-auto">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
       
       <div className="relative z-10 w-full max-w-2xl mx-auto p-4 py-8 pb-safe">
