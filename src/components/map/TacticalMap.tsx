@@ -10,6 +10,7 @@ import QuestLobby from './QuestLobby';
 import GuestPromptModal from './GuestPromptModal';
 import GuestSpawnTooltip from './GuestSpawnTooltip';
 import MapContextMenu from './MapContextMenu';
+import FloatingParticles from './FloatingParticles';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Json } from '@/integrations/supabase/types';
 import { ACTIVITIES, getCategoryForActivity, getActivityById } from '@/constants/activities';
@@ -241,6 +242,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [isTacticalView, setIsTacticalView] = useState(true);
   const [mapStyleLoaded, setMapStyleLoaded] = useState(false); // Track when style is ready for markers
   const [lastBounceTime, setLastBounceTime] = useState<number>(0); // Cooldown for bounce action
+  const [myBounceCount, setMyBounceCount] = useState<number>(0); // For instant animation reset on spam clicks
+  const [particleTrigger, setParticleTrigger] = useState<number>(0); // For spawning particles
+  const lastDbUpdateRef = useRef<number>(0); // Throttle DB updates separately from visual
   const bounceTimestampsRef = useRef<Map<string, string>>(new Map()); // Track last bounce timestamps per user
   const [showUsers, setShowUsers] = useState(true); // Toggle visibility of user avatars on map
   
@@ -275,31 +279,26 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     });
   }, [profiles, activeActivities, activeActivityLabels, currentUserId]);
 
-  // Handle bounce/wave action with cooldown (2 seconds)
+  // Handle bounce/wave action - INSTANT visual, THROTTLED database
   const handleBounce = useCallback(async () => {
     if (!currentUserId || isGuest) return;
     
-    const now = Date.now();
-    const COOLDOWN_MS = 2000; // 2 second cooldown
+    // ALWAYS trigger visual feedback immediately (spammable)
+    setMyBounceCount(prev => prev + 1);
+    setParticleTrigger(prev => prev + 1);
     
-    if (now - lastBounceTime < COOLDOWN_MS) {
-      console.log('Bounce on cooldown');
+    // Throttle database updates (max 1 per 500ms)
+    const now = Date.now();
+    const DB_THROTTLE_MS = 500;
+    
+    if (now - lastDbUpdateRef.current < DB_THROTTLE_MS) {
+      // Skip DB update, but visual already triggered
       return;
     }
     
-    setLastBounceTime(now);
+    lastDbUpdateRef.current = now;
     
-    // Trigger local animation immediately
-    const myMarkerEl = myMarkerRef.current?.getElement();
-    const avatarRing = myMarkerEl?.querySelector('.my-avatar-ring');
-    if (avatarRing) {
-      avatarRing.classList.add('animate-bounce-wave');
-      setTimeout(() => {
-        avatarRing.classList.remove('animate-bounce-wave');
-      }, 700);
-    }
-    
-    // Update database
+    // Update database (throttled)
     try {
       const { error } = await supabase
         .from('profiles')
@@ -312,7 +311,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     } catch (err) {
       console.error('Failed to trigger bounce:', err);
     }
-  }, [currentUserId, isGuest, lastBounceTime]);
+  }, [currentUserId, isGuest]);
 
   // Filter quests - HIDE PRIVATE EVENTS from map, apply date filter
   const filteredQuests = useMemo(() => {
@@ -841,19 +840,23 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         // EXISTING MARKER - just update position if needed, trigger bounce if needed
         existing.marker.setLngLat([jitteredLng, jitteredLat]);
         
-        // Trigger bounce animation if needed
+        // Trigger bounce animation with particles if needed
         if (shouldBounce) {
-          const avatarDiv = existing.element.querySelector('.user-avatar-marker');
-          if (avatarDiv) {
-            avatarDiv.classList.remove('animate-bounce-wave');
-            // Force reflow to restart animation
-            void (avatarDiv as HTMLElement).offsetWidth;
-            avatarDiv.classList.add('animate-bounce-wave');
-            // Remove class after animation completes
-            setTimeout(() => {
-              avatarDiv.classList.remove('animate-bounce-wave');
-            }, 700);
-          }
+          // Re-render with particles and animation
+          const bounceKey = Date.now();
+          existing.root.render(
+            <div 
+              key={bounceKey}
+              className={`user-avatar-marker animate-bounce-wave ${isConnected ? 'connected' : ''}`}
+            >
+              <AvatarDisplay 
+                config={profile.avatar_config} 
+                size={40} 
+                showGlow={false}
+              />
+              <FloatingParticles trigger={bounceKey} />
+            </div>
+          );
         }
         
         // Update connected status
@@ -964,6 +967,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     el.appendChild(container);
     
     const root = createRoot(container);
+    myMarkerRootRef.current = root;
+    
+    // Initial render
     root.render(
       <div 
         className={`my-avatar-ring ${isGhostMode ? 'ghost' : ''}`}
@@ -974,9 +980,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           size={44} 
           showGlow={false}
         />
+        <FloatingParticles trigger={0} />
       </div>
     );
-    myMarkerRootRef.current = root;
 
     // Add click handler for bounce interaction
     el.addEventListener('click', (e) => {
@@ -1003,6 +1009,26 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       }
     };
   }, [locationLat, locationLng, userLat, userLng, currentUserAvatarConfig, isGhostMode, isGuest, mapStyleLoaded, handleBounce]);
+
+  // Re-render my-marker content on bounce for instant animation reset (key-based)
+  useEffect(() => {
+    if (!myMarkerRootRef.current || myBounceCount === 0) return;
+    
+    myMarkerRootRef.current.render(
+      <div 
+        key={myBounceCount}
+        className={`my-avatar-ring animate-bounce-wave ${isGhostMode ? 'ghost' : ''}`}
+        title="Click to Wave!"
+      >
+        <AvatarDisplay 
+          config={currentUserAvatarConfig} 
+          size={44} 
+          showGlow={false}
+        />
+        <FloatingParticles trigger={particleTrigger} />
+      </div>
+    );
+  }, [myBounceCount, particleTrigger, currentUserAvatarConfig, isGhostMode]);
 
   // Render quest markers (public only) with dynamic activity icons - INCREMENTAL UPDATE
   useEffect(() => {
