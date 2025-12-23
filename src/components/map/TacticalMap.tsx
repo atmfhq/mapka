@@ -215,11 +215,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
-  const userMarkersRef = useRef<mapboxgl.Marker[]>([]);
-  const userMarkerRootsRef = useRef<Root[]>([]);
-  const renderedUserIdsRef = useRef<Set<string>>(new Set()); // Track which users have been rendered to avoid re-animating
-  const renderedQuestIdsRef = useRef<Set<string>>(new Set()); // Track which quests have been rendered
-  const questMarkersRef = useRef<mapboxgl.Marker[]>([]);
+  // Use Maps keyed by ID for incremental marker updates (no re-blooming)
+  const userMarkersMapRef = useRef<Map<string, { marker: mapboxgl.Marker; root: Root; element: HTMLDivElement }>>(new Map());
+  const questMarkersMapRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
   const myMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const myMarkerRootRef = useRef<Root | null>(null);
   
@@ -776,52 +774,52 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     };
   }, [locationLat, locationLng, userLat, userLng]);
 
-  // Render user markers with connected status
+  // Render user markers with connected status - INCREMENTAL UPDATE (no re-blooming)
   useEffect(() => {
     if (!map.current) return;
-    
-    // Capture refs for cleanup - defer unmount to avoid React race condition
-    const oldRoots = [...userMarkerRootsRef.current];
-    const oldMarkers = [...userMarkersRef.current];
-    
-    // Clear refs immediately
-    userMarkerRootsRef.current = [];
-    userMarkersRef.current = [];
-    
-    // Remove old markers synchronously (DOM operations are safe)
-    oldMarkers.forEach(marker => marker.remove());
-    
-    // Defer React root unmounts to next microtask to avoid "unmount during render" warning
-    queueMicrotask(() => {
-      oldRoots.forEach(root => {
-        try {
-          root.unmount();
-        } catch (e) {
-          // Root may already be unmounted
-        }
-      });
-    });
 
     // Skip if map style not ready yet - will re-run when mapStyleLoaded changes
     if (!mapStyleLoaded) return;
     
-    // Skip rendering user markers if showUsers is false
-    if (!showUsers) return;
+    // If showUsers is false, remove all user markers
+    if (!showUsers) {
+      userMarkersMapRef.current.forEach(({ marker, root }) => {
+        marker.remove();
+        queueMicrotask(() => {
+          try { root.unmount(); } catch (e) { /* ignore */ }
+        });
+      });
+      userMarkersMapRef.current.clear();
+      return;
+    }
 
-    // Track current render cycle's user IDs
-    const currentRenderUserIds = new Set<string>();
-
+    // Build set of current profile IDs (excluding self)
+    const currentProfileIds = new Set<string>();
     filteredProfiles.forEach(profile => {
-      // Use location_lat/lng for user position
+      if (profile.location_lat && profile.location_lng && profile.id !== currentUserId) {
+        currentProfileIds.add(profile.id);
+      }
+    });
+
+    // 1. REMOVE markers for users no longer in the data
+    userMarkersMapRef.current.forEach(({ marker, root }, id) => {
+      if (!currentProfileIds.has(id)) {
+        marker.remove();
+        queueMicrotask(() => {
+          try { root.unmount(); } catch (e) { /* ignore */ }
+        });
+        userMarkersMapRef.current.delete(id);
+      }
+    });
+
+    // 2. ADD or UPDATE markers for current profiles
+    filteredProfiles.forEach(profile => {
       const profileLat = profile.location_lat;
       const profileLng = profile.location_lng;
       
       if (!profileLat || !profileLng) return;
       if (profile.id === currentUserId) return;
 
-      currentRenderUserIds.add(profile.id);
-
-      // Apply deterministic jitter for visual scatter (stable per user ID)
       const offset = getDeterministicOffset(profile.id);
       const jitteredLat = profileLat + offset.lat;
       const jitteredLng = profileLng + offset.lng;
@@ -833,86 +831,101 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       const currentBounce = profile.last_bounce_at;
       const shouldBounce = currentBounce && currentBounce !== lastKnownBounce;
       
-      // Update the ref with current bounce timestamp
       if (currentBounce) {
         bounceTimestampsRef.current.set(profile.id, currentBounce);
       }
-      
-      // Check if this user was already rendered (skip pop-in animation)
-      const alreadyRendered = renderedUserIdsRef.current.has(profile.id);
 
-      const el = document.createElement('div');
-      el.className = 'user-marker';
-      el.dataset.userId = profile.id; // Store user ID for bounce animation lookup
-      el.style.zIndex = '10';
-      el.style.width = '44px';
-      el.style.height = '44px';
-      
-      const container = document.createElement('div');
-      container.className = 'marker-container';
-      el.appendChild(container);
-      
-      // Calculate staggered delay for pop-in animation (random between 0-400ms)
-      const randomDelay = Math.floor(Math.random() * 400);
-      
-      // Build class list: skip pop-in for already-rendered users, add bounce if needed
-      const animationClass = alreadyRendered ? 'already-rendered' : '';
-      const bounceClass = shouldBounce ? 'animate-bounce-wave' : '';
-      
-      const root = createRoot(container);
-      root.render(
-        <div 
-          className={`user-avatar-marker marker-pop-in ${animationClass} ${isConnected ? 'connected' : ''} ${bounceClass}`}
-          style={{ animationDelay: (shouldBounce || alreadyRendered) ? '0ms' : `${randomDelay}ms` }}
-        >
-          <AvatarDisplay 
-            config={profile.avatar_config} 
-            size={40} 
-            showGlow={false}
-          />
-        </div>
-      );
-      userMarkerRootsRef.current.push(root);
+      const existing = userMarkersMapRef.current.get(profile.id);
 
-      el.addEventListener('click', (e) => {
-        e.stopPropagation();
-        // Fly to jittered location (where marker is displayed)
-        if (map.current) {
-          map.current.flyTo({
-            center: [jitteredLng, jitteredLat],
-            zoom: 15,
-            pitch: 45,
-            duration: 1500,
-            essential: true
-          });
+      if (existing) {
+        // EXISTING MARKER - just update position if needed, trigger bounce if needed
+        existing.marker.setLngLat([jitteredLng, jitteredLat]);
+        
+        // Trigger bounce animation if needed
+        if (shouldBounce) {
+          const avatarDiv = existing.element.querySelector('.user-avatar-marker');
+          if (avatarDiv) {
+            avatarDiv.classList.remove('animate-bounce-wave');
+            // Force reflow to restart animation
+            void (avatarDiv as HTMLElement).offsetWidth;
+            avatarDiv.classList.add('animate-bounce-wave');
+            // Remove class after animation completes
+            setTimeout(() => {
+              avatarDiv.classList.remove('animate-bounce-wave');
+            }, 700);
+          }
         }
-        setSelectedUser(profile);
-        // Store jittered coords for the popup (matches marker position)
-        setSelectedUserCoords({ lat: jitteredLat, lng: jitteredLng });
-      });
+        
+        // Update connected status
+        const avatarDiv = existing.element.querySelector('.user-avatar-marker');
+        if (avatarDiv) {
+          if (isConnected) {
+            avatarDiv.classList.add('connected');
+          } else {
+            avatarDiv.classList.remove('connected');
+          }
+        }
+      } else {
+        // NEW MARKER - create with pop-in animation
+        const el = document.createElement('div');
+        el.className = 'user-marker';
+        el.dataset.userId = profile.id;
+        el.style.zIndex = '10';
+        el.style.width = '44px';
+        el.style.height = '44px';
+        
+        const container = document.createElement('div');
+        container.className = 'marker-container';
+        el.appendChild(container);
+        
+        const randomDelay = Math.floor(Math.random() * 400);
+        
+        const root = createRoot(container);
+        root.render(
+          <div 
+            className={`user-avatar-marker marker-pop-in ${isConnected ? 'connected' : ''}`}
+            style={{ animationDelay: `${randomDelay}ms` }}
+          >
+            <AvatarDisplay 
+              config={profile.avatar_config} 
+              size={40} 
+              showGlow={false}
+            />
+          </div>
+        );
 
-      const marker = new mapboxgl.Marker({ element: el })
-        .setLngLat([jitteredLng, jitteredLat])
-        .addTo(map.current!);
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (map.current) {
+            map.current.flyTo({
+              center: [jitteredLng, jitteredLat],
+              zoom: 15,
+              pitch: 45,
+              duration: 1500,
+              essential: true
+            });
+          }
+          setSelectedUser(profile);
+          setSelectedUserCoords({ lat: jitteredLat, lng: jitteredLng });
+        });
 
-      userMarkersRef.current.push(marker);
+        const marker = new mapboxgl.Marker({ element: el })
+          .setLngLat([jitteredLng, jitteredLat])
+          .addTo(map.current!);
+
+        userMarkersMapRef.current.set(profile.id, { marker, root, element: el });
+      }
     });
-    
-    // Update rendered user IDs ref for next render cycle
-    renderedUserIdsRef.current = currentRenderUserIds;
 
     return () => {
-      // Cleanup on unmount - defer root unmounts
-      const roots = [...userMarkerRootsRef.current];
-      queueMicrotask(() => {
-        roots.forEach(root => {
-          try {
-            root.unmount();
-          } catch (e) {
-            // Ignore
-          }
+      // Full cleanup on unmount
+      userMarkersMapRef.current.forEach(({ marker, root }) => {
+        marker.remove();
+        queueMicrotask(() => {
+          try { root.unmount(); } catch (e) { /* ignore */ }
         });
       });
+      userMarkersMapRef.current.clear();
     };
   }, [filteredProfiles, currentUserId, connectedUserIds, mapStyleLoaded, showUsers]);
 
@@ -1003,38 +1016,42 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     };
   }, [locationLat, locationLng, userLat, userLng, currentUserAvatarConfig, isGhostMode, isGuest, mapStyleLoaded, handleBounce]);
 
-  // Render quest markers (public only) with dynamic activity icons
+  // Render quest markers (public only) with dynamic activity icons - INCREMENTAL UPDATE
   useEffect(() => {
     if (!map.current) return;
-
-    // Clear old markers
-    const oldMarkers = [...questMarkersRef.current];
-    questMarkersRef.current = [];
-    oldMarkers.forEach(marker => marker.remove());
     
     // Skip if map style not ready yet
     if (!mapStyleLoaded) return;
 
-    // Track current render cycle's quest IDs
-    const currentRenderQuestIds = new Set<string>();
+    // Build set of current quest IDs
+    const currentQuestIds = new Set(filteredQuests.map(q => q.id));
 
+    // 1. REMOVE markers for quests no longer in the data
+    questMarkersMapRef.current.forEach((marker, id) => {
+      if (!currentQuestIds.has(id)) {
+        marker.remove();
+        questMarkersMapRef.current.delete(id);
+      }
+    });
+
+    // 2. ADD new markers (only for quests not already on map)
     filteredQuests.forEach(quest => {
-      currentRenderQuestIds.add(quest.id);
+      if (questMarkersMapRef.current.has(quest.id)) {
+        // Already exists - just update position if needed
+        const existing = questMarkersMapRef.current.get(quest.id)!;
+        existing.setLngLat([quest.lng, quest.lat]);
+        return;
+      }
       
-      // Get dynamic icon and color based on activity
+      // NEW QUEST - create with pop-in animation
       const activityIcon = getActivityIcon(quest.category);
       const categoryColor = getCategoryColor(quest.category);
-      // Highlight if user is host OR participant
       const isMyQuest = quest.host_id === currentUserId || joinedQuestIds.has(quest.id);
       
-      // Check if quest is "Live Now"
       const now = Date.now();
       const startTime = new Date(quest.start_time).getTime();
       const endTime = startTime + (quest.duration_minutes * 60 * 1000);
       const isLiveNow = startTime <= now && endTime >= now;
-      
-      // Check if this quest was already rendered (skip pop-in animation)
-      const alreadyRendered = renderedQuestIdsRef.current.has(quest.id);
 
       const el = document.createElement('div');
       el.className = `quest-marker ${isMyQuest ? 'my-quest' : ''} ${isLiveNow ? 'live-now' : ''}`;
@@ -1042,14 +1059,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       el.style.width = '56px';
       el.style.height = '56px';
 
-      // Build DOM safely to prevent XSS - no innerHTML with dynamic content
       const container = document.createElement('div');
-      container.className = `quest-container marker-pop-in ${alreadyRendered ? 'already-rendered' : ''}`;
+      container.className = 'quest-container marker-pop-in';
       container.style.setProperty('--category-color', categoryColor);
       
-      // Calculate staggered delay for pop-in animation (random between 0-400ms)
       const randomDelay = Math.floor(Math.random() * 400);
-      container.style.animationDelay = alreadyRendered ? '0ms' : `${randomDelay}ms`;
+      container.style.animationDelay = `${randomDelay}ms`;
 
       if (isLiveNow) {
         const pulse = document.createElement('div');
@@ -1059,14 +1074,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       const iconDiv = document.createElement('div');
       iconDiv.className = `quest-icon ${isMyQuest ? 'my-quest-icon' : ''} ${isLiveNow ? 'live-icon' : ''}`;
-      iconDiv.textContent = activityIcon; // textContent is XSS-safe
+      iconDiv.textContent = activityIcon;
       container.appendChild(iconDiv);
 
       el.appendChild(container);
 
       el.addEventListener('click', (e) => {
         e.stopPropagation();
-        // Fly to quest location smoothly
         if (map.current) {
           map.current.flyTo({
             center: [quest.lng, quest.lat],
@@ -1084,11 +1098,14 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         .setLngLat([quest.lng, quest.lat])
         .addTo(map.current!);
 
-      questMarkersRef.current.push(marker);
+      questMarkersMapRef.current.set(quest.id, marker);
     });
     
-    // Update rendered quest IDs ref for next render cycle
-    renderedQuestIdsRef.current = currentRenderQuestIds;
+    return () => {
+      // Full cleanup on unmount
+      questMarkersMapRef.current.forEach(marker => marker.remove());
+      questMarkersMapRef.current.clear();
+    };
   }, [filteredQuests, currentUserId, joinedQuestIds, mapStyleLoaded]);
 
   // Helper function to close the user popup
