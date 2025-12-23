@@ -352,6 +352,13 @@ p.selectable {
   animation: marker-pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
+/* Skip pop-in animation for already-rendered markers */
+.marker-pop-in.already-rendered {
+  opacity: 1;
+  transform: scale(1);
+  animation: none;
+}
+
 /* Legacy class for backward compatibility */
 .megaphone-marker-new {
   animation: marker-pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
@@ -374,11 +381,41 @@ p.selectable {
 /* My avatar hover hint for bounce interaction */
 .my-avatar-ring {
   cursor: pointer;
-  transition: transform 0.15s ease;
+  transition: transform 0.2s ease;
 }
 
 .my-avatar-ring:hover {
-  transform: scale(1.08);
+  transform: scale(1.1);
+}
+
+/* Global marker hover effect - scale up on hover */
+.user-avatar-marker {
+  transition: transform 0.2s ease;
+}
+
+.user-avatar-marker:hover {
+  transform: scale(1.12);
+}
+
+/* Quest marker hover effect - scale up, NO opacity change */
+.quest-container {
+  transition: transform 0.2s ease;
+}
+
+.quest-container:hover {
+  transform: scale(1.15);
+}
+
+/* Ensure quest icon background stays solid on hover */
+.quest-icon {
+  transition: transform 0.2s ease;
+  /* Override any opacity changes */
+  opacity: 1 !important;
+}
+
+.quest-icon:hover {
+  /* Only scale, no opacity change */
+  opacity: 1 !important;
 }
 
 /* Border width 3 utility */
