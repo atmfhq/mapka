@@ -389,7 +389,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       const mappedProfiles = data.map((p: any) => ({
         ...p,
         avatar_config: p.avatar_config as AvatarConfig | null,
-        is_active: p.is_active ?? true
+        is_active: p.is_active ?? true,
+        last_bounce_at: p.last_bounce_at ?? null
       }));
       setProfiles(mappedProfiles);
     } else if (error) {
