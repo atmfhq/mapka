@@ -1233,14 +1233,15 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           animation: marker-pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
           will-change: transform, opacity;
         }
-        /* Adventure style for user avatars - no clipping */
+        /* Adventure style for user avatars - consistent hover with quests */
         .user-avatar-marker {
           width: 44px;
           height: 44px;
           transition: transform 0.2s ease;
+          transform-origin: center center;
         }
         .user-avatar-marker:hover {
-          transform: scale(1.1);
+          transform: scale(1.15);
         }
         /* Connected user - same clean look */
         .user-avatar-marker.connected {
