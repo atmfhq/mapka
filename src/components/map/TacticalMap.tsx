@@ -408,11 +408,20 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
   const flyTo = useCallback((lat: number, lng: number) => {
     if (map.current) {
+      const currentZoom = map.current.getZoom();
+      
+      // Smooth drone-like flight with zoom-out/zoom-in effect
       map.current.flyTo({
         center: [lng, lat],
-        zoom: 14,
+        zoom: Math.max(currentZoom, 14), // Maintain or zoom in
         pitch: 45,
-        duration: 2000,
+        duration: 2500, // 2.5 seconds for smooth travel
+        essential: true,
+        curve: 1.5, // Controls the zooming arc - higher = more zoom out during flight
+        easing: (t) => {
+          // Smooth ease-in-out-quad
+          return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        },
       });
     }
   }, []);
@@ -1234,13 +1243,17 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             setContextMenuScreenPos(null);
           }}
           onMoveComplete={(lat, lng) => {
-            // Fly to the new location after move
+            // Smooth drone-like flight to the new location
             if (map.current) {
+              const currentZoom = map.current.getZoom();
               map.current.flyTo({
                 center: [lng, lat],
-                zoom: 14,
+                zoom: Math.max(currentZoom, 14),
                 pitch: 45,
-                duration: 2000,
+                duration: 2500,
+                essential: true,
+                curve: 1.5,
+                easing: (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2,
               });
             }
             // Notify parent to update location state - triggers data refetch
