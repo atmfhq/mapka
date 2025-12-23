@@ -169,7 +169,7 @@ const Dashboard = () => {
   const mapLng = isGuest ? guestLng : (currentLocation.lng ?? profile?.location_lng ?? activeAreaLng);
 
   return (
-    <div className="fixed inset-0 overflow-hidden bg-background">
+    <div className="fixed inset-0 h-dvh overflow-hidden bg-background">
       {/* Map Layer - z-0 base layer */}
       <div className="absolute inset-0 z-0">
         <TacticalMap 
@@ -223,8 +223,8 @@ const Dashboard = () => {
         onDateFilterChange={setDateFilter}
       />
 
-      {/* Status indicator - z-30 floating bottom left */}
-      <div className="fixed bottom-4 left-4 z-30 safe-area-bottom safe-area-left">
+      {/* Status indicator - z-30 floating bottom left with safe area */}
+      <div className="fixed left-4 z-30 safe-area-left" style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/95 backdrop-blur-md border-2 border-border shadow-hard">
           <div className={`w-2 h-2 rounded-full ${isGuest ? 'bg-muted-foreground' : 'bg-success'} animate-pulse`} />
           <span className="font-nunito text-xs font-medium text-foreground/80 hidden sm:block">
