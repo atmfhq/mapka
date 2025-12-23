@@ -222,6 +222,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [quests, setQuests] = useState<Quest[]>([]);
   const [joinedQuestIds, setJoinedQuestIds] = useState<Set<string>>(new Set());
+  const [isDataLoading, setIsDataLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
   const [selectedUserCoords, setSelectedUserCoords] = useState<{ lat: number; lng: number } | null>(null);
   const userPopupRef = useRef<mapboxgl.Popup | null>(null);
@@ -329,6 +330,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     const centerLat = locationLat ?? userLat;
     const centerLng = locationLng ?? userLng;
     
+    setIsDataLoading(true);
+    
     const { data, error } = await supabase.rpc('get_nearby_profiles', {
       p_lat: centerLat,
       p_lng: centerLng,
@@ -345,6 +348,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     } else if (error) {
       console.error('Error fetching nearby profiles:', error);
     }
+    
+    setIsDataLoading(false);
   }, [locationLat, locationLng, userLat, userLng]);
 
   useEffect(() => {
@@ -966,8 +971,23 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   return (
     <>
       <style>{`
+        /* Marker pop-in animation */
+        @keyframes marker-pop-in {
+          0% {
+            opacity: 0;
+            transform: scale(0);
+          }
+          70% {
+            transform: scale(1.1);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
         .user-marker {
           cursor: pointer;
+          animation: marker-pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         .marker-container {
           position: relative;
@@ -1010,6 +1030,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         }
         .quest-marker {
           cursor: pointer;
+          animation: marker-pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         .quest-container {
           position: relative;
@@ -1127,6 +1148,14 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         mapContainer={mapContainer.current} 
         isVisible={isGuest} 
       />
+
+      {/* Subtle loading indicator - top right corner */}
+      {isDataLoading && (
+        <div className="absolute top-4 right-4 z-30 flex items-center gap-2 px-3 py-2 bg-card/90 backdrop-blur-md border border-border rounded-lg shadow-hard animate-fade-in">
+          <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+          <span className="font-nunito text-xs text-muted-foreground">Scanning area...</span>
+        </div>
+      )}
 
       {/* Custom Map Controls */}
       {!isTokenMissing && (
