@@ -784,9 +784,15 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       container.className = 'marker-container';
       el.appendChild(container);
       
+      // Calculate staggered delay for pop-in animation (random between 0-400ms)
+      const randomDelay = Math.floor(Math.random() * 400);
+      
       const root = createRoot(container);
       root.render(
-        <div className={`user-avatar-marker ${isConnected ? 'connected' : ''}`}>
+        <div 
+          className={`user-avatar-marker marker-pop-in ${isConnected ? 'connected' : ''}`}
+          style={{ animationDelay: `${randomDelay}ms` }}
+        >
           <AvatarDisplay 
             config={profile.avatar_config} 
             size={40} 
@@ -946,8 +952,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       // Build DOM safely to prevent XSS - no innerHTML with dynamic content
       const container = document.createElement('div');
-      container.className = 'quest-container';
+      container.className = 'quest-container marker-pop-in';
       container.style.setProperty('--category-color', categoryColor);
+      
+      // Calculate staggered delay for pop-in animation (random between 0-400ms)
+      const randomDelay = Math.floor(Math.random() * 400);
+      container.style.animationDelay = `${randomDelay}ms`;
 
       if (isLiveNow) {
         const pulse = document.createElement('div');

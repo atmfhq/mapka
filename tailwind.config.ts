@@ -125,12 +125,23 @@ export default {
           "0%, 100%": { transform: "rotate(-2deg)" },
           "50%": { transform: "rotate(2deg)" },
         },
+        "pop-in": {
+          "0%": { transform: "scale(0) translateY(10px)", opacity: "0" },
+          "70%": { transform: "scale(1.15) translateY(-2px)", opacity: "1" },
+          "100%": { transform: "scale(1) translateY(0)", opacity: "1" },
+        },
+        "bounce-soft": {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-4px)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "bounce-in": "bounce-in 0.4s ease-out",
         "wiggle": "wiggle 0.3s ease-in-out",
+        "pop-in": "pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards",
+        "bounce-soft": "bounce-soft 2s ease-in-out infinite",
       },
     },
   },
