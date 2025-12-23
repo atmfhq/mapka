@@ -310,15 +310,24 @@ const Onboarding = () => {
                 </div>
               )}
 
-              {/* Privacy warning */}
+              {/* Privacy & Safety Warning */}
               <div className="flex items-start gap-3 p-4 rounded-xl bg-warning/10 border-2 border-warning/30">
                 <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
                 <div>
                   <div className="font-nunito font-bold text-warning mb-1">
-                    Privacy Notice
+                    🛡️ Privacy-First Location
                   </div>
-                  <p className="font-nunito text-xs text-muted-foreground">
-                    Your exact location is private. Others will only see you within a 400m radius of this point.
+                  <p className="font-nunito text-xs text-muted-foreground mb-2">
+                    <strong>Important:</strong> Do NOT mark your exact home address or building! 
+                    Instead, choose a nearby landmark like:
+                  </p>
+                  <ul className="font-nunito text-xs text-muted-foreground list-disc list-inside space-y-0.5">
+                    <li>A favorite coffee shop or restaurant</li>
+                    <li>A nearby park or public square</li>
+                    <li>Your neighborhood or district name</li>
+                  </ul>
+                  <p className="font-nunito text-xs text-muted-foreground mt-2 italic">
+                    Your position is shown with a ~50m offset to others for additional privacy.
                   </p>
                 </div>
               </div>

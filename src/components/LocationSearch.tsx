@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { Search, MapPin, Loader2, X, Navigation } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search, MapPin, Loader2, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface LocationResult {
@@ -34,7 +33,6 @@ const LocationSearch = ({
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(initialValue || null);
-  const [locating, setLocating] = useState(false);
   const [isFromSpawn, setIsFromSpawn] = useState(fromSpawnIntent);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -47,7 +45,6 @@ const LocationSearch = ({
       hasInitialized.current = true;
       
       const reverseGeocode = async () => {
-        setLocating(true);
         try {
           const response = await fetch(
             `https://api.mapbox.com/geocoding/v5/mapbox.places/${initialCoords.lng},${initialCoords.lat}.json?access_token=${MAPBOX_TOKEN}&types=place,locality,neighborhood&limit=1`
@@ -83,7 +80,6 @@ const LocationSearch = ({
             name: fallbackName,
           });
         }
-        setLocating(false);
       };
 
       reverseGeocode();
@@ -161,76 +157,6 @@ const LocationSearch = ({
     setShowResults(false);
   };
 
-  const handleUseCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      toast({
-        title: "Not Supported",
-        description: "Geolocation is not supported by your browser",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        
-        // Reverse geocode to get place name
-        try {
-          const response = await fetch(
-            `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?access_token=${MAPBOX_TOKEN}&types=place,locality,neighborhood&limit=1`
-          );
-          
-          if (response.ok) {
-            const data = await response.json();
-            const placeName = data.features?.[0]?.place_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-            setQuery(placeName);
-            setSelectedLocation(placeName);
-            onLocationSelect({
-              lat: latitude,
-              lng: longitude,
-              name: placeName,
-            });
-          } else {
-            const fallbackName = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-            setQuery(fallbackName);
-            setSelectedLocation(fallbackName);
-            onLocationSelect({
-              lat: latitude,
-              lng: longitude,
-              name: fallbackName,
-            });
-          }
-        } catch {
-          const fallbackName = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
-          setQuery(fallbackName);
-          setSelectedLocation(fallbackName);
-          onLocationSelect({
-            lat: latitude,
-            lng: longitude,
-            name: fallbackName,
-          });
-        }
-        
-        setLocating(false);
-        toast({
-          title: "Location Found",
-          description: "Your current location has been set",
-        });
-      },
-      (error) => {
-        setLocating(false);
-        toast({
-          title: "Location Error",
-          description: error.message || "Could not get your location",
-          variant: "destructive",
-        });
-      },
-      { enableHighAccuracy: true }
-    );
-  };
-
   return (
     <div ref={containerRef} className="relative w-full">
       <div className="relative">
@@ -264,23 +190,6 @@ const LocationSearch = ({
           </button>
         )}
       </div>
-
-      {/* Use current location button */}
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        onClick={handleUseCurrentLocation}
-        disabled={locating}
-        className="mt-2 text-xs text-muted-foreground hover:text-foreground"
-      >
-        {locating ? (
-          <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-        ) : (
-          <Navigation className="w-3 h-3 mr-1" />
-        )}
-        Use my current location
-      </Button>
 
       {/* Results dropdown */}
       {showResults && results.length > 0 && (
