@@ -106,12 +106,17 @@ const Dashboard = () => {
     setChatOpenUserId(null);
   };
 
-  const handleLocationUpdated = async (lat: number, lng: number, name: string) => {
-    setCurrentLocation({ lat, lng, name });
+  const handleLocationUpdated = async (lat: number, lng: number, name?: string) => {
+    setCurrentLocation({ lat, lng, name: name ?? null });
     // Fly to new location
     mapRef.current?.flyTo(lat, lng);
     // Refresh profile to get updated data
     await refreshProfile();
+  };
+
+  // Handler for context menu teleport (no name provided)
+  const handleMapLocationUpdated = (lat: number, lng: number) => {
+    handleLocationUpdated(lat, lng);
   };
 
   const handleActiveChange = async (active: boolean) => {
@@ -183,6 +188,7 @@ const Dashboard = () => {
           isGuest={isGuest}
           onOpenChatWithUser={handleOpenChatWithUser}
           onCloseChat={handleCloseChat}
+          onLocationUpdated={handleMapLocationUpdated}
         />
       </div>
 
