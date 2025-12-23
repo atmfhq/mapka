@@ -382,12 +382,14 @@ p.selectable {
 }
 
 /* Global marker hover effect - scale up on hover */
+/* User avatar hover effect - matches quest markers */
 .user-avatar-marker {
   transition: transform 0.2s ease;
+  transform-origin: center center;
 }
 
 .user-avatar-marker:hover {
-  transform: scale(1.12);
+  transform: scale(1.15);
 }
 
 /* Quest marker hover effect - scale up, NO opacity change */
