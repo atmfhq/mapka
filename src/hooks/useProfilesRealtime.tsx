@@ -2,10 +2,11 @@ import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 /**
- * Global, static broadcast room for map movement.
- * "Connect once, listen forever" to avoid room drift.
+ * Realtime broadcast protocol (MUST match sender + receiver).
  */
-const GLOBAL_MAP_CHANNEL = 'global_map_broadcast';
+export const REALTIME_CHANNEL = 'global_map_v1';
+export const EVENT_NAME = 'POS_UPDATE';
+
 const MAX_DISTANCE_METERS = 50_000; // 50km client-side filter
 
 /**
@@ -135,7 +136,7 @@ export const useProfilesRealtime = ({
     const me = currentUserIdRef.current;
     if (me && user_id === me) return;
 
-    console.log('[Broadcast] Received POS_UPDATE:', { user_id, event_type, lat, lng });
+    console.log('📥 RECEIVED Broadcast on', REALTIME_CHANNEL, payload);
 
     // Client-side distance filter (inline, no dependency)
     const { lat: myLat, lng: myLng } = userCoordsRef.current;
@@ -185,12 +186,11 @@ export const useProfilesRealtime = ({
   // Connect ONCE on mount, clean up on unmount.
   // CRITICAL: Empty dependency array - subscribe exactly once
   useEffect(() => {
-    console.log('[Broadcast] Setting up GLOBAL subscription:', GLOBAL_MAP_CHANNEL);
+    console.log('[Broadcast] Setting up GLOBAL subscription:', REALTIME_CHANNEL);
 
     const channel = supabase
-      .channel(GLOBAL_MAP_CHANNEL)
-      .on('broadcast', { event: 'POS_UPDATE' }, handleBroadcast)
-      .on('broadcast', { event: 'profile_update' }, handleBroadcast)
+      .channel(REALTIME_CHANNEL)
+      .on('broadcast', { event: EVENT_NAME }, handleBroadcast)
       .subscribe((status) => {
         console.log('[Broadcast] Global subscription status:', status);
       });
@@ -228,9 +228,7 @@ export const broadcastProfileUpdate = async (
   lng: number,
   eventType: 'location_update' | 'bounce' | 'status_change' = 'location_update'
 ) => {
-  console.log('[Broadcast] Sending POS_UPDATE (GLOBAL):', { userId: profile.id, eventType, lat, lng });
-
-  const channel = supabase.channel(GLOBAL_MAP_CHANNEL);
+  const channel = supabase.channel(REALTIME_CHANNEL);
 
   const payload: ProfileBroadcastPayload = {
     user_id: profile.id,
@@ -247,9 +245,11 @@ export const broadcastProfileUpdate = async (
     last_bounce_at: profile.last_bounce_at,
   };
 
+  console.log('📡 SENDING Broadcast to', REALTIME_CHANNEL, payload);
+
   await channel.subscribe((status) => {
     if (status === 'SUBSCRIBED') {
-      channel.send({ type: 'broadcast', event: 'POS_UPDATE', payload });
+      channel.send({ type: 'broadcast', event: EVENT_NAME, payload });
 
       // Cleanup after sending
       setTimeout(() => {
