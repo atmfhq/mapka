@@ -75,16 +75,16 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
                 onClick={() => handleCategoryClick(category.id)}
                 className={cn(
                   "relative flex items-center gap-2 px-4 py-2 rounded-xl border-2 transition-all duration-300 flex-shrink-0",
-                  "font-nunito text-sm font-medium whitespace-nowrap",
+                  "font-nunito text-sm font-medium whitespace-nowrap shadow-hard",
                   isExpanded || hasActiveActivity
-                    ? "bg-primary/20 border-primary text-primary"
-                    : "bg-card/50 border-border text-muted-foreground hover:border-primary/50 hover:text-primary/80"
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card border-border text-foreground hover:border-primary/50 hover:text-primary"
                 )}
               >
                 <span className="text-base">{category.icon}</span>
                 <span>{category.label}</span>
                 {activeCount > 0 && (
-                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground text-xs font-bold">
+                  <span className="ml-1 px-1.5 py-0.5 rounded-full bg-primary-foreground text-primary text-xs font-bold">
                     {activeCount}
                   </span>
                 )}
@@ -103,7 +103,7 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
                 onClearFilters();
                 setExpandedCategory(null);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-destructive/50 text-destructive hover:bg-destructive/10 transition-all font-nunito text-sm flex-shrink-0"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 border-destructive bg-card text-destructive hover:bg-destructive hover:text-destructive-foreground transition-all font-nunito text-sm flex-shrink-0 shadow-hard"
             >
               <X className="w-4 h-4" />
               Clear ({activeActivities.length})
@@ -118,11 +118,11 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
               key={option.id}
               onClick={() => onDateFilterChange(option.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-all duration-300 flex-shrink-0",
+                "flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 transition-all duration-300 flex-shrink-0 shadow-hard",
                 "font-nunito text-sm font-medium whitespace-nowrap",
                 dateFilter === option.id
-                  ? "bg-warning/20 border-warning text-warning"
-                  : "bg-card/50 border-border/50 text-muted-foreground hover:border-warning/50 hover:text-warning/80"
+                  ? "bg-warning text-warning-foreground border-warning"
+                  : "bg-card border-border text-foreground hover:border-warning/50 hover:text-warning"
               )}
             >
               <Calendar className="w-3.5 h-3.5" />
@@ -134,7 +134,7 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
 
       {/* Desktop: Activities sub-row (when category is expanded) */}
       {expandedCategory && (
-        <div className="hidden md:flex items-center gap-2 px-2 py-2 rounded-lg bg-muted/30 border border-border/30 overflow-x-auto scrollbar-hide">
+        <div className="hidden md:flex items-center gap-2 px-3 py-2.5 rounded-xl bg-card border-2 border-border shadow-hard overflow-x-auto scrollbar-hide">
           <span className="text-xs text-muted-foreground font-nunito px-2 flex-shrink-0">
             {expandedCategoryInfo?.icon} {expandedCategoryInfo?.label}:
           </span>
@@ -147,11 +147,11 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
                   key={activity.id}
                   onClick={() => handleActivityClick(activity.id)}
                   className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all duration-200",
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border-2 transition-all duration-200",
                     "font-nunito text-xs font-medium whitespace-nowrap",
                     isActive
-                      ? "bg-primary text-primary-foreground border-primary shadow-[0_0_10px_hsl(var(--primary)/0.4)]"
-                      : "bg-card/80 border-border/50 text-muted-foreground hover:border-primary/50 hover:text-foreground"
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-muted border-border text-foreground hover:border-primary/50"
                   )}
                 >
                   <span>{activity.icon}</span>
@@ -174,7 +174,7 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
               variant="outline"
               size="sm"
               className={cn(
-                "min-h-[44px] gap-2 font-nunito flex-shrink-0",
+                "min-h-[44px] gap-2 font-nunito flex-shrink-0 border-2 shadow-hard bg-card",
                 activeActivities.length > 0 && "border-primary text-primary"
               )}
             >
@@ -218,11 +218,11 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
                     <button
                       key={category.id}
                       onClick={() => handleMobileCategorySelect(category.id)}
-                    className={cn(
-                      "flex flex-col items-center gap-2 p-4 rounded-xl border transition-all duration-300",
-                      "font-nunito text-sm font-medium min-h-[80px]",
-                      "bg-card/50 border-border/50 text-muted-foreground hover:border-primary/50"
-                    )}
+                      className={cn(
+                        "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all duration-300",
+                        "font-nunito text-sm font-medium min-h-[80px] shadow-hard",
+                        "bg-card border-border text-foreground hover:border-primary/50"
+                      )}
                     >
                       <span className="text-2xl">{category.icon}</span>
                       <span>{category.label}</span>
@@ -242,16 +242,16 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
                         key={activity.id}
                         onClick={() => handleMobileActivitySelect(activity.id)}
                         className={cn(
-                          "flex items-center gap-2 p-3 rounded-lg border transition-all",
-                          "font-nunito text-sm font-medium",
+                          "flex items-center gap-2 p-3 rounded-xl border-2 transition-all",
+                          "font-nunito text-sm font-medium shadow-hard",
                           isActive
-                            ? "bg-primary/20 border-primary text-primary"
-                            : "bg-card/50 border-border/50 text-muted-foreground hover:border-primary/50"
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-card border-border text-foreground hover:border-primary/50"
                         )}
                       >
                         <span className="text-lg">{activity.icon}</span>
                         <span className="truncate">{activity.label}</span>
-                        {isActive && <span className="ml-auto text-primary">✓</span>}
+                        {isActive && <span className="ml-auto">✓</span>}
                       </button>
                     );
                   })}
@@ -266,7 +266,7 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
                     onClearFilters();
                     setDrawerOpen(false);
                   }}
-                  className="w-full mt-4 border-destructive/50 text-destructive hover:bg-destructive/10 min-h-[48px]"
+                  className="w-full mt-4 border-2 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground min-h-[48px] shadow-hard"
                 >
                   <X className="w-4 h-4 mr-2" />
                   Clear All ({activeActivities.length})
@@ -286,11 +286,11 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
               key={option.id}
               onClick={() => onDateFilterChange(option.id)}
               className={cn(
-                "px-2.5 py-2 rounded-lg border transition-all duration-200 flex-shrink-0",
+                "px-2.5 py-2 rounded-xl border-2 transition-all duration-200 flex-shrink-0 shadow-hard",
                 "font-nunito text-xs font-medium whitespace-nowrap",
                 dateFilter === option.id
-                  ? "bg-warning/20 border-warning text-warning"
-                  : "bg-card/50 border-border/50 text-muted-foreground"
+                  ? "bg-warning text-warning-foreground border-warning"
+                  : "bg-card border-border text-foreground"
               )}
             >
               {option.label}
