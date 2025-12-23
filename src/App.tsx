@@ -11,7 +11,6 @@ import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import EditProfile from "./pages/EditProfile";
-import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -58,8 +57,10 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
+            {/* Legacy route redirect */}
+            <Route path="/dashboard" element={<Navigate to="/" replace />} />
+            {/* Catch-all: redirect any unknown routes to map */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
