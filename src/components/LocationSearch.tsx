@@ -17,20 +17,78 @@ interface LocationSearchProps {
     name: string;
   }) => void;
   initialValue?: string;
+  initialCoords?: { lat: number; lng: number } | null;
+  fromSpawnIntent?: boolean;
 }
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 
-const LocationSearch = ({ onLocationSelect, initialValue = "" }: LocationSearchProps) => {
+const LocationSearch = ({ 
+  onLocationSelect, 
+  initialValue = "",
+  initialCoords = null,
+  fromSpawnIntent = false
+}: LocationSearchProps) => {
   const [query, setQuery] = useState(initialValue);
   const [results, setResults] = useState<LocationResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(initialValue || null);
   const [locating, setLocating] = useState(false);
+  const [isFromSpawn, setIsFromSpawn] = useState(fromSpawnIntent);
   const searchTimeout = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const hasInitialized = useRef(false);
   const { toast } = useToast();
+
+  // Handle initial coords from spawn intent - reverse geocode to get location name
+  useEffect(() => {
+    if (initialCoords && !hasInitialized.current) {
+      hasInitialized.current = true;
+      
+      const reverseGeocode = async () => {
+        setLocating(true);
+        try {
+          const response = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${initialCoords.lng},${initialCoords.lat}.json?access_token=${MAPBOX_TOKEN}&types=place,locality,neighborhood&limit=1`
+          );
+          
+          if (response.ok) {
+            const data = await response.json();
+            const placeName = data.features?.[0]?.place_name || `${initialCoords.lat.toFixed(4)}, ${initialCoords.lng.toFixed(4)}`;
+            setQuery(placeName);
+            setSelectedLocation(placeName);
+            onLocationSelect({
+              lat: initialCoords.lat,
+              lng: initialCoords.lng,
+              name: placeName,
+            });
+          } else {
+            const fallbackName = `${initialCoords.lat.toFixed(4)}, ${initialCoords.lng.toFixed(4)}`;
+            setQuery(fallbackName);
+            setSelectedLocation(fallbackName);
+            onLocationSelect({
+              lat: initialCoords.lat,
+              lng: initialCoords.lng,
+              name: fallbackName,
+            });
+          }
+        } catch {
+          const fallbackName = `${initialCoords.lat.toFixed(4)}, ${initialCoords.lng.toFixed(4)}`;
+          setQuery(fallbackName);
+          setSelectedLocation(fallbackName);
+          onLocationSelect({
+            lat: initialCoords.lat,
+            lng: initialCoords.lng,
+            name: fallbackName,
+          });
+        }
+        setLocating(false);
+      };
+
+      reverseGeocode();
+    }
+  }, [initialCoords, onLocationSelect]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -246,7 +304,7 @@ const LocationSearch = ({ onLocationSelect, initialValue = "" }: LocationSearchP
       {selectedLocation && (
         <div className="mt-3 flex items-center gap-2 text-success text-sm font-mono">
           <MapPin className="w-4 h-4" />
-          <span>Location set</span>
+          <span>{isFromSpawn ? 'Wybrano z mapy!' : 'Location set'}</span>
         </div>
       )}
     </div>
