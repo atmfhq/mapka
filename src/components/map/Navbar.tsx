@@ -12,6 +12,7 @@ import InstallPrompt from '@/components/InstallPrompt';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { broadcastProfileUpdate } from '@/hooks/useProfilesRealtime';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
@@ -146,6 +147,9 @@ const Navbar = ({
         .eq('id', currentUserId);
 
       if (error) throw error;
+
+      // Broadcast location update for real-time sync
+      await broadcastProfileUpdate(currentUserId, lat, lng, 'location_update');
 
       onFlyTo(lat, lng);
       onLocationUpdated?.(lat, lng, result.place_name);
