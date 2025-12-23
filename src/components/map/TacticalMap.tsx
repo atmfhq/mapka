@@ -556,13 +556,19 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     };
   }, []);
 
-  // Initialize map
+  // Store initial coords in a ref to avoid re-creating map
+  const initialCoordsRef = useRef({ lat: userLat, lng: userLng });
+  const isGuestRef = useRef(isGuest);
+  
+  // Keep isGuest ref in sync for use in click handler
+  useEffect(() => {
+    isGuestRef.current = isGuest;
+  }, [isGuest]);
+
+  // Initialize map ONCE - do not recreate on coordinate changes
   useEffect(() => {
     if (!mapContainer.current) return;
-    if (map.current) {
-      map.current.remove();
-      map.current = null;
-    }
+    if (map.current) return; // Already initialized - don't recreate
 
     if (!MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN_HERE') {
       console.error('Mapbox token not configured');
@@ -575,7 +581,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/outdoors-v12',
-        center: [userLng, userLat],
+        center: [initialCoordsRef.current.lng, initialCoordsRef.current.lat],
         zoom: 14,
         pitch: 45,
       });
@@ -589,7 +595,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         }
         
         // Guest clicked on map - save spawn coords and show guest prompt
-        if (isGuest) {
+        if (isGuestRef.current) {
           const spawnCoords = { lat: e.lngLat.lat, lng: e.lngLat.lng };
           sessionStorage.setItem('spawn_intent_coords', JSON.stringify(spawnCoords));
           setGuestPromptVariant('create');
@@ -611,7 +617,42 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       map.current?.remove();
       map.current = null;
     };
-  }, [userLat, userLng]);
+  }, []); // Empty deps - initialize only once
+
+  // Fly to new location when coordinates change (separate from init)
+  const prevLocationRef = useRef<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
+  
+  useEffect(() => {
+    if (!map.current) return;
+    
+    const targetLat = locationLat ?? userLat;
+    const targetLng = locationLng ?? userLng;
+    
+    // Skip if location hasn't actually changed
+    if (prevLocationRef.current.lat === targetLat && prevLocationRef.current.lng === targetLng) {
+      return;
+    }
+    
+    // Skip on initial mount (let the map center handle it)
+    if (prevLocationRef.current.lat === null && prevLocationRef.current.lng === null) {
+      prevLocationRef.current = { lat: targetLat, lng: targetLng };
+      return;
+    }
+    
+    prevLocationRef.current = { lat: targetLat, lng: targetLng };
+    
+    // Smooth flight to new location
+    const currentZoom = map.current.getZoom();
+    map.current.flyTo({
+      center: [targetLng, targetLat],
+      zoom: Math.max(currentZoom, 14),
+      pitch: 45,
+      duration: 2500,
+      essential: true,
+      curve: 1.5,
+      easing: (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2,
+    });
+  }, [locationLat, locationLng, userLat, userLng]);
 
   // Add/Update the 5km range indicator circle
   useEffect(() => {
