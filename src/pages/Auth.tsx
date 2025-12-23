@@ -81,11 +81,11 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-dvh bg-background overflow-y-auto">
       {/* Background effects */}
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
       
-      <div className="relative z-10 w-full max-w-md">
+      <div className="relative z-10 w-full max-w-md mx-auto p-4 py-8 pb-safe flex flex-col min-h-dvh justify-center">
         {/* Back link */}
         <Link
           to="/"
@@ -226,7 +226,7 @@ const Auth = () => {
         </div>
 
         {/* Status indicator */}
-        <div className="text-center mt-6">
+        <div className="text-center mt-6 mb-8">
           <span className="inline-flex items-center gap-2 font-nunito text-xs text-muted-foreground">
             <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
             Ready to Adventure

@@ -125,7 +125,7 @@
   html, body, #root {
     height: 100%;
     height: 100dvh;
-    overflow: hidden;
+    /* Allow child containers to manage their own scroll - removed global overflow:hidden */
   }
 
   body {
