@@ -311,6 +311,13 @@ export type Database = {
       }
       cleanup_expired_rate_limits: { Args: never; Returns: undefined }
       delete_user_account: { Args: never; Returns: undefined }
+      get_current_user_location: {
+        Args: never
+        Returns: {
+          lat: number
+          lng: number
+        }[]
+      }
       get_nearby_megaphones: {
         Args: { p_lat: number; p_lng: number; p_radius_meters?: number }
         Returns: {
@@ -377,6 +384,10 @@ export type Database = {
       }
       is_invitation_member: {
         Args: { p_invitation_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      is_profile_within_radius: {
+        Args: { radius_meters?: number; target_lat: number; target_lng: number }
         Returns: boolean
       }
       sanitize_text_input: { Args: { input_text: string }; Returns: string }
