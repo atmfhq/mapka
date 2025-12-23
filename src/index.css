@@ -383,12 +383,12 @@ p.selectable {
 
 /* Global marker hover effect - scale up on hover */
 /* User avatar hover effect - matches quest markers */
-.user-avatar-marker {
+.marker-container {
   transition: transform 0.2s ease;
   transform-origin: center center;
 }
 
-.user-avatar-marker:hover {
+.user-marker:hover .marker-container {
   transform: scale(1.15);
 }
 
