@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { X, Zap, MessageCircle, UserX } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, Zap, MessageCircle, UserX, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SendInviteModal from './SendInviteModal';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
@@ -22,7 +23,7 @@ interface UserPopupContentProps {
     tags: string[] | null;
     bio: string | null;
   };
-  currentUserId: string;
+  currentUserId: string | null;
   isConnected: boolean;
   invitationId?: string;
   onClose: () => void;
@@ -43,8 +44,10 @@ const UserPopupContent = ({
 }: UserPopupContentProps) => {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const navigate = useNavigate();
 
-  const isOwnProfile = user.id === currentUserId;
+  const isGuest = !currentUserId;
+  const isOwnProfile = currentUserId ? user.id === currentUserId : false;
 
   const handleDisconnect = async () => {
     if (!invitationId) return;
@@ -146,7 +149,19 @@ const UserPopupContent = ({
 
         {/* Action buttons */}
         {!isOwnProfile && (
-          isConnected ? (
+          isGuest ? (
+            <Button
+              onClick={() => {
+                onClose();
+                navigate('/auth');
+              }}
+              className="w-full mt-4 bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka text-xs"
+              size="sm"
+            >
+              <LogIn className="w-4 h-4 mr-2" />
+              Login to Connect
+            </Button>
+          ) : isConnected ? (
             <div className="space-y-2 mt-4">
               <Button
                 onClick={() => {
@@ -183,12 +198,14 @@ const UserPopupContent = ({
         )}
       </div>
 
-      <SendInviteModal
-        open={inviteModalOpen}
-        onOpenChange={setInviteModalOpen}
-        targetUser={user}
-        currentUserId={currentUserId}
-      />
+      {currentUserId && (
+        <SendInviteModal
+          open={inviteModalOpen}
+          onOpenChange={setInviteModalOpen}
+          targetUser={user}
+          currentUserId={currentUserId}
+        />
+      )}
     </>
   );
 };

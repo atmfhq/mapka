@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import UserPopupContent from './UserPopupContent';
 import DeployQuestModal from './DeployQuestModal';
 import QuestLobby from './QuestLobby';
+import GuestPromptModal from './GuestPromptModal';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Json } from '@/integrations/supabase/types';
 import { ACTIVITIES, getCategoryForActivity, getActivityById } from '@/constants/activities';
@@ -223,6 +224,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const userPopupRootRef = useRef<Root | null>(null);
   
   const [deployModalOpen, setDeployModalOpen] = useState(false);
+  const [guestPromptOpen, setGuestPromptOpen] = useState(false);
+  const [guestPromptVariant, setGuestPromptVariant] = useState<'join' | 'connect' | 'create'>('create');
   const [clickedCoords, setClickedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [lobbyOpen, setLobbyOpen] = useState(false);
@@ -562,6 +565,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       map.current.on('click', (e) => {
         const target = e.originalEvent.target as HTMLElement;
         if (target.closest('.user-marker') || target.closest('.megaphone-marker') || target.closest('.quest-marker')) {
+          return;
+        }
+        
+        // Guest clicked on map - show guest prompt
+        if (isGuest) {
+          setGuestPromptVariant('create');
+          setGuestPromptOpen(true);
           return;
         }
         
@@ -1194,65 +1204,71 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       
       {/* User popup is now rendered via Mapbox Popup in useEffect above */}
 
-      {/* Only render modals for logged-in users */}
+      {/* Only render deploy modal for logged-in users */}
       {currentUserId && (
-        <>
-          <DeployQuestModal
-            open={deployModalOpen}
-            onOpenChange={setDeployModalOpen}
-            coordinates={clickedCoords}
-            userId={currentUserId}
-            userBaseLat={locationLat ?? userLat}
-            userBaseLng={locationLng ?? userLng}
-            onSuccess={(newQuest) => {
-              setQuests(prev => [...prev, newQuest]);
-            }}
-          />
-
-          <QuestLobby
-            open={lobbyOpen}
-            onOpenChange={setLobbyOpen}
-            quest={selectedQuest}
-            currentUserId={currentUserId}
-            onDelete={fetchQuests}
-            onJoin={(questId) => {
-              setJoinedQuestIds(prev => new Set([...prev, questId]));
-            }}
-            onLeave={(questId) => {
-              setJoinedQuestIds(prev => {
-                const next = new Set(prev);
-                next.delete(questId);
-                return next;
-              });
-            }}
-            onUpdate={(updatedQuest) => {
-              setQuests(prev => prev.map(q => q.id === updatedQuest.id ? updatedQuest : q));
-              setSelectedQuest(updatedQuest);
-            }}
-            onViewUserProfile={(user) => {
-              const userLat = user.location_lat;
-              const userLng = user.location_lng;
-              if (userLat && userLng) {
-                flyTo(userLat, userLng);
-                setTimeout(() => {
-                  setSelectedUser({
-                    id: user.id,
-                    nick: user.nick,
-                    avatar_url: user.avatar_url,
-                    avatar_config: user.avatar_config,
-                    tags: user.tags,
-                    bio: user.bio,
-                    location_lat: user.location_lat,
-                    location_lng: user.location_lng,
-                    is_active: true,
-                  });
-                  setSelectedUserCoords({ lat: userLat, lng: userLng });
-                }, 300);
-              }
-            }}
-          />
-        </>
+        <DeployQuestModal
+          open={deployModalOpen}
+          onOpenChange={setDeployModalOpen}
+          coordinates={clickedCoords}
+          userId={currentUserId}
+          userBaseLat={locationLat ?? userLat}
+          userBaseLng={locationLng ?? userLng}
+          onSuccess={(newQuest) => {
+            setQuests(prev => [...prev, newQuest]);
+          }}
+        />
       )}
+
+      {/* Guest Prompt Modal - for any user */}
+      <GuestPromptModal
+        open={guestPromptOpen}
+        onOpenChange={setGuestPromptOpen}
+        variant={guestPromptVariant}
+      />
+
+      {/* Quest Lobby - allow guests to view (restrictions inside) */}
+      <QuestLobby
+        open={lobbyOpen}
+        onOpenChange={setLobbyOpen}
+        quest={selectedQuest}
+        currentUserId={currentUserId}
+        onDelete={fetchQuests}
+        onJoin={(questId) => {
+          setJoinedQuestIds(prev => new Set([...prev, questId]));
+        }}
+        onLeave={(questId) => {
+          setJoinedQuestIds(prev => {
+            const next = new Set(prev);
+            next.delete(questId);
+            return next;
+          });
+        }}
+        onUpdate={(updatedQuest) => {
+          setQuests(prev => prev.map(q => q.id === updatedQuest.id ? updatedQuest : q));
+          setSelectedQuest(updatedQuest);
+        }}
+        onViewUserProfile={(user) => {
+          const userLat = user.location_lat;
+          const userLng = user.location_lng;
+          if (userLat && userLng) {
+            flyTo(userLat, userLng);
+            setTimeout(() => {
+              setSelectedUser({
+                id: user.id,
+                nick: user.nick,
+                avatar_url: user.avatar_url,
+                avatar_config: user.avatar_config,
+                tags: user.tags,
+                bio: user.bio,
+                location_lat: user.location_lat,
+                location_lng: user.location_lng,
+                is_active: true,
+              });
+              setSelectedUserCoords({ lat: userLat, lng: userLng });
+            }, 300);
+          }
+        }}
+      />
     </>
   );
 });

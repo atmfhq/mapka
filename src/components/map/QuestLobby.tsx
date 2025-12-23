@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, isToday } from 'date-fns';
-import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon } from 'lucide-react';
+import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,7 +62,7 @@ interface QuestLobbyProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   quest: Quest | null;
-  currentUserId: string;
+  currentUserId: string | null;
   onDelete: () => void;
   onJoin?: (questId: string) => void;
   onLeave?: (questId: string) => void;
@@ -114,6 +115,7 @@ const QuestLobby = ({
   onUpdate,
   onViewUserProfile
 }: QuestLobbyProps) => {
+  const navigate = useNavigate();
   const [host, setHost] = useState<Profile | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(false);
@@ -130,8 +132,9 @@ const QuestLobby = ({
   const [editCategory, setEditCategory] = useState<ActivityCategory | null>(null);
   const [editActivity, setEditActivity] = useState<string | null>(null);
 
+  const isGuest = !currentUserId;
   const isHost = quest?.host_id === currentUserId;
-  const canAccessChat = isHost || hasJoined;
+  const canAccessChat = (isHost || hasJoined) && !isGuest;
 
   // Get activities for selected category
   const categoryActivities = useMemo(() => {
@@ -745,7 +748,18 @@ const QuestLobby = ({
 
               {/* Actions */}
               <div className="space-y-3 pt-4 border-t border-border/50">
-                {isHost ? (
+                {isGuest ? (
+                  <Button 
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka min-h-[52px] text-base"
+                    onClick={() => {
+                      onOpenChange(false);
+                      navigate('/auth');
+                    }}
+                  >
+                    <LogIn className="w-5 h-5 mr-2" />
+                    Login to Join
+                  </Button>
+                ) : isHost ? (
                   <div className="flex gap-2">
                     <Button 
                       variant="outline" 
