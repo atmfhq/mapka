@@ -7,7 +7,6 @@ import TacticalMap, { TacticalMapHandle } from "@/components/map/TacticalMap";
 import Navbar from "@/components/map/Navbar";
 import GuestNavbar from "@/components/map/GuestNavbar";
 import MapFilterHUD from "@/components/map/MapFilterHUD";
-import MapSearchBar from "@/components/map/MapSearchBar";
 import LoadingScreen from "@/components/LoadingScreen";
 import { useToast } from "@/hooks/use-toast";
 
@@ -165,29 +164,31 @@ const Dashboard = () => {
   const mapLng = isGuest ? guestLng : (currentLocation.lng ?? profile?.location_lng ?? activeAreaLng);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-background">
-      {/* Map Layer */}
-      <TacticalMap 
-        ref={mapRef}
-        userLat={mapLat}
-        userLng={mapLng}
-        baseLat={mapLat}
-        baseLng={mapLng}
-        currentUserId={user?.id ?? null}
-        activeActivities={activeActivities}
-        dateFilter={dateFilter}
-        currentUserAvatarConfig={profile?.avatar_config as AvatarConfig | null}
-        locationLat={isGuest ? guestLat : currentLocation.lat}
-        locationLng={isGuest ? guestLng : currentLocation.lng}
-        isGhostMode={isGuest || !isActive}
-        isGuest={isGuest}
-        onOpenChatWithUser={handleOpenChatWithUser}
-        onCloseChat={handleCloseChat}
-      />
+    <div className="fixed inset-0 overflow-hidden bg-background">
+      {/* Map Layer - z-0 base layer */}
+      <div className="absolute inset-0 z-0">
+        <TacticalMap 
+          ref={mapRef}
+          userLat={mapLat}
+          userLng={mapLng}
+          baseLat={mapLat}
+          baseLng={mapLng}
+          currentUserId={user?.id ?? null}
+          activeActivities={activeActivities}
+          dateFilter={dateFilter}
+          currentUserAvatarConfig={profile?.avatar_config as AvatarConfig | null}
+          locationLat={isGuest ? guestLat : currentLocation.lat}
+          locationLng={isGuest ? guestLng : currentLocation.lng}
+          isGhostMode={isGuest || !isActive}
+          isGuest={isGuest}
+          onOpenChatWithUser={handleOpenChatWithUser}
+          onCloseChat={handleCloseChat}
+        />
+      </div>
 
-      {/* Navbar - different for guest vs logged-in */}
+      {/* Navbar - z-50 floating above everything */}
       {isGuest ? (
-        <GuestNavbar />
+        <GuestNavbar onFlyTo={handleFlyTo} />
       ) : (
         <Navbar
           nick={profile?.nick || "Adventurer"}
@@ -202,18 +203,12 @@ const Dashboard = () => {
           onFlyToQuest={handleFlyToQuest}
           chatOpenUserId={chatOpenUserId}
           onChatOpenChange={handleChatOpenChange}
+          onFlyTo={handleFlyTo}
+          onLocationUpdated={handleLocationUpdated}
         />
       )}
 
-      {/* Search Bar - replaces relocate modal */}
-      <MapSearchBar
-        onFlyTo={handleFlyTo}
-        isGuest={isGuest}
-        currentUserId={user?.id}
-        onLocationUpdated={handleLocationUpdated}
-      />
-
-      {/* Map Filter HUD - Floating below navbar */}
+      {/* Map Filter HUD - z-40 below navbar */}
       <MapFilterHUD
         activeActivities={activeActivities}
         onActivityToggle={handleActivityToggle}
@@ -222,9 +217,9 @@ const Dashboard = () => {
         onDateFilterChange={setDateFilter}
       />
 
-      {/* Status indicator - positioned for mobile safe area */}
-      <div className="absolute bottom-4 left-4 z-20 safe-area-bottom safe-area-left">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/90 backdrop-blur-md border-2 border-border shadow-hard-sm">
+      {/* Status indicator - z-30 floating bottom left */}
+      <div className="fixed bottom-4 left-4 z-30 safe-area-bottom safe-area-left">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/95 backdrop-blur-md border-2 border-border shadow-hard">
           <div className={`w-2 h-2 rounded-full ${isGuest ? 'bg-muted-foreground' : 'bg-success'} animate-pulse`} />
           <span className="font-nunito text-xs font-medium text-foreground/80 hidden sm:block">
             {isGuest ? 'Guest Mode' : 'Adventure Mode'}

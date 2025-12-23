@@ -18,8 +18,8 @@ const MapFilterHUD = ({
   onDateFilterChange,
 }: MapFilterHUDProps) => {
   return (
-    <div className="absolute top-[60px] sm:top-[64px] left-0 right-0 z-20 pointer-events-none">
-      <div className="container mx-auto px-3 sm:px-4 pt-3 pointer-events-auto">
+    <div className="fixed top-20 left-0 right-0 z-40 pointer-events-none">
+      <div className="container mx-auto px-3 sm:px-4 pointer-events-auto">
         <FilterBar 
           activeActivities={activeActivities} 
           onActivityToggle={onActivityToggle}
