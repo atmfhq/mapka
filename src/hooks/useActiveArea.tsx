@@ -11,6 +11,11 @@ interface ActiveAreaResult {
   loading: boolean;
 }
 
+/**
+ * Hook to find an active area for guests to view.
+ * Privacy-first: Never uses device GPS/geolocation.
+ * Falls back to a default location if no public quests exist.
+ */
 export const useActiveArea = (): ActiveAreaResult => {
   const [location, setLocation] = useState<{ lat: number; lng: number }>({
     lat: FALLBACK_LAT,
@@ -21,7 +26,7 @@ export const useActiveArea = (): ActiveAreaResult => {
   useEffect(() => {
     const fetchActiveArea = async () => {
       try {
-        // First, try to get the most recently created public megaphone
+        // Try to get the most recently created public megaphone
         const { data: recentMegaphone, error: megaphoneError } = await supabase
           .from('megaphones')
           .select('lat, lng')
@@ -32,31 +37,12 @@ export const useActiveArea = (): ActiveAreaResult => {
 
         if (!megaphoneError && recentMegaphone) {
           setLocation({ lat: recentMegaphone.lat, lng: recentMegaphone.lng });
-          setLoading(false);
-          return;
         }
-
-        // Fallback: try browser geolocation
-        if ('geolocation' in navigator) {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              setLocation({
-                lat: position.coords.latitude,
-                lng: position.coords.longitude,
-              });
-              setLoading(false);
-            },
-            () => {
-              // Geolocation denied or failed, keep fallback
-              setLoading(false);
-            },
-            { timeout: 5000, maximumAge: 600000 }
-          );
-        } else {
-          setLoading(false);
-        }
+        // Otherwise keep the default fallback location
+        // No GPS/geolocation used - privacy first!
       } catch (error) {
         console.error('Error fetching active area:', error);
+      } finally {
         setLoading(false);
       }
     };
