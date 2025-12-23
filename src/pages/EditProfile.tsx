@@ -181,10 +181,10 @@ const EditProfile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-dvh bg-background overflow-y-auto">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
       
-      <div className="relative z-10 w-full max-w-2xl">
+      <div className="relative z-10 w-full max-w-2xl mx-auto p-4 py-8 pb-safe">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
@@ -350,6 +350,9 @@ const EditProfile = () => {
             )}
           </Button>
         </div>
+
+        {/* Bottom breathing room */}
+        <div className="h-8" />
       </div>
     </div>
   );

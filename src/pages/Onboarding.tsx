@@ -175,10 +175,10 @@ const Onboarding = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background tactical-grid flex items-center justify-center p-4">
+    <div className="min-h-dvh bg-background tactical-grid overflow-y-auto">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
       
-      <div className="relative z-10 w-full max-w-2xl">
+      <div className="relative z-10 w-full max-w-2xl mx-auto p-4 py-8 pb-safe">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
@@ -198,7 +198,7 @@ const Onboarding = () => {
         <TacticalStepper currentStep={step} steps={steps} />
 
         {/* Step Content */}
-        <TacticalCard className="mb-6 max-h-[60vh] overflow-y-auto">
+        <TacticalCard className="mb-6">
           {/* Step 0: Identity */}
           {step === 0 && (
             <div className="space-y-6 animate-fade-in-up">
@@ -371,6 +371,9 @@ const Onboarding = () => {
             </Button>
           )}
         </div>
+
+        {/* Bottom breathing room */}
+        <div className="h-8" />
       </div>
     </div>
   );
