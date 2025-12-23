@@ -2,6 +2,13 @@ import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 /**
+ * Global, static broadcast room for map movement.
+ * "Connect once, listen forever" to avoid room drift.
+ */
+const GLOBAL_MAP_CHANNEL = 'global_map_broadcast';
+const MAX_DISTANCE_METERS = 50_000; // 50km client-side filter
+
+/**
  * Broadcast payload for live position updates.
  * Contains ALL data needed to render the avatar - NO RPC refetch required.
  */
@@ -37,14 +44,10 @@ export interface ProfileData {
 interface UseProfilesRealtimeOptions {
   /** Current user's ID */
   currentUserId?: string | null;
-  /** Current user's lat/lng (used for channel scoping) */
+  /** Current user's lat/lng (used ONLY for client-side filtering) */
   userLat?: number;
   userLng?: number;
-  /**
-   * Discovery radius used by the map (meters).
-   * We subscribe to all grid cells that intersect this radius so passive updates work
-   * even when the current user is idle.
-   */
+  /** (kept for API compatibility, not used for channel selection anymore) */
   radiusMeters?: number;
   /** Called with the updated profile data for surgical marker updates */
   onProfileUpdate?: (profile: ProfileData) => void;
@@ -53,68 +56,86 @@ interface UseProfilesRealtimeOptions {
   enabled?: boolean;
 }
 
-// Round to 2 decimal places for channel scoping (~1km grid cells)
-const getChannelKey = (lat: number, lng: number): string => {
-  const roundedLat = Math.round(lat * 100) / 100;
-  const roundedLng = Math.round(lng * 100) / 100;
-  return `map-presence-${roundedLat}-${roundedLng}`;
-};
+const toRad = (deg: number) => (deg * Math.PI) / 180;
 
-const GRID_STEP_DEG = 0.01; // matches getChannelKey 2dp rounding
-const METERS_PER_DEG_LAT = 111_320;
-
-// Get surrounding channel keys for passive coverage within a radius
-const getAdjacentChannelKeys = (lat: number, lng: number, radiusMeters?: number): string[] => {
-  const roundedLat = Math.round(lat * 100) / 100;
-  const roundedLng = Math.round(lng * 100) / 100;
-
-  // Backwards-compatible default: 3x3 grid around current cell
-  const stepsLat =
-    radiusMeters === undefined
-      ? 1
-      : Math.max(1, Math.ceil(radiusMeters / (METERS_PER_DEG_LAT * GRID_STEP_DEG)));
-
-  // Longitude degrees shrink by latitude; compensate so east/west coverage matches radius.
-  const metersPerDegLng = METERS_PER_DEG_LAT * Math.cos((roundedLat * Math.PI) / 180);
-  const stepsLng =
-    radiusMeters === undefined
-      ? 1
-      : Math.max(1, Math.ceil(radiusMeters / (Math.max(1, metersPerDegLng) * GRID_STEP_DEG)));
-
-  console.log('[Broadcast] Channel coverage:', { radiusMeters, stepsLat, stepsLng });
-
-  const channels: string[] = [];
-
-  for (let dLat = -stepsLat * GRID_STEP_DEG; dLat <= stepsLat * GRID_STEP_DEG; dLat += GRID_STEP_DEG) {
-    for (let dLng = -stepsLng * GRID_STEP_DEG; dLng <= stepsLng * GRID_STEP_DEG; dLng += GRID_STEP_DEG) {
-      const cellLat = Math.round((roundedLat + dLat) * 100) / 100;
-      const cellLng = Math.round((roundedLng + dLng) * 100) / 100;
-      channels.push(`map-presence-${cellLat}-${cellLng}`);
-    }
-  }
-
-  return [...new Set(channels)];
+// Haversine distance in meters
+const distanceMeters = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+  const R = 6371_000; // meters
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
 };
 
 export const useProfilesRealtime = ({
   currentUserId,
   userLat,
   userLng,
-  radiusMeters,
   onProfileUpdate,
   onBounceUpdate,
-  enabled = true
+  enabled = true,
 }: UseProfilesRealtimeOptions) => {
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const lastBounceTimestamps = useRef<Map<string, string>>(new Map());
-  const channelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
 
-  // Handle incoming broadcast message - USE PAYLOAD DIRECTLY, NO RPC FETCH
-  const handleBroadcast = useCallback((payload: { payload: ProfileBroadcastPayload }) => {
-    const { 
-      user_id, 
-      event_type, 
-      lat, 
-      lng, 
+  // Refs to avoid stale closures without re-subscribing
+  const enabledRef = useRef(enabled);
+  const currentUserIdRef = useRef<string | null | undefined>(currentUserId);
+  const userCoordsRef = useRef<{ lat?: number; lng?: number }>({ lat: userLat, lng: userLng });
+  const onProfileUpdateRef = useRef(onProfileUpdate);
+  const onBounceUpdateRef = useRef(onBounceUpdate);
+
+  useEffect(() => {
+    enabledRef.current = enabled;
+  }, [enabled]);
+
+  useEffect(() => {
+    currentUserIdRef.current = currentUserId;
+  }, [currentUserId]);
+
+  useEffect(() => {
+    userCoordsRef.current = { lat: userLat, lng: userLng };
+  }, [userLat, userLng]);
+
+  useEffect(() => {
+    onProfileUpdateRef.current = onProfileUpdate;
+  }, [onProfileUpdate]);
+
+  useEffect(() => {
+    onBounceUpdateRef.current = onBounceUpdate;
+  }, [onBounceUpdate]);
+
+  const shouldAcceptEvent = useCallback((eventLat: number, eventLng: number) => {
+    const { lat, lng } = userCoordsRef.current;
+
+    // If we don't know viewer coords yet, accept (prevents "no updates until move")
+    if (lat === undefined || lng === undefined) return true;
+
+    const d = distanceMeters(lat, lng, eventLat, eventLng);
+    const ok = d <= MAX_DISTANCE_METERS;
+
+    if (!ok) {
+      console.log('[Broadcast] Ignoring event (too far):', { d_meters: Math.round(d) });
+    }
+
+    return ok;
+  }, []);
+
+  // Stable handler: uses refs only (no stale closures, no resubscribe)
+  const handleBroadcast = useCallback((raw: any) => {
+    if (!enabledRef.current) return;
+
+    const payload: ProfileBroadcastPayload | undefined = raw?.payload;
+    if (!payload) return;
+
+    const {
+      user_id,
+      event_type,
+      lat,
+      lng,
       timestamp,
       nick,
       avatar_config,
@@ -122,104 +143,76 @@ export const useProfilesRealtime = ({
       tags,
       bio,
       is_active,
-      last_bounce_at
-    } = payload.payload;
+      last_bounce_at,
+    } = payload;
 
     // Skip our own broadcasts (only if logged in)
-    if (currentUserId && user_id === currentUserId) {
-      console.log('[Broadcast] Ignoring own broadcast');
-      return;
+    const me = currentUserIdRef.current;
+    if (me && user_id === me) return;
+
+    console.log('[Broadcast] Received POS_UPDATE:', { user_id, event_type, lat, lng });
+
+    // Client-side distance filter
+    if (!shouldAcceptEvent(lat, lng)) return;
+
+    const profile: ProfileData = {
+      id: user_id,
+      nick: nick ?? null,
+      location_lat: lat,
+      location_lng: lng,
+      avatar_config: avatar_config ?? null,
+      avatar_url: avatar_url ?? null,
+      tags: tags ?? null,
+      bio: bio ?? null,
+      is_active: is_active ?? true,
+      last_bounce_at: last_bounce_at ?? null,
+    };
+
+    if (event_type === 'location_update' || event_type === 'status_change') {
+      onProfileUpdateRef.current?.(profile);
     }
 
-    console.log('[Broadcast] Received:', { user_id, event_type, lat, lng });
-
-    if (event_type === 'location_update' && onProfileUpdate) {
-      // DIRECT UPDATE from broadcast payload - NO RPC CALL
-      const profile: ProfileData = {
-        id: user_id,
-        nick: nick ?? null,
-        location_lat: lat,
-        location_lng: lng,
-        avatar_config: avatar_config ?? null,
-        avatar_url: avatar_url ?? null,
-        tags: tags ?? null,
-        bio: bio ?? null,
-        is_active: is_active ?? true,
-        last_bounce_at: last_bounce_at ?? null
-      };
-      console.log('[Broadcast] ✓ Direct profile update from payload:', profile.id);
-      onProfileUpdate(profile);
-    }
-
-    if (event_type === 'bounce' && onBounceUpdate) {
+    if (event_type === 'bounce') {
       const lastKnownBounce = lastBounceTimestamps.current.get(user_id);
       if (timestamp !== lastKnownBounce) {
         lastBounceTimestamps.current.set(user_id, timestamp);
-        onBounceUpdate(user_id, timestamp);
+        onBounceUpdateRef.current?.(user_id, timestamp);
       }
     }
+  }, [shouldAcceptEvent]);
 
-    if (event_type === 'status_change' && onProfileUpdate) {
-      const profile: ProfileData = {
-        id: user_id,
-        nick: nick ?? null,
-        location_lat: lat,
-        location_lng: lng,
-        avatar_config: avatar_config ?? null,
-        avatar_url: avatar_url ?? null,
-        tags: tags ?? null,
-        bio: bio ?? null,
-        is_active: is_active ?? true,
-        last_bounce_at: last_bounce_at ?? null
-      };
-      onProfileUpdate(profile);
-    }
-  }, [currentUserId, onProfileUpdate, onBounceUpdate]);
-
+  // Connect ONCE on mount, clean up on unmount.
+  // IMPORTANT: no userLat/userLng dependencies here.
   useEffect(() => {
-    // Subscribe for EVERYONE (guests included) as long as we have coordinates
-    if (!enabled || userLat === undefined || userLng === undefined) {
-      return;
-    }
+    console.log('[Broadcast] Setting up GLOBAL subscription:', GLOBAL_MAP_CHANNEL);
 
-    const channelKeys = getAdjacentChannelKeys(userLat, userLng, radiusMeters);
-    console.log('[Broadcast] Subscribing to channels (guest-friendly):', channelKeys, { currentUserId: currentUserId ?? 'GUEST' });
+    const channel = supabase
+      .channel(GLOBAL_MAP_CHANNEL)
+      // canonical
+      .on('broadcast', { event: 'POS_UPDATE' }, handleBroadcast)
+      // backwards compatibility
+      .on('broadcast', { event: 'profile_update' }, handleBroadcast)
+      .subscribe((status) => {
+        console.log('[Broadcast] Global subscription status:', status);
+      });
 
-    channelsRef.current = channelKeys.map(key => {
-      const channel = supabase
-        .channel(key)
-        // New canonical event name
-        .on('broadcast', { event: 'POS_UPDATE' }, handleBroadcast)
-        // Backwards compatibility
-        .on('broadcast', { event: 'profile_update' }, handleBroadcast)
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            console.log('[Broadcast] ✓ Subscribed to:', key);
-          }
-        });
-      return channel;
-    });
+    channelRef.current = channel;
 
     return () => {
-      console.log('[Broadcast] Cleaning up channels');
-      channelsRef.current.forEach(channel => {
-        supabase.removeChannel(channel);
-      });
-      channelsRef.current = [];
+      console.log('[Broadcast] Cleaning up GLOBAL subscription');
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
     };
-  }, [enabled, currentUserId, userLat, userLng, radiusMeters, handleBroadcast]);
+  }, [handleBroadcast]);
 
   return null;
 };
 
 /**
- * Broadcast a profile update to nearby users.
+ * Broadcast a profile update to the GLOBAL room.
  * IMPORTANT: Include FULL profile data so receivers don't need RPC calls.
- * 
- * @param profile - Full profile data including avatar_config, nick, etc.
- * @param lat - Current latitude
- * @param lng - Current longitude  
- * @param eventType - Type of update
  */
 export const broadcastProfileUpdate = async (
   profile: {
@@ -236,36 +229,29 @@ export const broadcastProfileUpdate = async (
   lng: number,
   eventType: 'location_update' | 'bounce' | 'status_change' = 'location_update'
 ) => {
-  const channelKey = getChannelKey(lat, lng);
-  
-  console.log('[Broadcast] Sending update to channel:', channelKey, { userId: profile.id, eventType });
-  
-  const channel = supabase.channel(channelKey);
-  
+  console.log('[Broadcast] Sending POS_UPDATE (GLOBAL):', { userId: profile.id, eventType, lat, lng });
+
+  const channel = supabase.channel(GLOBAL_MAP_CHANNEL);
+
   const payload: ProfileBroadcastPayload = {
     user_id: profile.id,
     event_type: eventType,
     lat,
     lng,
     timestamp: new Date().toISOString(),
-    // Include full avatar data for direct rendering
     nick: profile.nick,
     avatar_config: profile.avatar_config,
     avatar_url: profile.avatar_url,
     tags: profile.tags,
     bio: profile.bio,
     is_active: profile.is_active ?? true,
-    last_bounce_at: profile.last_bounce_at
+    last_bounce_at: profile.last_bounce_at,
   };
-  
+
   await channel.subscribe((status) => {
     if (status === 'SUBSCRIBED') {
-      channel.send({
-        type: 'broadcast',
-        event: 'POS_UPDATE',
-        payload
-      });
-      
+      channel.send({ type: 'broadcast', event: 'POS_UPDATE', payload });
+
       // Cleanup after sending
       setTimeout(() => {
         supabase.removeChannel(channel);
@@ -275,7 +261,7 @@ export const broadcastProfileUpdate = async (
 };
 
 /**
- * Legacy wrapper for simple broadcast calls.
+ * Wrapper for simple broadcast calls.
  * Fetches current user's profile and broadcasts it.
  */
 export const broadcastCurrentUserUpdate = async (
@@ -284,18 +270,17 @@ export const broadcastCurrentUserUpdate = async (
   lng: number,
   eventType: 'location_update' | 'bounce' | 'status_change' = 'location_update'
 ) => {
-  // Fetch current user's profile data for the broadcast
   const { data } = await supabase
     .from('profiles')
     .select('nick, avatar_config, avatar_url, tags, bio, is_active, last_bounce_at')
     .eq('id', userId)
     .single();
-  
+
   if (!data) {
     console.error('[Broadcast] Failed to fetch profile for broadcast');
     return;
   }
-  
+
   await broadcastProfileUpdate(
     {
       id: userId,
@@ -305,7 +290,7 @@ export const broadcastCurrentUserUpdate = async (
       tags: data.tags,
       bio: data.bio,
       is_active: data.is_active,
-      last_bounce_at: data.last_bounce_at
+      last_bounce_at: data.last_bounce_at,
     },
     lat,
     lng,
