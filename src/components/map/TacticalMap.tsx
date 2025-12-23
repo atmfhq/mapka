@@ -476,16 +476,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     
     if (distance < 0.00001) return; // Less than ~1m, skip
     
-    // Trigger pulse animation on the avatar marker
-    const avatarDiv = existing.element.querySelector('.user-avatar-marker');
-    if (avatarDiv) {
-      avatarDiv.classList.add('user-move-pulse');
-      // Remove after animation completes
-      setTimeout(() => {
-        avatarDiv.classList.remove('user-move-pulse');
-      }, 1000);
-    }
-    
     const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
     
     const animate = (currentTime: number) => {
@@ -1596,21 +1586,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         /* Connected user - same clean look */
         .user-avatar-marker.connected {
           /* no extra styling */
-        }
-        /* Pulse animation when user moves in realtime */
-        .user-avatar-marker.user-move-pulse {
-          animation: user-move-pulse 1s ease-out;
-        }
-        @keyframes user-move-pulse {
-          0% {
-            box-shadow: 0 0 0 0 hsl(var(--primary) / 0.7);
-          }
-          50% {
-            box-shadow: 0 0 0 12px hsl(var(--primary) / 0);
-          }
-          100% {
-            box-shadow: 0 0 0 0 hsl(var(--primary) / 0);
-          }
         }
         .my-marker {
           cursor: pointer;
