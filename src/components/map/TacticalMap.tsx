@@ -1063,11 +1063,17 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     // Skip if map style not ready yet
     if (!mapStyleLoaded) return;
 
-    // Use location_lat/lng
-    const myLat = locationLat ?? userLat;
-    const myLng = locationLng ?? userLng;
+    // Use location_lat/lng from DB as the base coordinates
+    const baseLat = locationLat ?? userLat;
+    const baseLng = locationLng ?? userLng;
 
-    if (!myLat || !myLng) return;
+    if (!baseLat || !baseLng || !currentUserId) return;
+
+    // CRITICAL: Apply the SAME deterministic jitter as other users see
+    // This ensures "where I see myself" = "where others see me"
+    const offset = getDeterministicOffset(currentUserId);
+    const myLat = baseLat + offset.lat;
+    const myLng = baseLng + offset.lng;
 
     const el = document.createElement('div');
     el.className = `my-marker ${isGhostMode ? 'ghost-mode' : ''}`;
