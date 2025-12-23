@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-// Fallback to Warsaw if no activity found
-const FALLBACK_LAT = 52.2297;
-const FALLBACK_LNG = 21.0122;
+// Fallback to Poznan if no activity found
+const FALLBACK_LAT = 52.4064;
+const FALLBACK_LNG = 16.9252;
 
 interface ActiveAreaResult {
   lat: number;
