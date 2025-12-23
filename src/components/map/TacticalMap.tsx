@@ -437,16 +437,82 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     );
   }, [currentUserId, profiles, connectedUserIds]);
 
-  // Realtime subscription for live multiplayer updates
+  // Surgical update of a single user's marker position (no full refetch)
+  const updateUserMarkerPosition = useCallback((userId: string, newLat: number, newLng: number) => {
+    const existing = userMarkersMapRef.current.get(userId);
+    if (!existing) {
+      // User not currently on map - might need to add them, trigger a light refresh
+      console.log('[Realtime] User not on map, adding to profiles:', userId);
+      setProfiles(prev => {
+        // Will be added on next fetch if in range
+        return prev;
+      });
+      return;
+    }
+    
+    // Calculate jittered position (same formula as initial render)
+    const offset = getDeterministicOffset(userId);
+    const jitteredLat = newLat + offset.lat;
+    const jitteredLng = newLng + offset.lng;
+    
+    // Smooth fly animation to new position
+    const marker = existing.marker;
+    const currentPos = marker.getLngLat();
+    const duration = 800;
+    const startTime = performance.now();
+    const startLng = currentPos.lng;
+    const startLat = currentPos.lat;
+    
+    const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+    
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easedProgress = easeOutCubic(progress);
+      
+      const newLng = startLng + (jitteredLng - startLng) * easedProgress;
+      const newLat = startLat + (jitteredLat - startLat) * easedProgress;
+      
+      marker.setLngLat([newLng, newLat]);
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+    
+    console.log('[Realtime] ✓ Animating user marker to new position:', userId);
+    requestAnimationFrame(animate);
+  }, []);
+
+  // Realtime subscription for live multiplayer updates - SURGICAL UPDATES
   useProfilesRealtime({
     enabled: !isGuest,
-    onLocationUpdate: useCallback((userId: string) => {
+    onProfileUpdate: useCallback((profile: any) => {
       // Skip our own updates
-      if (userId === currentUserId) return;
-      console.log('[Realtime] Refetching profiles due to location change from user:', userId);
-      // Refetch all profiles to get updated positions
-      fetchProfiles();
-    }, [currentUserId, fetchProfiles]),
+      if (profile.id === currentUserId) return;
+      
+      if (profile.location_lat && profile.location_lng) {
+        // Surgical update - only move this specific user's marker
+        updateUserMarkerPosition(profile.id, profile.location_lat, profile.location_lng);
+        
+        // Also update local profiles state for consistency
+        setProfiles(prev => {
+          const exists = prev.some(p => p.id === profile.id);
+          if (exists) {
+            return prev.map(p => p.id === profile.id ? { ...p, ...profile } : p);
+          } else {
+            // New user appeared - add to list
+            return [...prev, profile];
+          }
+        });
+      }
+      
+      // Handle is_active changes
+      if (profile.is_active === false) {
+        // User went inactive - remove from profiles
+        setProfiles(prev => prev.filter(p => p.id !== profile.id));
+      }
+    }, [currentUserId, updateUserMarkerPosition]),
     onBounceUpdate: triggerRemoteUserBounce
   });
 

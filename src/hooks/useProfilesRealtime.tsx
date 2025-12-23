@@ -15,17 +15,20 @@ interface ProfilePayload {
 }
 
 interface UseProfilesRealtimeOptions {
-  onLocationUpdate?: (userId: string) => void;
+  /** Called with the full updated profile data for surgical marker updates */
+  onProfileUpdate?: (profile: ProfilePayload) => void;
+  /** Called when a bounce is detected */
   onBounceUpdate?: (userId: string, bounceAt: string) => void;
   enabled?: boolean;
 }
 
 export const useProfilesRealtime = ({
-  onLocationUpdate,
+  onProfileUpdate,
   onBounceUpdate,
   enabled = true
 }: UseProfilesRealtimeOptions) => {
   const lastBounceTimestamps = useRef<Map<string, string>>(new Map());
+  const lastLocationTimestamps = useRef<Map<string, string>>(new Map());
 
   const handleProfileChange = useCallback((
     payload: RealtimePostgresChangesPayload<ProfilePayload>
@@ -37,37 +40,46 @@ export const useProfilesRealtime = ({
     
     if (!newRecord?.id) return;
 
-    console.log('[Realtime] Profile update received:', {
-      userId: newRecord.id,
-      nick: newRecord.nick,
-      locationChanged: oldRecord?.location_lat !== newRecord.location_lat || 
-                       oldRecord?.location_lng !== newRecord.location_lng,
-      bounceChanged: oldRecord?.last_bounce_at !== newRecord.last_bounce_at
-    });
-
-    // Check if location changed (teleport)
     const locationChanged = 
       oldRecord?.location_lat !== newRecord.location_lat ||
       oldRecord?.location_lng !== newRecord.location_lng;
     
-    if (locationChanged && onLocationUpdate) {
-      console.log('[Realtime] Location update detected for user:', newRecord.id);
-      onLocationUpdate(newRecord.id);
+    const bounceChanged = oldRecord?.last_bounce_at !== newRecord.last_bounce_at;
+
+    console.log('[Realtime] Profile update received:', {
+      userId: newRecord.id,
+      nick: newRecord.nick,
+      locationChanged,
+      bounceChanged,
+      newLat: newRecord.location_lat,
+      newLng: newRecord.location_lng
+    });
+
+    // Handle location change - send full profile for surgical update
+    if (locationChanged && onProfileUpdate) {
+      console.log('[Realtime] ✓ Surgical location update for user:', newRecord.id);
+      onProfileUpdate(newRecord);
     }
 
-    // Check if bounce happened
+    // Handle bounce - trigger animation
     const lastKnownBounce = lastBounceTimestamps.current.get(newRecord.id);
     const currentBounce = newRecord.last_bounce_at;
     
     if (currentBounce && currentBounce !== lastKnownBounce) {
-      console.log('[Realtime] Bounce detected for user:', newRecord.id);
+      console.log('[Realtime] ✓ Bounce detected for user:', newRecord.id);
       lastBounceTimestamps.current.set(newRecord.id, currentBounce);
       
       if (onBounceUpdate) {
         onBounceUpdate(newRecord.id, currentBounce);
       }
     }
-  }, [onLocationUpdate, onBounceUpdate]);
+
+    // Also trigger profile update for is_active changes
+    if (oldRecord?.is_active !== newRecord.is_active && onProfileUpdate) {
+      console.log('[Realtime] ✓ Active status changed for user:', newRecord.id);
+      onProfileUpdate(newRecord);
+    }
+  }, [onProfileUpdate, onBounceUpdate]);
 
   useEffect(() => {
     if (!enabled) return;
