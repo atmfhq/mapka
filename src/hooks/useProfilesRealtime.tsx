@@ -96,33 +96,60 @@ export const useProfilesRealtime = ({
   const lastBounceTimestamps = useRef<Map<string, string>>(new Map());
   const channelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
 
-  // Fetch a single user's profile via secure RPC (gets fuzzed coords for others)
-  const fetchUserProfile = useCallback(async (userId: string) => {
+  // Fetch a single user's profile via RPC (fuzzed coords for non-self)
+  // For guests: use get_nearby_profiles with a tiny radius centered on the user
+  const fetchUserProfile = useCallback(async (userId: string, lat?: number, lng?: number) => {
     console.log('[Broadcast] Fetching profile for user:', userId);
 
-    const { data, error } = await supabase.rpc('get_public_profiles_by_ids', {
-      user_ids: [userId]
-    });
+    // If logged in, use the authenticated RPC
+    if (currentUserId) {
+      const { data, error } = await supabase.rpc('get_public_profiles_by_ids', {
+        user_ids: [userId]
+      });
 
-    if (error) {
-      console.error('[Broadcast] Error fetching profile:', error);
+      if (error) {
+        console.error('[Broadcast] Error fetching profile:', error);
+        return null;
+      }
+
+      if (data && data.length > 0) {
+        console.log('[Broadcast] ✓ Got profile data:', data[0]);
+        return data[0] as unknown as ProfileData;
+      }
       return null;
     }
 
-    if (data && data.length > 0) {
-      console.log('[Broadcast] ✓ Got profile data:', data[0]);
-      return data[0] as unknown as ProfileData;
+    // For guests: fetch nearby profiles using the broadcast coordinates
+    // This works because get_nearby_profiles now allows anon access
+    if (lat !== undefined && lng !== undefined) {
+      const { data, error } = await supabase.rpc('get_nearby_profiles', {
+        p_lat: lat,
+        p_lng: lng,
+        p_radius_meters: 500 // Small radius to get just this user's area
+      });
+
+      if (error) {
+        console.error('[Broadcast] Error fetching profile for guest:', error);
+        return null;
+      }
+
+      // Find the specific user in the results
+      const profile = data?.find((p: any) => p.id === userId);
+      if (profile) {
+        console.log('[Broadcast] ✓ Got profile data for guest:', profile);
+        return profile as unknown as ProfileData;
+      }
     }
 
     return null;
-  }, []);
+  }, [currentUserId]);
 
   // Handle incoming broadcast message
   const handleBroadcast = useCallback(async (payload: { payload: ProfileBroadcast }) => {
     const { user_id, event_type, lat, lng, timestamp } = payload.payload;
 
-    // Skip our own broadcasts
-    if (user_id === currentUserId) {
+    // Skip our own broadcasts (only if logged in)
+    if (currentUserId && user_id === currentUserId) {
       console.log('[Broadcast] Ignoring own broadcast');
       return;
     }
@@ -130,8 +157,8 @@ export const useProfilesRealtime = ({
     console.log('[Broadcast] Received:', { user_id, event_type, lat, lng });
 
     if (event_type === 'location_update' && onProfileUpdate) {
-      // Fetch the user's profile via secure RPC (returns fuzzed coords)
-      const profile = await fetchUserProfile(user_id);
+      // Fetch the user's profile (pass coords for guest fallback)
+      const profile = await fetchUserProfile(user_id, lat, lng);
       if (profile) {
         onProfileUpdate(profile);
       }
@@ -146,7 +173,7 @@ export const useProfilesRealtime = ({
     }
 
     if (event_type === 'status_change' && onProfileUpdate) {
-      const profile = await fetchUserProfile(user_id);
+      const profile = await fetchUserProfile(user_id, lat, lng);
       if (profile) {
         onProfileUpdate(profile);
       }
@@ -154,12 +181,13 @@ export const useProfilesRealtime = ({
   }, [currentUserId, onProfileUpdate, onBounceUpdate, fetchUserProfile]);
 
   useEffect(() => {
-    if (!enabled || !currentUserId || userLat === undefined || userLng === undefined) {
+    // Subscribe for EVERYONE (guests included) as long as we have coordinates
+    if (!enabled || userLat === undefined || userLng === undefined) {
       return;
     }
 
     const channelKeys = getAdjacentChannelKeys(userLat, userLng, radiusMeters);
-    console.log('[Broadcast] Subscribing to channels:', channelKeys);
+    console.log('[Broadcast] Subscribing to channels (guest-friendly):', channelKeys, { currentUserId: currentUserId ?? 'GUEST' });
 
     channelsRef.current = channelKeys.map(key => {
       const channel = supabase

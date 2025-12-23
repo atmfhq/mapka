@@ -490,15 +490,16 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   }, []);
 
   // Realtime subscription for live multiplayer updates - SURGICAL UPDATES via Broadcast
+  // Now enabled for EVERYONE (including guests) for public "window shopping"
   useProfilesRealtime({
     currentUserId,
     userLat: locationLat ?? userLat,
     userLng: locationLng ?? userLng,
     radiusMeters: 5000,
-    enabled: !isGuest && !!currentUserId,
+    enabled: true, // Always enabled - guests can watch, only logged-in users can broadcast
     onProfileUpdate: useCallback((profile: any) => {
-      // Skip our own updates
-      if (profile.id === currentUserId) return;
+      // Skip our own updates (only applies to logged-in users)
+      if (currentUserId && profile.id === currentUserId) return;
       
       if (profile.location_lat && profile.location_lng) {
         // Surgical update - only move this specific user's marker
@@ -526,8 +527,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   });
 
   // Realtime subscription for live quest/megaphone updates
+  // Now enabled for guests too (public quests are visible to everyone)
   useMegaphonesRealtime({
-    enabled: !isGuest,
+    enabled: true, // Guests can see public quest updates
     onInsert: useCallback((megaphone: any) => {
       console.log('[Realtime] New quest created:', megaphone.id);
       // Add new quest to local state if within our area
