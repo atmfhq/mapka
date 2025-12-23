@@ -429,6 +429,30 @@ p.selectable {
   opacity: 1 !important;
 }
 
+/* Quest join pulse - animated glow when someone joins */
+@keyframes quest-join-pulse {
+  0% {
+    box-shadow: 0 0 0 0 hsl(var(--accent) / 0.8);
+    transform: scale(1);
+  }
+  30% {
+    box-shadow: 0 0 20px 10px hsl(var(--accent) / 0.6);
+    transform: scale(1.2);
+  }
+  60% {
+    box-shadow: 0 0 30px 15px hsl(var(--accent) / 0.3);
+    transform: scale(1.15);
+  }
+  100% {
+    box-shadow: 0 0 0 0 hsl(var(--accent) / 0);
+    transform: scale(1);
+  }
+}
+
+.quest-join-pulse {
+  animation: quest-join-pulse 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
 /* Border width 3 utility */
 .border-3 {
   border-width: 3px;
