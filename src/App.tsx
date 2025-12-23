@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import LoadingScreen from "@/components/LoadingScreen";
-import Index from "./pages/Index";
+
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
@@ -39,7 +39,6 @@ const App = () => (
           <Routes>
             {/* Map is now the default - accessible to guests */}
             <Route path="/" element={<Dashboard />} />
-            <Route path="/landing" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route
               path="/onboarding"
