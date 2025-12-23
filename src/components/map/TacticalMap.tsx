@@ -16,6 +16,7 @@ import { Json } from '@/integrations/supabase/types';
 import { ACTIVITIES, getCategoryForActivity, getActivityById } from '@/constants/activities';
 import { useConnectedUsers } from '@/hooks/useConnectedUsers';
 import { useProfilesRealtime } from '@/hooks/useProfilesRealtime';
+import { useMegaphonesRealtime } from '@/hooks/useMegaphonesRealtime';
 import { Button } from '@/components/ui/button';
 import { Crosshair, Plus, Minus, Compass, Users, UsersRound } from 'lucide-react';
 
@@ -446,6 +447,33 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       fetchProfiles();
     }, [currentUserId, fetchProfiles]),
     onBounceUpdate: triggerRemoteUserBounce
+  });
+
+  // Realtime subscription for live quest/megaphone updates
+  useMegaphonesRealtime({
+    enabled: !isGuest,
+    onInsert: useCallback((megaphone: any) => {
+      console.log('[Realtime] New quest created:', megaphone.id);
+      // Add new quest to local state if within our area
+      setQuests(prev => {
+        // Check if already exists
+        if (prev.some(q => q.id === megaphone.id)) return prev;
+        // Add to list - filtering will handle visibility
+        return [...prev, megaphone];
+      });
+    }, []),
+    onUpdate: useCallback((megaphone: any) => {
+      console.log('[Realtime] Quest updated:', megaphone.id);
+      // Update existing quest in local state
+      setQuests(prev => prev.map(q => 
+        q.id === megaphone.id ? { ...q, ...megaphone } : q
+      ));
+    }, []),
+    onDelete: useCallback((megaphoneId: string) => {
+      console.log('[Realtime] Quest deleted:', megaphoneId);
+      // Remove from local state
+      setQuests(prev => prev.filter(q => q.id !== megaphoneId));
+    }, []),
   });
 
   // Fetch nearby quests using spatial RPC
