@@ -272,9 +272,9 @@ const Navbar = ({
                 <SheetTrigger asChild>
                   <button 
                     onClick={() => setSettingsOpen(true)}
-                    className="w-11 h-11 p-0.5 bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-hard hover:border-primary/50 transition-colors"
+                    className="hover:scale-105 transition-transform"
                   >
-                    <AvatarDisplay config={avatarConfig} size={36} showGlow={false} />
+                    <AvatarDisplay config={avatarConfig} size={52} showGlow={false} />
                   </button>
                 </SheetTrigger>
                 <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh]">
