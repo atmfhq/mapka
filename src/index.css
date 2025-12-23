@@ -354,11 +354,40 @@ p.selectable {
   border-width: 3px;
 }
 
-/* Guest Spawn Cursor for map interaction */
+/* Tactical Map Cursor - Crosshair for precision feel */
+.mapboxgl-canvas-container {
+  cursor: crosshair !important;
+}
+
+.mapboxgl-canvas {
+  cursor: crosshair !important;
+}
+
+/* Grabbing cursor when actively panning */
+.mapboxgl-canvas-container.mapboxgl-interactive:active,
+.mapboxgl-canvas:active {
+  cursor: grabbing !important;
+}
+
+/* Guest Spawn Cursor - Custom icon for guests */
 .guest-spawn-cursor .mapboxgl-canvas-container {
   cursor: url('/assets/cursors/spawn-cursor.svg') 16 28, crosshair !important;
 }
 
 .guest-spawn-cursor .mapboxgl-canvas {
   cursor: url('/assets/cursors/spawn-cursor.svg') 16 28, crosshair !important;
+}
+
+/* Interactive elements on map should show pointer */
+.mapboxgl-marker,
+.user-marker,
+.quest-marker,
+.megaphone-marker,
+.my-marker {
+  cursor: pointer !important;
+}
+
+.mapboxgl-popup,
+.mapboxgl-popup-content {
+  cursor: auto !important;
 }
