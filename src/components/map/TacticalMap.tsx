@@ -54,13 +54,14 @@ interface TacticalMapProps {
   userLng: number;
   baseLat: number;
   baseLng: number;
-  currentUserId: string;
+  currentUserId: string | null;
   activeActivities: string[];
   dateFilter: DateFilter;
   currentUserAvatarConfig?: AvatarConfig | null;
   locationLat?: number | null;
   locationLng?: number | null;
   isGhostMode?: boolean;
+  isGuest?: boolean;
   onOpenChatWithUser?: (userId: string) => void;
   onCloseChat?: () => void;
 }
@@ -201,6 +202,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   locationLat,
   locationLng,
   isGhostMode = false,
+  isGuest = false,
   onOpenChatWithUser,
   onCloseChat
 }, ref) => {
@@ -226,8 +228,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const [isTacticalView, setIsTacticalView] = useState(true);
 
-  // Get connected users
-  const { connectedUserIds, getInvitationIdForUser, refetch: refetchConnections } = useConnectedUsers(currentUserId);
+  // Get connected users (skip for guests)
+  const { connectedUserIds, getInvitationIdForUser, refetch: refetchConnections } = useConnectedUsers(currentUserId ?? '');
 
   // Get active activity labels for filtering
   const activeActivityLabels = useMemo(() => 
@@ -359,8 +361,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     }
   }, [locationLat, locationLng, userLat, userLng]);
 
-  // Fetch quests the current user has joined
+  // Fetch quests the current user has joined (skip for guests)
   const fetchJoinedQuestIds = useCallback(async () => {
+    if (!currentUserId) {
+      setJoinedQuestIds(new Set());
+      return;
+    }
+    
     const { data, error } = await supabase
       .from('event_participants')
       .select('event_id')
@@ -714,7 +721,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     };
   }, [filteredProfiles, currentUserId, connectedUserIds]);
 
-  // Render "My Avatar" marker at current location
+  // Render "My Avatar" marker at current location (skip for guests)
   useEffect(() => {
     if (!map.current) return;
 
@@ -727,6 +734,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       myMarkerRef.current.remove();
       myMarkerRef.current = null;
     }
+
+    // Skip rendering for guests
+    if (isGuest) return;
 
     // Use location_lat/lng
     const myLat = locationLat ?? userLat;
@@ -765,7 +775,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         myMarkerRootRef.current = null;
       }
     };
-  }, [locationLat, locationLng, userLat, userLng, currentUserAvatarConfig, isGhostMode]);
+  }, [locationLat, locationLng, userLat, userLng, currentUserAvatarConfig, isGhostMode, isGuest]);
 
   // Render quest markers (public only) with dynamic activity icons
   useEffect(() => {
@@ -1083,24 +1093,26 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       {/* Custom Map Controls */}
       {!isTokenMissing && (
         <div className="absolute bottom-24 right-4 z-20 flex flex-col gap-2">
-          {/* Center on Base Button */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              if (map.current) {
-                map.current.flyTo({
-                  center: [baseLng, baseLat],
-                  zoom: 14,
-                  duration: 1500,
-                });
-              }
-            }}
-            className="w-11 h-11 bg-card/90 backdrop-blur-md border-primary/30 hover:bg-primary/20 hover:border-primary"
-            title="Center on Base"
-          >
-            <Crosshair className="w-5 h-5 text-primary" />
-          </Button>
+          {/* Center on Base Button - hide for guests */}
+          {!isGuest && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                if (map.current) {
+                  map.current.flyTo({
+                    center: [baseLng, baseLat],
+                    zoom: 14,
+                    duration: 1500,
+                  });
+                }
+              }}
+              className="w-11 h-11 bg-card/90 backdrop-blur-md border-primary/30 hover:bg-primary/20 hover:border-primary"
+              title="Center on My Location"
+            >
+              <Crosshair className="w-5 h-5 text-primary" />
+            </Button>
+          )}
 
           {/* Zoom In */}
           <Button
@@ -1182,67 +1194,65 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       
       {/* User popup is now rendered via Mapbox Popup in useEffect above */}
 
-      <DeployQuestModal
-        open={deployModalOpen}
-        onOpenChange={setDeployModalOpen}
-        coordinates={clickedCoords}
-        userId={currentUserId}
-        userBaseLat={locationLat ?? userLat}
-        userBaseLng={locationLng ?? userLng}
-        onSuccess={(newQuest) => {
-          // Add the new quest to state immediately for instant UI update
-          setQuests(prev => [...prev, newQuest]);
-        }}
-      />
+      {/* Only render modals for logged-in users */}
+      {currentUserId && (
+        <>
+          <DeployQuestModal
+            open={deployModalOpen}
+            onOpenChange={setDeployModalOpen}
+            coordinates={clickedCoords}
+            userId={currentUserId}
+            userBaseLat={locationLat ?? userLat}
+            userBaseLng={locationLng ?? userLng}
+            onSuccess={(newQuest) => {
+              setQuests(prev => [...prev, newQuest]);
+            }}
+          />
 
-      <QuestLobby
-        open={lobbyOpen}
-        onOpenChange={setLobbyOpen}
-        quest={selectedQuest}
-        currentUserId={currentUserId}
-        onDelete={fetchQuests}
-        onJoin={(questId) => {
-          // Add to joined quest IDs immediately for instant marker highlight
-          setJoinedQuestIds(prev => new Set([...prev, questId]));
-        }}
-        onLeave={(questId) => {
-          // Remove from joined quest IDs immediately
-          setJoinedQuestIds(prev => {
-            const next = new Set(prev);
-            next.delete(questId);
-            return next;
-          });
-        }}
-        onUpdate={(updatedQuest) => {
-          // Update the quest in local state immediately
-          setQuests(prev => prev.map(q => q.id === updatedQuest.id ? updatedQuest : q));
-          setSelectedQuest(updatedQuest);
-        }}
-        onViewUserProfile={(user) => {
-          // Fly to user's location if available
-          const userLat = user.location_lat;
-          const userLng = user.location_lng;
-          if (userLat && userLng) {
-            flyTo(userLat, userLng);
-            
-            // Show user popup at their geo location after a brief delay for modal close
-            setTimeout(() => {
-              setSelectedUser({
-                id: user.id,
-                nick: user.nick,
-                avatar_url: user.avatar_url,
-                avatar_config: user.avatar_config,
-                tags: user.tags,
-                bio: user.bio,
-                location_lat: user.location_lat,
-                location_lng: user.location_lng,
-                is_active: true,
+          <QuestLobby
+            open={lobbyOpen}
+            onOpenChange={setLobbyOpen}
+            quest={selectedQuest}
+            currentUserId={currentUserId}
+            onDelete={fetchQuests}
+            onJoin={(questId) => {
+              setJoinedQuestIds(prev => new Set([...prev, questId]));
+            }}
+            onLeave={(questId) => {
+              setJoinedQuestIds(prev => {
+                const next = new Set(prev);
+                next.delete(questId);
+                return next;
               });
-              setSelectedUserCoords({ lat: userLat, lng: userLng });
-            }, 300);
-          }
-        }}
-      />
+            }}
+            onUpdate={(updatedQuest) => {
+              setQuests(prev => prev.map(q => q.id === updatedQuest.id ? updatedQuest : q));
+              setSelectedQuest(updatedQuest);
+            }}
+            onViewUserProfile={(user) => {
+              const userLat = user.location_lat;
+              const userLng = user.location_lng;
+              if (userLat && userLng) {
+                flyTo(userLat, userLng);
+                setTimeout(() => {
+                  setSelectedUser({
+                    id: user.id,
+                    nick: user.nick,
+                    avatar_url: user.avatar_url,
+                    avatar_config: user.avatar_config,
+                    tags: user.tags,
+                    bio: user.bio,
+                    location_lat: user.location_lat,
+                    location_lng: user.location_lng,
+                    is_active: true,
+                  });
+                  setSelectedUserCoords({ lat: userLat, lng: userLng });
+                }, 300);
+              }
+            }}
+          />
+        </>
+      )}
     </>
   );
 });

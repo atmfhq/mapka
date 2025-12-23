@@ -4,10 +4,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import TacticalMap, { TacticalMapHandle } from "@/components/map/TacticalMap";
 import Navbar from "@/components/map/Navbar";
+import GuestNavbar from "@/components/map/GuestNavbar";
 import MapFilterHUD from "@/components/map/MapFilterHUD";
-import RelocateModal from "@/components/map/RelocateModal";
+import MapSearchBar from "@/components/map/MapSearchBar";
 import LoadingScreen from "@/components/LoadingScreen";
-import { getActivityById } from "@/constants/activities";
 import { useToast } from "@/hooks/use-toast";
 
 interface AvatarConfig {
@@ -17,6 +17,10 @@ interface AvatarConfig {
   mouth?: string;
 }
 
+// Default location (NYC) for guests
+const DEFAULT_LAT = 40.7128;
+const DEFAULT_LNG = -74.006;
+
 const Dashboard = () => {
   const { user, profile, loading, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
@@ -24,16 +28,21 @@ const Dashboard = () => {
   const [activeActivities, setActiveActivities] = useState<string[]>([]);
   const [dateFilter, setDateFilter] = useState<'today' | '3days' | '7days'>('7days');
   const [chatOpenUserId, setChatOpenUserId] = useState<string | null>(null);
-  const [relocateModalOpen, setRelocateModalOpen] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [currentLocation, setCurrentLocation] = useState<{
     lat: number | null;
     lng: number | null;
     name: string | null;
   }>({ lat: null, lng: null, name: null });
+  const [guestLocation, setGuestLocation] = useState<{ lat: number; lng: number }>({
+    lat: DEFAULT_LAT,
+    lng: DEFAULT_LNG,
+  });
   const mapRef = useRef<TacticalMapHandle | null>(null);
 
-  // Initialize location and active status from profile
+  const isGuest = !user;
+
+  // Initialize location and active status from profile (for logged-in users)
   useEffect(() => {
     if (profile) {
       setCurrentLocation({
@@ -45,11 +54,9 @@ const Dashboard = () => {
     }
   }, [profile]);
 
+  // Redirect logged-in but not onboarded users to onboarding
   useEffect(() => {
-    if (!loading && !user) {
-      navigate("/auth");
-    }
-    if (!loading && profile && !profile.is_onboarded) {
+    if (!loading && user && profile && !profile.is_onboarded) {
       navigate("/onboarding");
     }
   }, [loading, user, profile, navigate]);
@@ -107,12 +114,14 @@ const Dashboard = () => {
   };
 
   const handleActiveChange = async (active: boolean) => {
+    if (!user) return;
+    
     setIsActive(active);
     
     const { error } = await supabase
       .from('profiles')
       .update({ is_active: active })
-      .eq('id', user!.id);
+      .eq('id', user.id);
     
     if (error) {
       console.error('Failed to update active status:', error);
@@ -130,51 +139,78 @@ const Dashboard = () => {
     }
   };
 
-  if (loading || !profile) {
+  const handleFlyTo = (lat: number, lng: number) => {
+    if (isGuest) {
+      setGuestLocation({ lat, lng });
+    }
+    mapRef.current?.flyTo(lat, lng);
+  };
+
+  // Show loading only for logged-in users waiting for profile
+  if (loading) {
     return <LoadingScreen />;
   }
 
-  // Use location_lat/lng with fallback to defaults
-  const userLat = currentLocation.lat ?? profile.location_lat ?? 40.7128;
-  const userLng = currentLocation.lng ?? profile.location_lng ?? -74.006;
+  // For logged-in users, wait for profile
+  if (user && !profile) {
+    return <LoadingScreen />;
+  }
 
-  
+  // Determine map center
+  const mapLat = isGuest 
+    ? guestLocation.lat 
+    : (currentLocation.lat ?? profile?.location_lat ?? DEFAULT_LAT);
+  const mapLng = isGuest 
+    ? guestLocation.lng 
+    : (currentLocation.lng ?? profile?.location_lng ?? DEFAULT_LNG);
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-background">
       {/* Map Layer */}
       <TacticalMap 
         ref={mapRef}
-        userLat={userLat}
-        userLng={userLng}
-        baseLat={userLat}
-        baseLng={userLng}
-        currentUserId={user!.id}
+        userLat={mapLat}
+        userLng={mapLng}
+        baseLat={mapLat}
+        baseLng={mapLng}
+        currentUserId={user?.id ?? null}
         activeActivities={activeActivities}
         dateFilter={dateFilter}
-        currentUserAvatarConfig={profile.avatar_config as AvatarConfig | null}
-        locationLat={currentLocation.lat}
-        locationLng={currentLocation.lng}
-        isGhostMode={!isActive}
+        currentUserAvatarConfig={profile?.avatar_config as AvatarConfig | null}
+        locationLat={isGuest ? guestLocation.lat : currentLocation.lat}
+        locationLng={isGuest ? guestLocation.lng : currentLocation.lng}
+        isGhostMode={isGuest || !isActive}
+        isGuest={isGuest}
         onOpenChatWithUser={handleOpenChatWithUser}
         onCloseChat={handleCloseChat}
       />
 
-      {/* Navbar - App Navigation */}
-      <Navbar
-        nick={profile.nick || "Operative"}
-        avatarUrl={profile.avatar_url}
-        avatarConfig={profile.avatar_config as AvatarConfig | null}
-        currentUserId={user!.id}
-        isActive={isActive}
-        onActiveChange={handleActiveChange}
-        onSignOut={handleSignOut}
-        onMissionCreated={handleMissionCreated}
-        onOpenMission={handleOpenMission}
-        onFlyToQuest={handleFlyToQuest}
-        chatOpenUserId={chatOpenUserId}
-        onChatOpenChange={handleChatOpenChange}
-        onRelocateClick={() => setRelocateModalOpen(true)}
+      {/* Navbar - different for guest vs logged-in */}
+      {isGuest ? (
+        <GuestNavbar />
+      ) : (
+        <Navbar
+          nick={profile?.nick || "Adventurer"}
+          avatarUrl={profile?.avatar_url ?? null}
+          avatarConfig={profile?.avatar_config as AvatarConfig | null}
+          currentUserId={user.id}
+          isActive={isActive}
+          onActiveChange={handleActiveChange}
+          onSignOut={handleSignOut}
+          onMissionCreated={handleMissionCreated}
+          onOpenMission={handleOpenMission}
+          onFlyToQuest={handleFlyToQuest}
+          chatOpenUserId={chatOpenUserId}
+          onChatOpenChange={handleChatOpenChange}
+        />
+      )}
+
+      {/* Search Bar - replaces relocate modal */}
+      <MapSearchBar
+        onFlyTo={handleFlyTo}
+        isGuest={isGuest}
+        currentUserId={user?.id}
+        onLocationUpdated={handleLocationUpdated}
       />
 
       {/* Map Filter HUD - Floating below navbar */}
@@ -186,24 +222,15 @@ const Dashboard = () => {
         onDateFilterChange={setDateFilter}
       />
 
-      {/* Relocate Modal */}
-      <RelocateModal
-        open={relocateModalOpen}
-        onOpenChange={setRelocateModalOpen}
-        currentUserId={user!.id}
-        currentLocationName={currentLocation.name ?? undefined}
-        onLocationUpdated={handleLocationUpdated}
-      />
-
       {/* Status indicator - positioned for mobile safe area */}
       <div className="absolute bottom-4 left-4 z-20 safe-area-bottom safe-area-left">
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/90 backdrop-blur-md border-2 border-border shadow-hard-sm">
-          <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+          <div className={`w-2 h-2 rounded-full ${isGuest ? 'bg-muted-foreground' : 'bg-success'} animate-pulse`} />
           <span className="font-nunito text-xs font-medium text-foreground/80 hidden sm:block">
-            Adventure Mode
+            {isGuest ? 'Guest Mode' : 'Adventure Mode'}
           </span>
           <span className="font-nunito text-xs font-medium text-foreground/80 sm:hidden">
-            Online
+            {isGuest ? 'Guest' : 'Online'}
           </span>
         </div>
       </div>
