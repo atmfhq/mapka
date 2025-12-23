@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <g transform="translate(4, 2)">
+    <!-- Pin shadow -->
+    <ellipse cx="12" cy="28" rx="6" ry="2" fill="rgba(0,0,0,0.2)"/>
+    <!-- Pin body -->
+    <path d="M12 0C6.48 0 2 4.48 2 10c0 7.5 10 18 10 18s10-10.5 10-18c0-5.52-4.48-10-10-10z" fill="hsl(45, 100%, 55%)"/>
+    <!-- Pin inner circle -->
+    <circle cx="12" cy="10" r="5" fill="hsl(35, 100%, 40%)"/>
+    <!-- Sparkle effect -->
+    <circle cx="12" cy="10" r="3" fill="hsl(50, 100%, 70%)"/>
+    <!-- Border -->
+    <path d="M12 0C6.48 0 2 4.48 2 10c0 7.5 10 18 10 18s10-10.5 10-18c0-5.52-4.48-10-10-10z" fill="none" stroke="hsl(35, 60%, 30%)" stroke-width="1.5"/>
+  </g>
+</svg>

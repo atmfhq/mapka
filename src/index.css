@@ -353,3 +353,12 @@ p.selectable {
 .border-3 {
   border-width: 3px;
 }
+
+/* Guest Spawn Cursor for map interaction */
+.guest-spawn-cursor .mapboxgl-canvas-container {
+  cursor: url('/assets/cursors/spawn-cursor.svg') 16 28, crosshair !important;
+}
+
+.guest-spawn-cursor .mapboxgl-canvas {
+  cursor: url('/assets/cursors/spawn-cursor.svg') 16 28, crosshair !important;
+}
