@@ -1247,8 +1247,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           }
         }
         .user-marker {
-          cursor: pointer;
-          overflow: visible;
+          cursor: pointer !important;
+          overflow: visible !important;
+          pointer-events: auto !important;
         }
         .marker-container {
           position: relative;
@@ -1257,16 +1258,18 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           overflow: visible;
           animation: marker-pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
           will-change: transform, opacity;
-          transition: transform 0.2s ease;
-          transform-origin: center center;
+          transition: transform 0.2s ease !important;
+          transform-origin: center center !important;
+          pointer-events: auto !important;
         }
         .user-marker:hover .marker-container {
-          transform: scale(1.15);
+          transform: scale(1.15) !important;
         }
         /* Adventure style for user avatars */
         .user-avatar-marker {
           width: 44px;
           height: 44px;
+          pointer-events: auto !important;
         }
         /* Connected user - same clean look */
         .user-avatar-marker.connected {
