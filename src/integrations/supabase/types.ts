@@ -205,6 +205,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_onboarded: boolean | null
+          last_bounce_at: string | null
           location_lat: number | null
           location_lng: number | null
           location_name: string | null
@@ -220,6 +221,7 @@ export type Database = {
           id: string
           is_active?: boolean
           is_onboarded?: boolean | null
+          last_bounce_at?: string | null
           location_lat?: number | null
           location_lng?: number | null
           location_name?: string | null
@@ -235,6 +237,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_onboarded?: boolean | null
+          last_bounce_at?: string | null
           location_lat?: number | null
           location_lng?: number | null
           location_name?: string | null
