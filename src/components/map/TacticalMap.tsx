@@ -1258,12 +1258,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           overflow: visible;
           animation: marker-pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
           will-change: transform, opacity;
-          transition: transform 0.2s ease !important;
-          transform-origin: center center !important;
+          transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+          transform-origin: center bottom !important;
           pointer-events: auto !important;
         }
         .user-marker:hover .marker-container {
-          transform: scale(1.15) !important;
+          transform: scale(1.2) translateY(-4px) !important;
         }
         /* Adventure style for user avatars */
         .user-avatar-marker {
