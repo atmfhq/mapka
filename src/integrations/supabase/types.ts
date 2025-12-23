@@ -335,6 +335,7 @@ export type Database = {
           bio: string
           id: string
           is_active: boolean
+          last_bounce_at: string
           location_lat: number
           location_lng: number
           nick: string
