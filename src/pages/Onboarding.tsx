@@ -50,10 +50,27 @@ const Onboarding = () => {
   });
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationName, setLocationName] = useState<string>("");
+  const [spawnIntentCoords, setSpawnIntentCoords] = useState<{ lat: number; lng: number } | null>(null);
   
   const { user, profile, loading: authLoading, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Check for spawn intent coordinates from sessionStorage
+  useEffect(() => {
+    const storedSpawnCoords = sessionStorage.getItem('spawn_intent_coords');
+    if (storedSpawnCoords) {
+      try {
+        const parsed = JSON.parse(storedSpawnCoords);
+        if (parsed.lat && parsed.lng) {
+          setSpawnIntentCoords(parsed);
+        }
+      } catch (e) {
+        console.error('Failed to parse spawn_intent_coords:', e);
+        sessionStorage.removeItem('spawn_intent_coords');
+      }
+    }
+  }, []);
 
   // Redirect already onboarded users to dashboard
   useEffect(() => {
@@ -135,6 +152,9 @@ const Onboarding = () => {
 
       if (error) throw error;
 
+      // Clear spawn intent coords from storage after successful profile creation
+      sessionStorage.removeItem('spawn_intent_coords');
+
       await refreshProfile();
       
       toast({
@@ -142,7 +162,7 @@ const Onboarding = () => {
         description: "Welcome to SquadMap, " + nick,
       });
       
-      navigate("/dashboard");
+      navigate("/");
     } catch (error: any) {
       toast({
         title: "Initialization Failed",
@@ -273,6 +293,8 @@ const Onboarding = () => {
               <LocationSearch 
                 onLocationSelect={handleLocationSelect}
                 initialValue={locationName}
+                initialCoords={spawnIntentCoords}
+                fromSpawnIntent={!!spawnIntentCoords}
               />
 
               {/* Coordinates display when selected */}
