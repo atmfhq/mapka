@@ -917,16 +917,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       }
     });
 
-    return () => {
-      // Full cleanup on unmount
-      userMarkersMapRef.current.forEach(({ marker, root }) => {
-        marker.remove();
-        queueMicrotask(() => {
-          try { root.unmount(); } catch (e) { /* ignore */ }
-        });
-      });
-      userMarkersMapRef.current.clear();
-    };
   }, [filteredProfiles, currentUserId, connectedUserIds, mapStyleLoaded, showUsers]);
 
   // Render "My Avatar" marker at current location (skip for guests)
@@ -1101,15 +1091,50 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       questMarkersMapRef.current.set(quest.id, marker);
     });
     
+  }, [filteredQuests, currentUserId, joinedQuestIds, mapStyleLoaded]);
+
+  // Cleanup markers/React roots on unmount only (prevents re-blooming on data refresh)
+  useEffect(() => {
     return () => {
-      // Full cleanup on unmount
+      // User markers
+      userMarkersMapRef.current.forEach(({ marker, root }) => {
+        marker.remove();
+        queueMicrotask(() => {
+          try { root.unmount(); } catch (e) { /* ignore */ }
+        });
+      });
+      userMarkersMapRef.current.clear();
+
+      // Quest markers
       questMarkersMapRef.current.forEach(marker => marker.remove());
       questMarkersMapRef.current.clear();
+
+      // My marker root
+      myMarkerRef.current?.remove();
+      myMarkerRef.current = null;
+      const myRoot = myMarkerRootRef.current;
+      myMarkerRootRef.current = null;
+      if (myRoot) {
+        queueMicrotask(() => {
+          try { myRoot.unmount(); } catch (e) { /* ignore */ }
+        });
+      }
+
+      // Popup root
+      const popupToRemove = userPopupRef.current;
+      const popupRoot = userPopupRootRef.current;
+      userPopupRef.current = null;
+      userPopupRootRef.current = null;
+      queueMicrotask(() => {
+        popupToRemove?.remove();
+        popupRoot?.unmount();
+      });
     };
-  }, [filteredQuests, currentUserId, joinedQuestIds, mapStyleLoaded]);
+  }, []);
 
   // Helper function to close the user popup
   const closeUserPopup = useCallback(() => {
+
     if (userPopupRef.current) {
       userPopupRef.current.remove();
       userPopupRef.current = null;
