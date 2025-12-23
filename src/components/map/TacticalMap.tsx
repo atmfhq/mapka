@@ -548,6 +548,83 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     onBounceUpdate: triggerRemoteUserBounce
   });
 
+  // DATABASE-DRIVEN realtime: postgres_changes for TRUE background updates
+  // This fires even when other users move without broadcasting (e.g., via edit profile)
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    console.log('[DB Realtime] Setting up postgres_changes subscription for profiles');
+
+    const channel = supabase
+      .channel('tactical-map-profiles-db')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'profiles',
+        },
+        (payload) => {
+          const profile = payload.new as Record<string, any> | null;
+          const oldRecord = payload.old as Record<string, any> | null;
+          const recordId = profile?.id || oldRecord?.id;
+
+          // Skip own updates
+          if (recordId === currentUserId) return;
+
+          console.log('[DB Realtime] Profile change:', payload.eventType, recordId);
+
+          if (payload.eventType === 'DELETE' && oldRecord?.id) {
+            setProfiles(prev => prev.filter(p => p.id !== oldRecord.id));
+            return;
+          }
+
+          if (!profile) return;
+
+          // Skip users without location or not onboarded
+          if (!profile.location_lat || !profile.location_lng || !profile.is_onboarded) {
+            setProfiles(prev => prev.filter(p => p.id !== profile.id));
+            return;
+          }
+
+          // Update profiles state
+          const mappedProfile: Profile = {
+            id: profile.id,
+            nick: profile.nick ?? null,
+            avatar_url: profile.avatar_url ?? null,
+            avatar_config: profile.avatar_config as AvatarConfig | null,
+            tags: profile.tags ?? null,
+            location_lat: profile.location_lat,
+            location_lng: profile.location_lng,
+            bio: profile.bio ?? null,
+            is_active: profile.is_active ?? true,
+            last_bounce_at: profile.last_bounce_at ?? null,
+          };
+
+          setProfiles(prev => {
+            const exists = prev.some(p => p.id === profile.id);
+            if (exists) {
+              return prev.map(p => p.id === profile.id ? mappedProfile : p);
+            }
+            return [...prev, mappedProfile];
+          });
+
+          // Animate marker to new position
+          if (profile.location_lat != null && profile.location_lng != null) {
+            updateUserMarkerPosition(profile.id, profile.location_lat, profile.location_lng);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('[DB Realtime] postgres_changes subscription status:', status);
+      });
+
+    return () => {
+      console.log('[DB Realtime] Cleaning up postgres_changes subscription');
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId, updateUserMarkerPosition]);
+
   // Realtime subscription for live quest/megaphone updates
   // Now enabled for guests too (public quests are visible to everyone)
   useMegaphonesRealtime({
