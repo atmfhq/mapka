@@ -36,6 +36,7 @@ interface Profile {
   location_lng: number | null;
   bio: string | null;
   is_active: boolean;
+  last_bounce_at?: string | null;
 }
 
 interface Quest {
@@ -239,6 +240,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const [isTacticalView, setIsTacticalView] = useState(true);
   const [mapStyleLoaded, setMapStyleLoaded] = useState(false); // Track when style is ready for markers
+  const [lastBounceTime, setLastBounceTime] = useState<number>(0); // Cooldown for bounce action
+  const bounceTimestampsRef = useRef<Map<string, string>>(new Map()); // Track last bounce timestamps per user
   const [showUsers, setShowUsers] = useState(true); // Toggle visibility of user avatars on map
   
   const navigate = useNavigate();
@@ -271,6 +274,45 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       );
     });
   }, [profiles, activeActivities, activeActivityLabels, currentUserId]);
+
+  // Handle bounce/wave action with cooldown (2 seconds)
+  const handleBounce = useCallback(async () => {
+    if (!currentUserId || isGuest) return;
+    
+    const now = Date.now();
+    const COOLDOWN_MS = 2000; // 2 second cooldown
+    
+    if (now - lastBounceTime < COOLDOWN_MS) {
+      console.log('Bounce on cooldown');
+      return;
+    }
+    
+    setLastBounceTime(now);
+    
+    // Trigger local animation immediately
+    const myMarkerEl = myMarkerRef.current?.getElement();
+    const avatarRing = myMarkerEl?.querySelector('.my-avatar-ring');
+    if (avatarRing) {
+      avatarRing.classList.add('animate-bounce-wave');
+      setTimeout(() => {
+        avatarRing.classList.remove('animate-bounce-wave');
+      }, 700);
+    }
+    
+    // Update database
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ last_bounce_at: new Date().toISOString() })
+        .eq('id', currentUserId);
+      
+      if (error) {
+        console.error('Error updating bounce timestamp:', error);
+      }
+    } catch (err) {
+      console.error('Failed to trigger bounce:', err);
+    }
+  }, [currentUserId, isGuest, lastBounceTime]);
 
   // Filter quests - HIDE PRIVATE EVENTS from map, apply date filter
   const filteredQuests = useMemo(() => {
@@ -777,9 +819,20 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       const jitteredLng = profileLng + offset.lng;
 
       const isConnected = connectedUserIds.has(profile.id);
+      
+      // Check if this user has bounced since last render
+      const lastKnownBounce = bounceTimestampsRef.current.get(profile.id);
+      const currentBounce = profile.last_bounce_at;
+      const shouldBounce = currentBounce && currentBounce !== lastKnownBounce;
+      
+      // Update the ref with current bounce timestamp
+      if (currentBounce) {
+        bounceTimestampsRef.current.set(profile.id, currentBounce);
+      }
 
       const el = document.createElement('div');
       el.className = 'user-marker';
+      el.dataset.userId = profile.id; // Store user ID for bounce animation lookup
       el.style.zIndex = '10';
       el.style.width = '44px';
       el.style.height = '44px';
@@ -794,8 +847,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       const root = createRoot(container);
       root.render(
         <div 
-          className={`user-avatar-marker marker-pop-in ${isConnected ? 'connected' : ''}`}
-          style={{ animationDelay: `${randomDelay}ms` }}
+          className={`user-avatar-marker marker-pop-in ${isConnected ? 'connected' : ''} ${shouldBounce ? 'animate-bounce-wave' : ''}`}
+          style={{ animationDelay: shouldBounce ? '0ms' : `${randomDelay}ms` }}
         >
           <AvatarDisplay 
             config={profile.avatar_config} 
@@ -893,7 +946,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     
     const root = createRoot(container);
     root.render(
-      <div className={`my-avatar-ring ${isGhostMode ? 'ghost' : ''}`}>
+      <div 
+        className={`my-avatar-ring ${isGhostMode ? 'ghost' : ''}`}
+        title="Click to Wave!"
+      >
         <AvatarDisplay 
           config={currentUserAvatarConfig} 
           size={44} 
@@ -902,6 +958,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       </div>
     );
     myMarkerRootRef.current = root;
+
+    // Add click handler for bounce interaction
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleBounce();
+    });
 
     const marker = new mapboxgl.Marker({ element: el })
       .setLngLat([myLng, myLat])
@@ -921,7 +983,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         });
       }
     };
-  }, [locationLat, locationLng, userLat, userLng, currentUserAvatarConfig, isGhostMode, isGuest, mapStyleLoaded]);
+  }, [locationLat, locationLng, userLat, userLng, currentUserAvatarConfig, isGhostMode, isGuest, mapStyleLoaded, handleBounce]);
 
   // Render quest markers (public only) with dynamic activity icons
   useEffect(() => {
