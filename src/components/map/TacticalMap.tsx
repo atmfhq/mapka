@@ -1072,8 +1072,45 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
     // Check if marker already exists
     if (myMarkerRef.current && myMarkerRootRef.current) {
-      // EXISTING MARKER - just update position (no flicker!)
-      myMarkerRef.current.setLngLat([myLng, myLat]);
+      // EXISTING MARKER - animate to new position smoothly
+      const marker = myMarkerRef.current;
+      const currentPos = marker.getLngLat();
+      const targetLng = myLng;
+      const targetLat = myLat;
+      
+      // Skip animation if position hasn't changed significantly
+      const distance = Math.sqrt(
+        Math.pow(currentPos.lng - targetLng, 2) + 
+        Math.pow(currentPos.lat - targetLat, 2)
+      );
+      
+      if (distance < 0.00001) return; // Less than ~1m, skip
+      
+      // Smooth fly animation using requestAnimationFrame
+      const duration = 800; // ms
+      const startTime = performance.now();
+      const startLng = currentPos.lng;
+      const startLat = currentPos.lat;
+      
+      // Easing function (ease-out-cubic)
+      const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+      
+      const animate = (currentTime: number) => {
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easedProgress = easeOutCubic(progress);
+        
+        const newLng = startLng + (targetLng - startLng) * easedProgress;
+        const newLat = startLat + (targetLat - startLat) * easedProgress;
+        
+        marker.setLngLat([newLng, newLat]);
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      };
+      
+      requestAnimationFrame(animate);
       return;
     }
 
