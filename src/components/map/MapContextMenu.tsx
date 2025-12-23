@@ -95,19 +95,10 @@ const MapContextMenu = ({
 
       if (error) throw error;
 
-      toast({
-        title: 'Teleported!',
-        description: 'Your location has been updated',
-      });
-
       onMoveComplete(coords.lat, coords.lng);
       onClose();
     } catch (error: any) {
-      toast({
-        title: 'Move Failed',
-        description: error.message || 'Could not update location',
-        variant: 'destructive',
-      });
+      console.error('Move failed:', error);
     } finally {
       setIsMoving(false);
     }
