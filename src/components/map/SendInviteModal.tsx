@@ -100,9 +100,9 @@ const SendInviteModal = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card border-primary/30 max-w-sm max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-orbitron text-lg flex items-center gap-2">
+          <DialogTitle className="font-fredoka text-lg flex items-center gap-2">
             <Zap className="w-5 h-5 text-warning" />
-            Signal Operative
+            Send Invite
           </DialogTitle>
         </DialogHeader>
 
@@ -129,8 +129,8 @@ const SendInviteModal = ({
           {hasMatchingInterests && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-success/10 border border-success/30">
               <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-xs text-success font-mono">
-                SIGNAL PROTOCOL: MATCHING INTERESTS DETECTED
+              <span className="text-xs text-success font-nunito font-medium">
+                Matching interests found!
               </span>
             </div>
           )}
@@ -163,10 +163,10 @@ const SendInviteModal = ({
           <Button
             onClick={handleSend}
             disabled={!selectedActivity || sending}
-            className="w-full bg-warning hover:bg-warning/90 text-warning-foreground font-orbitron"
+            className="w-full bg-warning hover:bg-warning/90 text-warning-foreground font-fredoka"
           >
             <Send className="w-4 h-4 mr-2" />
-            {sending ? 'TRANSMITTING...' : 'SEND SIGNAL'}
+            {sending ? 'Sending...' : 'Send Invite'}
           </Button>
         </div>
       </DialogContent>

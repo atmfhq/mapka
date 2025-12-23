@@ -108,10 +108,10 @@ const UserPopupContent = ({
             />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className={`font-orbitron font-bold truncate ${
+            <h3 className={`font-fredoka font-bold truncate ${
               isConnected ? 'text-success' : 'text-primary'
             }`}>
-              {user.nick || 'Unknown Operative'}
+              {user.nick || 'Unknown Adventurer'}
             </h3>
             {user.bio && (
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
@@ -127,7 +127,7 @@ const UserPopupContent = ({
             {user.tags.slice(0, 4).map((tag, index) => (
               <span
                 key={index}
-                className={`px-2 py-0.5 rounded border font-mono text-[10px] ${
+                className={`px-2 py-0.5 rounded border font-nunito text-[10px] ${
                   isConnected 
                     ? 'bg-success/20 border-success/30 text-success'
                     : 'bg-primary/20 border-primary/30 text-primary'
@@ -137,7 +137,7 @@ const UserPopupContent = ({
               </span>
             ))}
             {user.tags.length > 4 && (
-              <span className="px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+              <span className="px-2 py-0.5 font-nunito text-[10px] text-muted-foreground">
                 +{user.tags.length - 4}
               </span>
             )}
@@ -153,31 +153,31 @@ const UserPopupContent = ({
                   onOpenChat?.(user.id);
                   onClose();
                 }}
-                className="w-full bg-success hover:bg-success/90 text-success-foreground font-orbitron text-xs"
+                className="w-full bg-success hover:bg-success/90 text-success-foreground font-fredoka text-xs"
                 size="sm"
               >
                 <MessageCircle className="w-4 h-4 mr-2" />
-                OPEN CHAT
+                Open Chat
               </Button>
               <Button
                 onClick={handleDisconnect}
                 disabled={disconnecting}
                 variant="outline"
-                className="w-full border-destructive/50 text-destructive hover:bg-destructive/10 font-orbitron text-xs"
+                className="w-full border-destructive/50 text-destructive hover:bg-destructive/10 font-fredoka text-xs"
                 size="sm"
               >
                 <UserX className="w-4 h-4 mr-2" />
-                {disconnecting ? 'DISCONNECTING...' : 'END CONNECTION'}
+                {disconnecting ? 'Leaving...' : 'Leave Party'}
               </Button>
             </div>
           ) : (
             <Button
               onClick={() => setInviteModalOpen(true)}
-              className="w-full mt-4 bg-warning hover:bg-warning/90 text-warning-foreground font-orbitron text-xs"
+              className="w-full mt-4 bg-warning hover:bg-warning/90 text-warning-foreground font-fredoka text-xs"
               size="sm"
             >
               <Zap className="w-4 h-4 mr-2" />
-              SIGNAL OPERATIVE
+              Send Invite
             </Button>
           )
         )}

@@ -43,7 +43,7 @@ const AvatarSelector = ({ options, selected, onSelect }: AvatarSelectorProps) =>
             "absolute inset-0 bg-gradient-to-t from-background/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center pb-1",
             selected === avatar.id && "opacity-100"
           )}>
-            <span className="font-mono text-[10px] text-primary uppercase">{avatar.label}</span>
+            <span className="font-nunito text-[10px] text-primary">{avatar.label}</span>
           </div>
         </button>
       ))}

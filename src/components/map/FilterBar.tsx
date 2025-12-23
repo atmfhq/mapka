@@ -103,7 +103,7 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
                 onClearFilters();
                 setExpandedCategory(null);
               }}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-destructive/50 text-destructive hover:bg-destructive/10 transition-all font-rajdhani text-sm flex-shrink-0"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-destructive/50 text-destructive hover:bg-destructive/10 transition-all font-nunito text-sm flex-shrink-0"
             >
               <X className="w-4 h-4" />
               Clear ({activeActivities.length})
@@ -119,7 +119,7 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
               onClick={() => onDateFilterChange(option.id)}
               className={cn(
                 "flex items-center gap-1.5 px-3 py-2 rounded-lg border transition-all duration-300 flex-shrink-0",
-                "font-rajdhani text-sm font-medium whitespace-nowrap",
+                "font-nunito text-sm font-medium whitespace-nowrap",
                 dateFilter === option.id
                   ? "bg-warning/20 border-warning text-warning"
                   : "bg-card/50 border-border/50 text-muted-foreground hover:border-warning/50 hover:text-warning/80"
@@ -135,7 +135,7 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
       {/* Desktop: Activities sub-row (when category is expanded) */}
       {expandedCategory && (
         <div className="hidden md:flex items-center gap-2 px-2 py-2 rounded-lg bg-muted/30 border border-border/30 overflow-x-auto scrollbar-hide">
-          <span className="text-xs text-muted-foreground font-mono px-2 flex-shrink-0">
+          <span className="text-xs text-muted-foreground font-nunito px-2 flex-shrink-0">
             {expandedCategoryInfo?.icon} {expandedCategoryInfo?.label}:
           </span>
           <div className="flex items-center gap-1.5">
@@ -148,7 +148,7 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
                   onClick={() => handleActivityClick(activity.id)}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all duration-200",
-                    "font-rajdhani text-xs font-medium whitespace-nowrap",
+                    "font-nunito text-xs font-medium whitespace-nowrap",
                     isActive
                       ? "bg-primary text-primary-foreground border-primary shadow-[0_0_10px_hsl(var(--primary)/0.4)]"
                       : "bg-card/80 border-border/50 text-muted-foreground hover:border-primary/50 hover:text-foreground"
@@ -174,7 +174,7 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
               variant="outline"
               size="sm"
               className={cn(
-                "min-h-[44px] gap-2 font-rajdhani flex-shrink-0",
+                "min-h-[44px] gap-2 font-nunito flex-shrink-0",
                 activeActivities.length > 0 && "border-primary text-primary"
               )}
             >
@@ -193,15 +193,15 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
           </DrawerTrigger>
           <DrawerContent className="max-h-[80vh]">
             <DrawerHeader className="border-b border-border/50">
-              <DrawerTitle className="font-orbitron text-lg flex items-center gap-2">
-                {expandedCategory ? (
-                  <>
-                    <button 
-                      onClick={() => setExpandedCategory(null)}
-                      className="text-primary hover:underline text-sm font-rajdhani"
-                    >
-                      ← Back
-                    </button>
+            <DrawerTitle className="font-fredoka text-lg flex items-center gap-2">
+              {expandedCategory ? (
+                <>
+                  <button 
+                    onClick={() => setExpandedCategory(null)}
+                    className="text-primary hover:underline text-sm font-nunito"
+                  >
+                    ← Back
+                  </button>
                     <span className="mx-2 text-muted-foreground">/</span>
                     <span>{expandedCategoryInfo?.icon} {expandedCategoryInfo?.label}</span>
                   </>
@@ -218,11 +218,11 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
                     <button
                       key={category.id}
                       onClick={() => handleMobileCategorySelect(category.id)}
-                      className={cn(
-                        "flex flex-col items-center gap-2 p-4 rounded-xl border transition-all duration-300",
-                        "font-rajdhani text-sm font-medium min-h-[80px]",
-                        "bg-card/50 border-border/50 text-muted-foreground hover:border-primary/50"
-                      )}
+                    className={cn(
+                      "flex flex-col items-center gap-2 p-4 rounded-xl border transition-all duration-300",
+                      "font-nunito text-sm font-medium min-h-[80px]",
+                      "bg-card/50 border-border/50 text-muted-foreground hover:border-primary/50"
+                    )}
                     >
                       <span className="text-2xl">{category.icon}</span>
                       <span>{category.label}</span>
@@ -243,7 +243,7 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
                         onClick={() => handleMobileActivitySelect(activity.id)}
                         className={cn(
                           "flex items-center gap-2 p-3 rounded-lg border transition-all",
-                          "font-rajdhani text-sm font-medium",
+                          "font-nunito text-sm font-medium",
                           isActive
                             ? "bg-primary/20 border-primary text-primary"
                             : "bg-card/50 border-border/50 text-muted-foreground hover:border-primary/50"
@@ -287,7 +287,7 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
               onClick={() => onDateFilterChange(option.id)}
               className={cn(
                 "px-2.5 py-2 rounded-lg border transition-all duration-200 flex-shrink-0",
-                "font-rajdhani text-xs font-medium whitespace-nowrap",
+                "font-nunito text-xs font-medium whitespace-nowrap",
                 dateFilter === option.id
                   ? "bg-warning/20 border-warning text-warning"
                   : "bg-card/50 border-border/50 text-muted-foreground"
