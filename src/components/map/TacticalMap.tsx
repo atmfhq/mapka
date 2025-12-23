@@ -871,9 +871,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     el.className = `my-marker ${isGhostMode ? 'ghost-mode' : ''}`;
     el.style.width = '48px';
     el.style.height = '48px';
+    el.style.zIndex = '30'; // Higher than other markers (user: 10, quest: 20)
     
     const container = document.createElement('div');
     container.className = 'my-marker-container';
+    container.style.width = '48px';
+    container.style.height = '48px';
     el.appendChild(container);
     
     const root = createRoot(container);
