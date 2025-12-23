@@ -27,8 +27,8 @@ const VARIANT_CONFIG = {
     icon: UserPlus,
   },
   create: {
-    title: 'Start Your Adventure',
-    description: 'Sign in to place your own quests on the map and gather fellow adventurers!',
+    title: 'Wybierz Miejsce Lądowania!',
+    description: 'Zaloguj się, by wylądować w tym miejscu i rozpocząć swoją przygodę na mapie!',
     icon: Sparkles,
   },
 };

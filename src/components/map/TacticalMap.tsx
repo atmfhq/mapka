@@ -7,6 +7,7 @@ import UserPopupContent from './UserPopupContent';
 import DeployQuestModal from './DeployQuestModal';
 import QuestLobby from './QuestLobby';
 import GuestPromptModal from './GuestPromptModal';
+import GuestSpawnTooltip from './GuestSpawnTooltip';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Json } from '@/integrations/supabase/types';
 import { ACTIVITIES, getCategoryForActivity, getActivityById } from '@/constants/activities';
@@ -568,8 +569,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           return;
         }
         
-        // Guest clicked on map - show guest prompt
+        // Guest clicked on map - save spawn coords and show guest prompt
         if (isGuest) {
+          const spawnCoords = { lat: e.lngLat.lat, lng: e.lngLat.lng };
+          sessionStorage.setItem('spawn_intent_coords', JSON.stringify(spawnCoords));
           setGuestPromptVariant('create');
           setGuestPromptOpen(true);
           return;
@@ -1098,7 +1101,17 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         }
       `}</style>
       
-      <div ref={mapContainer} className="absolute inset-0" />
+      
+      <div 
+        ref={mapContainer} 
+        className={`absolute inset-0 ${isGuest ? 'guest-spawn-cursor' : ''}`} 
+      />
+
+      {/* Guest spawn tooltip */}
+      <GuestSpawnTooltip 
+        mapContainer={mapContainer.current} 
+        isVisible={isGuest} 
+      />
 
       {/* Custom Map Controls */}
       {!isTokenMissing && (
