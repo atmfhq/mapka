@@ -1036,29 +1036,25 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   }, [filteredProfiles, currentUserId, connectedUserIds, mapStyleLoaded, showUsers]);
 
   // Render "My Avatar" marker at current location (skip for guests)
+  // Uses incremental update pattern to avoid flickering
   useEffect(() => {
     if (!map.current) return;
 
-    // Clean up previous marker - defer root unmount
-    const oldRoot = myMarkerRootRef.current;
-    const oldMarker = myMarkerRef.current;
-    
-    myMarkerRootRef.current = null;
-    myMarkerRef.current = null;
-    
-    if (oldMarker) oldMarker.remove();
-    if (oldRoot) {
-      queueMicrotask(() => {
-        try {
-          oldRoot.unmount();
-        } catch (e) {
-          // Ignore
-        }
-      });
-    }
-
     // Skip rendering for guests
-    if (isGuest) return;
+    if (isGuest) {
+      // Clean up if switching to guest mode
+      if (myMarkerRef.current) {
+        myMarkerRef.current.remove();
+        myMarkerRef.current = null;
+      }
+      if (myMarkerRootRef.current) {
+        queueMicrotask(() => {
+          try { myMarkerRootRef.current?.unmount(); } catch (e) { /* ignore */ }
+        });
+        myMarkerRootRef.current = null;
+      }
+      return;
+    }
     
     // Skip if map style not ready yet
     if (!mapStyleLoaded) return;
@@ -1070,19 +1066,26 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     if (!baseLat || !baseLng || !currentUserId) return;
 
     // CRITICAL: Apply the SAME deterministic jitter as other users see
-    // This ensures "where I see myself" = "where others see me"
     const offset = getDeterministicOffset(currentUserId);
     const myLat = baseLat + offset.lat;
     const myLng = baseLng + offset.lng;
 
+    // Check if marker already exists
+    if (myMarkerRef.current && myMarkerRootRef.current) {
+      // EXISTING MARKER - just update position (no flicker!)
+      myMarkerRef.current.setLngLat([myLng, myLat]);
+      return;
+    }
+
+    // NEW MARKER - create only once with pop-in animation
     const el = document.createElement('div');
     el.className = `my-marker ${isGhostMode ? 'ghost-mode' : ''}`;
     el.style.width = '48px';
     el.style.height = '48px';
-    el.style.zIndex = '30'; // Higher than other markers (user: 10, quest: 20)
+    el.style.zIndex = '30';
     
     const container = document.createElement('div');
-    container.className = 'my-marker-container';
+    container.className = 'my-marker-container marker-pop-in';
     container.style.width = '48px';
     container.style.height = '48px';
     el.appendChild(container);
@@ -1090,7 +1093,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     const root = createRoot(container);
     myMarkerRootRef.current = root;
     
-    // Initial render
     root.render(
       <div 
         className={`my-avatar-ring ${isGhostMode ? 'ghost' : ''}`}
@@ -1105,7 +1107,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       </div>
     );
 
-    // Add click handler for bounce interaction
     el.addEventListener('click', (e) => {
       e.stopPropagation();
       handleBounce();
@@ -1116,20 +1117,26 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       .addTo(map.current!);
 
     myMarkerRef.current = marker;
+  }, [locationLat, locationLng, userLat, userLng, currentUserId, isGuest, mapStyleLoaded]);
 
-    return () => {
-      const rootToClean = myMarkerRootRef.current;
-      if (rootToClean) {
-        queueMicrotask(() => {
-          try {
-            rootToClean.unmount();
-          } catch (e) {
-            // Ignore
-          }
-        });
-      }
-    };
-  }, [locationLat, locationLng, userLat, userLng, currentUserAvatarConfig, isGhostMode, isGuest, mapStyleLoaded, handleBounce]);
+  // Separate effect to update avatar appearance (ghost mode, avatar config changes)
+  useEffect(() => {
+    if (!myMarkerRootRef.current || isGuest) return;
+    
+    myMarkerRootRef.current.render(
+      <div 
+        className={`my-avatar-ring ${isGhostMode ? 'ghost' : ''}`}
+        title="Click to Wave!"
+      >
+        <AvatarDisplay 
+          config={currentUserAvatarConfig} 
+          size={44} 
+          showGlow={false}
+        />
+        <FloatingParticles trigger={0} />
+      </div>
+    );
+  }, [currentUserAvatarConfig, isGhostMode, isGuest]);
 
   // Re-render my-marker content on bounce for instant animation reset (key-based)
   useEffect(() => {
