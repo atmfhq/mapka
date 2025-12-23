@@ -57,15 +57,24 @@ const getAdjacentChannelKeys = (lat: number, lng: number, radiusMeters?: number)
   const roundedLng = Math.round(lng * 100) / 100;
 
   // Backwards-compatible default: 3x3 grid around current cell
-  const steps =
+  const stepsLat =
     radiusMeters === undefined
       ? 1
       : Math.max(1, Math.ceil(radiusMeters / (METERS_PER_DEG_LAT * GRID_STEP_DEG)));
 
+  // Longitude degrees shrink by latitude; compensate so east/west coverage matches radius.
+  const metersPerDegLng = METERS_PER_DEG_LAT * Math.cos((roundedLat * Math.PI) / 180);
+  const stepsLng =
+    radiusMeters === undefined
+      ? 1
+      : Math.max(1, Math.ceil(radiusMeters / (Math.max(1, metersPerDegLng) * GRID_STEP_DEG)));
+
+  console.log('[Broadcast] Channel coverage:', { radiusMeters, stepsLat, stepsLng });
+
   const channels: string[] = [];
 
-  for (let dLat = -steps * GRID_STEP_DEG; dLat <= steps * GRID_STEP_DEG; dLat += GRID_STEP_DEG) {
-    for (let dLng = -steps * GRID_STEP_DEG; dLng <= steps * GRID_STEP_DEG; dLng += GRID_STEP_DEG) {
+  for (let dLat = -stepsLat * GRID_STEP_DEG; dLat <= stepsLat * GRID_STEP_DEG; dLat += GRID_STEP_DEG) {
+    for (let dLng = -stepsLng * GRID_STEP_DEG; dLng <= stepsLng * GRID_STEP_DEG; dLng += GRID_STEP_DEG) {
       const cellLat = Math.round((roundedLat + dLat) * 100) / 100;
       const cellLng = Math.round((roundedLng + dLng) * 100) / 100;
       channels.push(`map-presence-${cellLat}-${cellLng}`);
