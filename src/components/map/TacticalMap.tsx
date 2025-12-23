@@ -15,7 +15,7 @@ import { Json } from '@/integrations/supabase/types';
 import { ACTIVITIES, getCategoryForActivity, getActivityById } from '@/constants/activities';
 import { useConnectedUsers } from '@/hooks/useConnectedUsers';
 import { Button } from '@/components/ui/button';
-import { Crosshair, Plus, Minus, Compass } from 'lucide-react';
+import { Crosshair, Plus, Minus, Compass, Users, UsersRound } from 'lucide-react';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HERE';
 
@@ -239,6 +239,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const [isTacticalView, setIsTacticalView] = useState(true);
   const [mapStyleLoaded, setMapStyleLoaded] = useState(false); // Track when style is ready for markers
+  const [showUsers, setShowUsers] = useState(true); // Toggle visibility of user avatars on map
   
   const navigate = useNavigate();
 
@@ -758,6 +759,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
     // Skip if map style not ready yet - will re-run when mapStyleLoaded changes
     if (!mapStyleLoaded) return;
+    
+    // Skip rendering user markers if showUsers is false
+    if (!showUsers) return;
 
     filteredProfiles.forEach(profile => {
       // Use location_lat/lng for user position
@@ -839,7 +843,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         });
       });
     };
-  }, [filteredProfiles, currentUserId, connectedUserIds, mapStyleLoaded]);
+  }, [filteredProfiles, currentUserId, connectedUserIds, mapStyleLoaded, showUsers]);
 
   // Render "My Avatar" marker at current location (skip for guests)
   useEffect(() => {
@@ -1372,6 +1376,25 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             title={isTacticalView ? 'Switch to Flat View' : 'Switch to Tactical View'}
           >
             <Compass className={`w-5 h-5 transition-colors ${isTacticalView ? 'text-accent' : 'text-muted-foreground'}`} />
+          </Button>
+
+          {/* Toggle Users Visibility */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setShowUsers(prev => !prev)}
+            className={`w-11 h-11 backdrop-blur-md border-border/50 transition-all ${
+              showUsers 
+                ? 'bg-card/90 hover:bg-primary/20 hover:border-primary' 
+                : 'bg-muted/60 hover:bg-muted/80'
+            }`}
+            title={showUsers ? 'Hide Users' : 'Show Users'}
+          >
+            {showUsers ? (
+              <Users className="w-5 h-5 text-primary" />
+            ) : (
+              <UsersRound className="w-5 h-5 text-muted-foreground opacity-50" />
+            )}
           </Button>
         </div>
       )}
