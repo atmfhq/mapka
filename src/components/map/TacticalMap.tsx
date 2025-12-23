@@ -879,13 +879,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         el.appendChild(container);
         
         const randomDelay = Math.floor(Math.random() * 400);
-        
+        container.style.animationDelay = `${randomDelay}ms`;
+
         const root = createRoot(container);
         root.render(
-          <div 
-            className={`user-avatar-marker marker-pop-in ${isConnected ? 'connected' : ''}`}
-            style={{ animationDelay: `${randomDelay}ms` }}
-          >
+          <div className={`user-avatar-marker ${isConnected ? 'connected' : ''}`}>
             <AvatarDisplay 
               config={profile.avatar_config} 
               size={40} 
@@ -1250,23 +1248,25 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         }
         .user-marker {
           cursor: pointer;
+          overflow: visible;
         }
         .marker-container {
           position: relative;
           width: 44px;
           height: 44px;
+          overflow: visible;
           animation: marker-pop-in 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
           will-change: transform, opacity;
-        }
-        /* Adventure style for user avatars - consistent hover with quests */
-        .user-avatar-marker {
-          width: 44px;
-          height: 44px;
           transition: transform 0.2s ease;
           transform-origin: center center;
         }
-        .user-avatar-marker:hover {
+        .user-marker:hover .marker-container {
           transform: scale(1.15);
+        }
+        /* Adventure style for user avatars */
+        .user-avatar-marker {
+          width: 44px;
+          height: 44px;
         }
         /* Connected user - same clean look */
         .user-avatar-marker.connected {
