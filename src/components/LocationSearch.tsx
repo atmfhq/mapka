@@ -195,7 +195,7 @@ const LocationSearch = ({ onLocationSelect, initialValue = "" }: LocationSearchP
             if (results.length > 0) setShowResults(true);
           }}
           placeholder="Search for a city, neighborhood, or address..."
-          className="pl-10 pr-10 bg-muted/50 border-border focus:border-primary font-rajdhani"
+          className="pl-10 pr-10 bg-muted/50 border-2 border-border focus:border-primary font-nunito rounded-xl"
         />
         {query && (
           <button
@@ -234,7 +234,7 @@ const LocationSearch = ({ onLocationSelect, initialValue = "" }: LocationSearchP
               className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors border-b border-border last:border-b-0"
             >
               <MapPin className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-              <span className="text-sm font-rajdhani line-clamp-2">
+              <span className="text-sm font-nunito line-clamp-2">
                 {result.place_name}
               </span>
             </button>

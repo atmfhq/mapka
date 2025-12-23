@@ -105,8 +105,8 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
       <div className="flex justify-center py-6">
         <div className="relative">
           <AvatarDisplay config={config} size={160} showGlow />
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-card border border-border/50 font-mono text-xs text-muted-foreground">
-            PREVIEW
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-card border-2 border-border font-nunito text-xs text-muted-foreground shadow-hard-sm">
+            Preview
           </div>
         </div>
       </div>
@@ -134,7 +134,7 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
 
         {/* Color Selection */}
         <TabsContent value="color" className="mt-4 space-y-4">
-          <Label className="font-mono text-xs uppercase text-muted-foreground mb-3 block">
+          <Label className="font-nunito text-sm font-medium text-foreground mb-3 block">
             Choose Your Color
           </Label>
           
@@ -156,14 +156,14 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
                   />
                   <div className="ml-12 flex flex-col items-start">
                     <span className="text-xs text-muted-foreground">Selected Color</span>
-                    <span className="font-mono text-sm font-medium">{currentColor}</span>
+                    <span className="font-nunito text-sm font-medium">{currentColor}</span>
                   </div>
                   <Pipette className="absolute right-4 w-5 h-5 text-muted-foreground" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-64 p-4" align="center">
                 <div className="space-y-4">
-                  <Label className="font-mono text-xs uppercase text-muted-foreground">
+                  <Label className="font-nunito text-sm font-medium text-foreground">
                     Pick Any Color
                   </Label>
                   
@@ -206,7 +206,7 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
 
           {/* Preset Colors */}
           <div>
-            <Label className="font-mono text-xs uppercase text-muted-foreground mb-3 block">
+            <Label className="font-nunito text-sm font-medium text-foreground mb-3 block">
               Quick Presets
             </Label>
             <div className="grid grid-cols-8 gap-2">
@@ -233,7 +233,7 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
 
         {/* Shape Selection */}
         <TabsContent value="shape" className="mt-4">
-          <Label className="font-mono text-xs uppercase text-muted-foreground mb-3 block">
+          <Label className="font-nunito text-sm font-medium text-foreground mb-3 block">
             Head Shape
           </Label>
           <div className="grid grid-cols-4 gap-3">
@@ -256,7 +256,7 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
 
         {/* Eyes Selection - Scrollable Grid */}
         <TabsContent value="eyes" className="mt-4">
-          <Label className="font-mono text-xs uppercase text-muted-foreground mb-3 block">
+          <Label className="font-nunito text-sm font-medium text-foreground mb-3 block">
             Eyes Style ({AVAILABLE_EYES.length} options)
           </Label>
           <ScrollArea className="h-64 rounded-lg border border-border/50 bg-muted/20 p-2">
@@ -283,7 +283,7 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
 
         {/* Mouth Selection - Scrollable Grid */}
         <TabsContent value="mouth" className="mt-4">
-          <Label className="font-mono text-xs uppercase text-muted-foreground mb-3 block">
+          <Label className="font-nunito text-sm font-medium text-foreground mb-3 block">
             Mouth Style ({AVAILABLE_MOUTHS.length} options)
           </Label>
           <ScrollArea className="h-64 rounded-lg border border-border/50 bg-muted/20 p-2">

@@ -174,29 +174,29 @@ const EditProfile = () => {
 
   if (initialLoading) {
     return (
-      <div className="min-h-screen bg-background tactical-grid flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="w-8 h-8 text-primary animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background tactical-grid flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/10 pointer-events-none" />
       
       <div className="relative z-10 w-full max-w-2xl">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
+            <div className="w-12 h-12 rounded-xl bg-primary/20 border-2 border-primary/40 flex items-center justify-center shadow-hard-sm">
               <Target className="w-6 h-6 text-primary" />
             </div>
           </div>
-          <h1 className="font-orbitron text-2xl font-bold mb-2">
+          <h1 className="font-fredoka text-2xl font-bold mb-2">
             Edit <span className="text-primary">Profile</span>
           </h1>
-          <p className="font-mono text-sm text-muted-foreground">
-            Update your operative profile
+          <p className="font-nunito text-sm text-muted-foreground">
+            Update your adventurer profile
           </p>
         </div>
 
@@ -222,31 +222,31 @@ const EditProfile = () => {
             <TabsContent value="identity" className="space-y-6 animate-fade-in-up">
               {/* Nickname */}
               <div className="space-y-2">
-                <Label htmlFor="nick" className="font-mono text-xs uppercase text-muted-foreground">
-                  Callsign / Nickname *
+                <Label htmlFor="nick" className="font-nunito text-sm font-medium text-foreground">
+                  Nickname *
                 </Label>
                 <Input
                   id="nick"
                   value={nick}
                   onChange={(e) => setNick(e.target.value)}
-                  placeholder="Enter your callsign"
+                  placeholder="Enter your name"
                   maxLength={30}
-                  className="bg-muted/50 border-border focus:border-primary font-rajdhani"
+                  className="bg-muted/50 border-2 border-border focus:border-primary rounded-xl font-nunito"
                 />
               </div>
 
               {/* Bio */}
               <div className="space-y-2">
-                <Label htmlFor="bio" className="font-mono text-xs uppercase text-muted-foreground">
+                <Label htmlFor="bio" className="font-nunito text-sm font-medium text-foreground">
                   Bio ({bio.length}/150)
                 </Label>
                 <Textarea
                   id="bio"
                   value={bio}
                   onChange={(e) => setBio(e.target.value.slice(0, 150))}
-                  placeholder="Brief description of your mission objectives..."
+                  placeholder="Tell us about yourself..."
                   rows={3}
-                  className="bg-muted/50 border-border focus:border-primary font-rajdhani resize-none"
+                  className="bg-muted/50 border-2 border-border focus:border-primary rounded-xl font-nunito resize-none"
                 />
               </div>
             </TabsContent>

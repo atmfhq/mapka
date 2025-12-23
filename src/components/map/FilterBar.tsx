@@ -74,11 +74,11 @@ const FilterBar = ({ activeActivities, onActivityToggle, onClearFilters, dateFil
                 key={category.id}
                 onClick={() => handleCategoryClick(category.id)}
                 className={cn(
-                  "relative flex items-center gap-2 px-4 py-2 rounded-lg border transition-all duration-300 flex-shrink-0",
-                  "font-rajdhani text-sm font-medium whitespace-nowrap",
+                  "relative flex items-center gap-2 px-4 py-2 rounded-xl border-2 transition-all duration-300 flex-shrink-0",
+                  "font-nunito text-sm font-medium whitespace-nowrap",
                   isExpanded || hasActiveActivity
                     ? "bg-primary/20 border-primary text-primary"
-                    : "bg-card/50 border-border/50 text-muted-foreground hover:border-primary/50 hover:text-primary/80"
+                    : "bg-card/50 border-border text-muted-foreground hover:border-primary/50 hover:text-primary/80"
                 )}
               >
                 <span className="text-base">{category.icon}</span>

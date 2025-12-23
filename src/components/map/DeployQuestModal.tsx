@@ -231,15 +231,15 @@ const DeployQuestModal = ({
         {/* Tactical header */}
         <DialogHeader className="space-y-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-warning/20 border border-warning/40">
+            <div className="p-2 rounded-xl bg-warning/20 border-2 border-warning/40 shadow-hard-sm">
               <Compass className="w-6 h-6 text-warning" />
             </div>
             <div>
-              <DialogTitle className="font-orbitron text-xl tracking-wide">
-                DEPLOY QUEST
+              <DialogTitle className="font-fredoka text-xl">
+                Create Quest
               </DialogTitle>
-              <p className="text-xs text-muted-foreground font-mono mt-1">
-                CREATE A NEW ADVENTURE
+              <p className="text-xs text-muted-foreground font-nunito mt-1">
+                Start a new adventure
               </p>
             </div>
           </div>
@@ -253,7 +253,7 @@ const DeployQuestModal = ({
                 : "bg-muted/50 border-border/50"
             )}>
               <MapPin className={cn("w-4 h-4", isOutOfRange ? "text-destructive" : "text-primary")} />
-              <span className={cn("font-mono text-xs", isOutOfRange ? "text-destructive" : "text-muted-foreground")}>
+              <span className={cn("font-nunito text-xs", isOutOfRange ? "text-destructive" : "text-muted-foreground")}>
                 {coordinates.lat.toFixed(4)}, {coordinates.lng.toFixed(4)}
               </span>
               {isOutOfRange && (
@@ -278,27 +278,27 @@ const DeployQuestModal = ({
         <div className="space-y-4 mt-4">
           {/* Title */}
           <div className="space-y-2">
-            <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-              Mission Title
+            <Label className="font-nunito text-sm font-medium text-foreground">
+              Quest Title
             </Label>
             <Input
               placeholder="e.g., Quick 3v3 Basketball"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="bg-muted/50 border-border/50 focus:border-primary"
+              className="bg-muted/50 border-2 border-border focus:border-primary rounded-xl"
             />
           </div>
 
           {/* Activity Selection - 2-Step */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+              <Label className="font-nunito text-sm font-medium text-foreground">
                 Activity Type
               </Label>
               {(selectedCategory || selectedActivity) && (
                 <button
                   onClick={handleBack}
-                  className="text-xs text-primary hover:underline font-rajdhani"
+                  className="text-xs text-primary hover:underline font-nunito font-medium"
                 >
                   ← Back
                 </button>
@@ -333,11 +333,11 @@ const DeployQuestModal = ({
                       "flex items-center gap-3 p-3 rounded-lg border transition-all",
                       "bg-muted/30 border-border/50 hover:border-primary/50 hover:bg-primary/5"
                     )}
-                  >
-                    <span className="text-2xl">{category.icon}</span>
-                    <span className="font-rajdhani font-medium">{category.label}</span>
-                    <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
-                  </button>
+                   >
+                     <span className="text-2xl">{category.icon}</span>
+                     <span className="font-nunito font-medium">{category.label}</span>
+                     <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
+                   </button>
                 ))}
               </div>
             )}
@@ -347,7 +347,7 @@ const DeployQuestModal = ({
               <div className="space-y-2">
                 <div className="flex items-center gap-2 px-2 py-1 text-sm text-muted-foreground">
                   <span>{selectedCategoryData?.icon}</span>
-                  <span className="font-rajdhani">{selectedCategoryData?.label}</span>
+                  <span className="font-nunito">{selectedCategoryData?.label}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto">
                   {categoryActivities.map((activity) => (
@@ -355,12 +355,12 @@ const DeployQuestModal = ({
                       key={activity.id}
                       onClick={() => handleActivitySelect(activity.id)}
                       className={cn(
-                        "flex items-center gap-2 p-2.5 rounded-lg border transition-all text-left",
-                        "bg-muted/30 border-border/50 hover:border-primary/50 hover:bg-primary/5"
+                        "flex items-center gap-2 p-2.5 rounded-xl border-2 transition-all text-left",
+                        "bg-muted/30 border-border hover:border-primary/50 hover:bg-primary/5"
                       )}
                     >
                       <span className="text-lg">{activity.icon}</span>
-                      <span className="font-rajdhani text-sm truncate">{activity.label}</span>
+                      <span className="font-nunito text-sm truncate">{activity.label}</span>
                     </button>
                   ))}
                 </div>
@@ -371,7 +371,7 @@ const DeployQuestModal = ({
           {/* Date and Time Row */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
-              <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+              <Label className="font-nunito text-sm font-medium text-foreground">
                 Date
               </Label>
               <Popover>
@@ -401,7 +401,7 @@ const DeployQuestModal = ({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+              <Label className="font-nunito text-sm font-medium text-foreground">
                 Time
               </Label>
               <Input
@@ -421,7 +421,7 @@ const DeployQuestModal = ({
 
           {/* Duration */}
           <div className="space-y-2">
-            <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+            <Label className="font-nunito text-sm font-medium text-foreground flex items-center gap-1">
               <Clock className="w-3 h-3" /> Duration (hrs)
             </Label>
             <Input
@@ -437,14 +437,14 @@ const DeployQuestModal = ({
 
           {/* Description */}
           <div className="space-y-2">
-            <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+            <Label className="font-nunito text-sm font-medium text-foreground">
               Description (optional)
             </Label>
             <Textarea
               placeholder="Add details about your quest..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="bg-muted/50 border-border/50 min-h-[80px] resize-none"
+              className="bg-muted/50 border-2 border-border focus:border-primary rounded-xl min-h-[80px] resize-none"
               maxLength={500}
             />
             <p className="text-[10px] text-muted-foreground text-right">
@@ -454,10 +454,10 @@ const DeployQuestModal = ({
 
           {/* Warning - only show if in range */}
           {!isOutOfRange && (
-            <div className="flex items-start gap-2 p-3 rounded bg-warning/10 border border-warning/30">
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-warning/10 border-2 border-warning/30">
               <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
-              <p className="text-xs text-warning/80">
-                Once deployed, your megaphone will be visible to all operatives in the area.
+              <p className="text-xs text-warning/80 font-nunito">
+                Once created, your quest will be visible to all adventurers in the area.
               </p>
             </div>
           )}
@@ -466,11 +466,10 @@ const DeployQuestModal = ({
           <Button 
             onClick={handleSubmit}
             disabled={loading || !selectedActivity || isOutOfRange}
+            variant="warning"
             className={cn(
-              "w-full font-orbitron tracking-wider min-h-[52px]",
-              isOutOfRange 
-                ? "bg-muted text-muted-foreground cursor-not-allowed"
-                : "bg-warning hover:bg-warning/90 text-warning-foreground"
+              "w-full min-h-[52px]",
+              isOutOfRange && "bg-muted text-muted-foreground cursor-not-allowed"
             )}
           >
             {loading ? (

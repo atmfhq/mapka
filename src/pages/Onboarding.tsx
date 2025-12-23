@@ -196,24 +196,24 @@ const Onboarding = () => {
                   id="nick"
                   value={nick}
                   onChange={(e) => setNick(e.target.value)}
-                  placeholder="Enter your callsign"
+                  placeholder="Enter your name"
                   maxLength={30}
-                  className="bg-muted/50 border-border focus:border-primary font-rajdhani"
+                  className="bg-muted/50 border-2 border-border focus:border-primary font-nunito rounded-xl"
                 />
               </div>
 
               {/* Bio */}
               <div className="space-y-2">
-                <Label htmlFor="bio" className="font-mono text-xs uppercase text-muted-foreground">
+                <Label htmlFor="bio" className="font-nunito text-sm font-medium text-foreground">
                   Bio ({bio.length}/150)
                 </Label>
                 <Textarea
                   id="bio"
                   value={bio}
                   onChange={(e) => setBio(e.target.value.slice(0, 150))}
-                  placeholder="Brief description of your mission objectives..."
+                  placeholder="Tell us about yourself..."
                   rows={3}
-                  className="bg-muted/50 border-border focus:border-primary font-rajdhani resize-none"
+                  className="bg-muted/50 border-2 border-border focus:border-primary font-nunito rounded-xl resize-none"
                 />
               </div>
             </div>
@@ -224,7 +224,7 @@ const Onboarding = () => {
             <div className="space-y-6 animate-fade-in-up">
               <div className="flex items-center gap-2 mb-4">
                 <Heart className="w-5 h-5 text-accent" />
-                <h2 className="font-orbitron text-lg font-semibold">What Do You Enjoy?</h2>
+                <h2 className="font-fredoka text-lg font-semibold">What Do You Enjoy?</h2>
               </div>
               
               <p className="text-sm text-muted-foreground mb-4">
@@ -243,7 +243,7 @@ const Onboarding = () => {
             <div className="space-y-6 animate-fade-in-up">
               <div className="flex items-center gap-2 mb-4">
                 <Sparkles className="w-5 h-5 text-accent" />
-                <h2 className="font-orbitron text-lg font-semibold">Create Your Avatar</h2>
+                <h2 className="font-fredoka text-lg font-semibold">Create Your Avatar</h2>
               </div>
 
               <p className="text-sm text-muted-foreground mb-4">
@@ -262,7 +262,7 @@ const Onboarding = () => {
             <div className="space-y-6 animate-fade-in-up">
               <div className="flex items-center gap-2 mb-4">
                 <MapPin className="w-5 h-5 text-primary" />
-                <h2 className="font-orbitron text-lg font-semibold">Where is your Base?</h2>
+                <h2 className="font-fredoka text-lg font-semibold">Where is your Base?</h2>
               </div>
 
               <p className="text-sm text-muted-foreground mb-4">
@@ -277,11 +277,11 @@ const Onboarding = () => {
 
               {/* Coordinates display when selected */}
               {coords && (
-                <div className="mt-4 p-4 bg-muted/30 rounded-lg border border-border">
-                  <div className="font-mono text-sm text-success mb-2">
+                <div className="mt-4 p-4 bg-muted/30 rounded-xl border-2 border-border">
+                  <div className="font-nunito text-sm text-success font-bold mb-2">
                     ✓ Location Set
                   </div>
-                  <div className="font-mono text-xs text-muted-foreground">
+                  <div className="font-nunito text-xs text-muted-foreground">
                     {locationName && <div className="mb-1 text-foreground">{locationName}</div>}
                     LAT: {coords.lat.toFixed(6)} | LNG: {coords.lng.toFixed(6)}
                   </div>
@@ -289,14 +289,14 @@ const Onboarding = () => {
               )}
 
               {/* Privacy warning */}
-              <div className="flex items-start gap-3 p-4 rounded-lg bg-warning/10 border border-warning/30">
+              <div className="flex items-start gap-3 p-4 rounded-xl bg-warning/10 border-2 border-warning/30">
                 <AlertTriangle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
                 <div>
-                  <div className="font-rajdhani font-semibold text-warning mb-1">
-                    Privacy Protocol Active
+                  <div className="font-nunito font-bold text-warning mb-1">
+                    Privacy Notice
                   </div>
-                  <p className="font-mono text-xs text-muted-foreground">
-                    Your exact location is classified. Other operatives will only see you within a 400m radius of this point.
+                  <p className="font-nunito text-xs text-muted-foreground">
+                    Your exact location is private. Others will only see you within a 400m radius of this point.
                   </p>
                 </div>
               </div>
