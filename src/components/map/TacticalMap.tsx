@@ -724,11 +724,38 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   // Render user markers with connected status
   useEffect(() => {
     if (!map.current) return;
-
-    userMarkerRootsRef.current.forEach(root => root.unmount());
+    
+    // Capture refs for cleanup - defer unmount to avoid React race condition
+    const oldRoots = [...userMarkerRootsRef.current];
+    const oldMarkers = [...userMarkersRef.current];
+    
+    // Clear refs immediately
     userMarkerRootsRef.current = [];
-    userMarkersRef.current.forEach(marker => marker.remove());
     userMarkersRef.current = [];
+    
+    // Remove old markers synchronously (DOM operations are safe)
+    oldMarkers.forEach(marker => marker.remove());
+    
+    // Defer React root unmounts to next microtask to avoid "unmount during render" warning
+    queueMicrotask(() => {
+      oldRoots.forEach(root => {
+        try {
+          root.unmount();
+        } catch (e) {
+          // Root may already be unmounted
+        }
+      });
+    });
+
+    // Skip if map not ready (style not loaded)
+    if (!map.current.isStyleLoaded()) {
+      const onLoad = () => {
+        // Re-trigger this effect after style loads
+        map.current?.off('load', onLoad);
+      };
+      map.current.on('load', onLoad);
+      return;
+    }
 
     filteredProfiles.forEach(profile => {
       // Use location_lat/lng for user position
@@ -748,6 +775,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       const el = document.createElement('div');
       el.className = 'user-marker';
       el.style.zIndex = '10';
+      el.style.width = '44px';
+      el.style.height = '44px';
       
       const container = document.createElement('div');
       container.className = 'marker-container';
@@ -790,8 +819,17 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     });
 
     return () => {
-      userMarkerRootsRef.current.forEach(root => root.unmount());
-      userMarkerRootsRef.current = [];
+      // Cleanup on unmount - defer root unmounts
+      const roots = [...userMarkerRootsRef.current];
+      queueMicrotask(() => {
+        roots.forEach(root => {
+          try {
+            root.unmount();
+          } catch (e) {
+            // Ignore
+          }
+        });
+      });
     };
   }, [filteredProfiles, currentUserId, connectedUserIds]);
 
@@ -799,18 +837,29 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   useEffect(() => {
     if (!map.current) return;
 
-    // Clean up previous marker
-    if (myMarkerRootRef.current) {
-      myMarkerRootRef.current.unmount();
-      myMarkerRootRef.current = null;
-    }
-    if (myMarkerRef.current) {
-      myMarkerRef.current.remove();
-      myMarkerRef.current = null;
+    // Clean up previous marker - defer root unmount
+    const oldRoot = myMarkerRootRef.current;
+    const oldMarker = myMarkerRef.current;
+    
+    myMarkerRootRef.current = null;
+    myMarkerRef.current = null;
+    
+    if (oldMarker) oldMarker.remove();
+    if (oldRoot) {
+      queueMicrotask(() => {
+        try {
+          oldRoot.unmount();
+        } catch (e) {
+          // Ignore
+        }
+      });
     }
 
     // Skip rendering for guests
     if (isGuest) return;
+    
+    // Skip if map not ready
+    if (!map.current.isStyleLoaded()) return;
 
     // Use location_lat/lng
     const myLat = locationLat ?? userLat;
@@ -820,6 +869,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
     const el = document.createElement('div');
     el.className = `my-marker ${isGhostMode ? 'ghost-mode' : ''}`;
+    el.style.width = '48px';
+    el.style.height = '48px';
     
     const container = document.createElement('div');
     container.className = 'my-marker-container';
@@ -844,9 +895,15 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     myMarkerRef.current = marker;
 
     return () => {
-      if (myMarkerRootRef.current) {
-        myMarkerRootRef.current.unmount();
-        myMarkerRootRef.current = null;
+      const rootToClean = myMarkerRootRef.current;
+      if (rootToClean) {
+        queueMicrotask(() => {
+          try {
+            rootToClean.unmount();
+          } catch (e) {
+            // Ignore
+          }
+        });
       }
     };
   }, [locationLat, locationLng, userLat, userLng, currentUserAvatarConfig, isGhostMode, isGuest]);
@@ -855,8 +912,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   useEffect(() => {
     if (!map.current) return;
 
-    questMarkersRef.current.forEach(marker => marker.remove());
+    // Clear old markers
+    const oldMarkers = [...questMarkersRef.current];
     questMarkersRef.current = [];
+    oldMarkers.forEach(marker => marker.remove());
+    
+    // Skip if map not ready
+    if (!map.current.isStyleLoaded()) return;
 
     filteredQuests.forEach(quest => {
       // Get dynamic icon and color based on activity
@@ -874,6 +936,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       const el = document.createElement('div');
       el.className = `quest-marker ${isMyQuest ? 'my-quest' : ''} ${isLiveNow ? 'live-now' : ''}`;
       el.style.zIndex = '20';
+      el.style.width = '56px';
+      el.style.height = '56px';
 
       // Build DOM safely to prevent XSS - no innerHTML with dynamic content
       const container = document.createElement('div');
