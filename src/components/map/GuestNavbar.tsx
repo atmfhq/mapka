@@ -168,7 +168,7 @@ const GuestNavbar = ({ onFlyTo }: GuestNavbarProps) => {
 
           {/* Guest Controls - Floating Buttons */}
           <div className="flex items-center gap-2 pointer-events-auto flex-shrink-0">
-            <Link to="/auth">
+            <Link to="/auth?mode=login">
               <Button
                 variant="outline"
                 size="sm"
@@ -178,7 +178,7 @@ const GuestNavbar = ({ onFlyTo }: GuestNavbarProps) => {
                 <span className="hidden sm:inline">Sign In</span>
               </Button>
             </Link>
-            <Link to="/auth">
+            <Link to="/auth?mode=signup">
               <Button
                 size="sm"
                 className="gap-2 font-nunito h-10 shadow-hard"
