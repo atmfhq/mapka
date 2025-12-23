@@ -67,6 +67,7 @@ interface TacticalMapProps {
   isGuest?: boolean;
   onOpenChatWithUser?: (userId: string) => void;
   onCloseChat?: () => void;
+  onLocationUpdated?: (lat: number, lng: number) => void;
 }
 
 export interface TacticalMapHandle {
@@ -207,7 +208,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   isGhostMode = false,
   isGuest = false,
   onOpenChatWithUser,
-  onCloseChat
+  onCloseChat,
+  onLocationUpdated
 }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -1241,6 +1243,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
                 duration: 2000,
               });
             }
+            // Notify parent to update location state - triggers data refetch
+            onLocationUpdated?.(lat, lng);
           }}
           onAddEvent={(lat, lng) => {
             setClickedCoords({ lat, lng });
