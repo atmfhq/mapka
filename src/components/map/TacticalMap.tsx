@@ -17,6 +17,7 @@ import { ACTIVITIES, getCategoryForActivity, getActivityById } from '@/constants
 import { useConnectedUsers } from '@/hooks/useConnectedUsers';
 import { useProfilesRealtime } from '@/hooks/useProfilesRealtime';
 import { useMegaphonesRealtime } from '@/hooks/useMegaphonesRealtime';
+import { useParticipantsRealtime } from '@/hooks/useParticipantsRealtime';
 import { Button } from '@/components/ui/button';
 import { Crosshair, Plus, Minus, Compass, Users, UsersRound } from 'lucide-react';
 
@@ -115,15 +116,15 @@ const getCategoryColor = (label: string): string => {
 };
 
 // Deterministic jitter based on user ID (stable across renders)
-// Returns offsets of roughly +/- 400m (approx +/- 0.004 degrees)
+// Returns offsets of roughly +/- 50m (approx +/- 0.0005 degrees) for precise positioning
 const getDeterministicOffset = (id: string): { lat: number; lng: number } => {
   let hash = 0;
   for (let i = 0; i < id.length; i++) {
     hash = id.charCodeAt(i) + ((hash << 5) - hash);
   }
-  // Normalize to range -0.004 to +0.004 (approx 400m)
-  const latOffset = ((hash % 1000) / 1000) * 0.008 - 0.004;
-  const lngOffset = (((hash >> 8) % 1000) / 1000) * 0.008 - 0.004;
+  // Normalize to range -0.0005 to +0.0005 (approx 50m) for accurate positioning
+  const latOffset = ((hash % 1000) / 1000) * 0.001 - 0.0005;
+  const lngOffset = (((hash >> 8) % 1000) / 1000) * 0.001 - 0.0005;
   return { lat: latOffset, lng: lngOffset };
 };
 
@@ -476,7 +477,48 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     }, []),
   });
 
-  // Fetch nearby quests using spatial RPC
+  // Trigger visual pulse on quest marker when someone joins
+  const triggerQuestJoinPulse = useCallback((eventId: string) => {
+    const markerEntry = questMarkersMapRef.current.get(eventId);
+    if (!markerEntry) return;
+    
+    const el = markerEntry.getElement();
+    const container = el?.querySelector('.quest-container');
+    if (container) {
+      // Add join pulse animation class
+      container.classList.add('quest-join-pulse');
+      // Remove after animation completes
+      setTimeout(() => {
+        container.classList.remove('quest-join-pulse');
+      }, 800);
+    }
+  }, []);
+
+  // Realtime subscription for quest participation updates
+  useParticipantsRealtime({
+    enabled: !isGuest,
+    onJoin: useCallback((eventId: string, userId: string) => {
+      console.log('[Realtime] User joined quest:', { eventId, userId });
+      // Trigger visual pulse on the quest marker
+      triggerQuestJoinPulse(eventId);
+      // Update joined quest IDs if it's the current user
+      if (userId === currentUserId) {
+        setJoinedQuestIds(prev => new Set([...prev, eventId]));
+      }
+    }, [currentUserId, triggerQuestJoinPulse]),
+    onLeave: useCallback((eventId: string, userId: string) => {
+      console.log('[Realtime] User left quest:', { eventId, userId });
+      // Update joined quest IDs if it's the current user
+      if (userId === currentUserId) {
+        setJoinedQuestIds(prev => {
+          const next = new Set(prev);
+          next.delete(eventId);
+          return next;
+        });
+      }
+    }, [currentUserId]),
+  });
+
   const fetchQuests = useCallback(async () => {
     // Use the current user's location as the center point
     const centerLat = locationLat ?? userLat;
