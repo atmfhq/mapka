@@ -197,13 +197,13 @@ const Dashboard = () => {
 
       {/* Status indicator - positioned for mobile safe area */}
       <div className="absolute bottom-4 left-4 z-20 safe-area-bottom safe-area-left">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card/80 backdrop-blur-md border border-border/50">
-          <div className="w-2 h-2 rounded-full bg-success animate-pulse shadow-[0_0_8px_hsl(var(--success))]" />
-          <span className="font-mono text-xs text-muted-foreground hidden sm:block">
-            TACTICAL OVERLAY ACTIVE
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/90 backdrop-blur-md border-2 border-border shadow-hard-sm">
+          <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+          <span className="font-nunito text-xs font-medium text-foreground/80 hidden sm:block">
+            Adventure Mode
           </span>
-          <span className="font-mono text-xs text-muted-foreground sm:hidden">
-            ONLINE
+          <span className="font-nunito text-xs font-medium text-foreground/80 sm:hidden">
+            Online
           </span>
         </div>
       </div>

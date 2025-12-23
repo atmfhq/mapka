@@ -370,7 +370,7 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
       </SheetTrigger>
       <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh]">
         <SheetHeader>
-          <SheetTitle className="font-orbitron text-xl flex items-center gap-2">
+          <SheetTitle className="font-fredoka text-xl flex items-center gap-2">
             {selectedUser ? (
               <div className="flex items-center gap-2 flex-1">
                 <Button
@@ -384,7 +384,7 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </Button>
-                <div className="w-9 h-9 rounded-xl overflow-hidden">
+                <div className="w-9 h-9">
                   <AvatarDisplay 
                     config={selectedUserData?.avatar_config} 
                     size={36} 
@@ -406,7 +406,7 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
             ) : (
               <>
                 <MessageCircle className="w-5 h-5 text-success" />
-                Comms Center
+                Message Hub
               </>
             )}
           </SheetTitle>
@@ -420,8 +420,8 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                 <div>
                   <div className="flex items-center gap-2 mb-3">
                     <Radio className="w-4 h-4 text-warning animate-pulse" />
-                    <h3 className="font-orbitron text-sm font-semibold text-warning">
-                      INCOMING SIGNALS
+                    <h3 className="font-fredoka text-sm font-semibold text-warning">
+                      New Invites
                     </h3>
                     <Badge variant="outline" className="text-xs bg-warning/20 text-warning border-warning/40 animate-pulse">
                       {pendingInvitations.length}
@@ -473,8 +473,8 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Users className="w-4 h-4 text-success" />
-                  <h3 className="font-orbitron text-sm font-semibold text-success">
-                    OPERATIVES
+                  <h3 className="font-fredoka text-sm font-semibold text-success">
+                    Friends
                   </h3>
                   {connectedUsers.length > 0 && (
                     <Badge variant="outline" className="text-xs bg-success/20 text-success border-success/40">
@@ -504,7 +504,7 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                           className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-success/10 transition-colors min-w-[72px]"
                         >
                           <div className="relative">
-                            <div className="w-14 h-14 rounded-xl overflow-hidden">
+                            <div className="w-14 h-14">
                               <AvatarDisplay
                                 config={user.avatar_config} 
                                 size={56} 
@@ -528,8 +528,8 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Megaphone className="w-4 h-4 text-primary" />
-                  <h3 className="font-orbitron text-sm font-semibold text-primary">
-                    SQUAD MISSIONS
+                  <h3 className="font-fredoka text-sm font-semibold text-primary">
+                    Active Quests
                   </h3>
                   {activeMissions.length > 0 && (
                     <Badge variant="outline" className="text-xs bg-primary/20 text-primary border-primary/40">

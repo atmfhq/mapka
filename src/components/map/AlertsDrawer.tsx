@@ -215,9 +215,9 @@ const AlertsDrawer = ({ currentUserId, onOpenMission, onFlyToQuest }: AlertsDraw
       </SheetTrigger>
       <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh]">
         <SheetHeader>
-          <SheetTitle className="font-orbitron text-xl flex items-center gap-2">
+          <SheetTitle className="font-fredoka text-xl flex items-center gap-2">
             <Bell className="w-5 h-5 text-warning" />
-            Command Center
+            Quest Hub
           </SheetTitle>
         </SheetHeader>
 

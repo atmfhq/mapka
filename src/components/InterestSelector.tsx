@@ -38,10 +38,10 @@ const InterestSelector = ({ selected, onChange }: InterestSelectorProps) => {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Label className="font-mono text-xs uppercase text-muted-foreground">
+        <Label className="font-nunito text-sm font-medium text-foreground">
           Select Your Interests
         </Label>
-        <Badge variant="outline" className="font-mono text-xs">
+        <Badge variant="outline" className="font-nunito text-xs">
           {selected.length} selected
         </Badge>
       </div>
@@ -112,7 +112,7 @@ const InterestSelector = ({ selected, onChange }: InterestSelectorProps) => {
       {/* Selected Tags Summary */}
       {selected.length > 0 && (
         <div className="pt-4 border-t border-border/30">
-          <Label className="font-mono text-xs uppercase text-muted-foreground mb-2 block">
+          <Label className="font-nunito text-sm font-medium text-foreground mb-2 block">
             Your Interests
           </Label>
           <div className="flex flex-wrap gap-2">

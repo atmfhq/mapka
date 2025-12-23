@@ -406,8 +406,8 @@ const QuestLobby = ({
           {quest.is_private && (
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/30">
               <Shield className="w-5 h-5 text-warning" />
-              <span className="font-orbitron text-sm text-warning tracking-wider">
-                SECURE CHANNEL
+              <span className="font-fredoka text-sm text-warning">
+                Private Quest
               </span>
               <Lock className="w-4 h-4 text-warning ml-auto" />
             </div>
@@ -449,7 +449,7 @@ const QuestLobby = ({
             </div>
           </div>
 
-          <SheetTitle className="font-orbitron text-2xl tracking-wide text-left">
+          <SheetTitle className="font-fredoka text-2xl text-left">
             {quest.title}
           </SheetTitle>
 
