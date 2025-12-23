@@ -1,15 +1,27 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-interface ProfileBroadcast {
+/**
+ * Broadcast payload for live position updates.
+ * Contains ALL data needed to render the avatar - NO RPC refetch required.
+ */
+export interface ProfileBroadcastPayload {
   user_id: string;
   event_type: 'location_update' | 'bounce' | 'status_change';
-  lat?: number;
-  lng?: number;
+  lat: number;
+  lng: number;
   timestamp: string;
+  // Full avatar data for immediate rendering (no RPC needed)
+  nick?: string | null;
+  avatar_config?: any;
+  avatar_url?: string | null;
+  tags?: string[] | null;
+  bio?: string | null;
+  is_active?: boolean;
+  last_bounce_at?: string | null;
 }
 
-interface ProfileData {
+export interface ProfileData {
   id: string;
   nick: string | null;
   location_lat: number | null;
@@ -96,57 +108,22 @@ export const useProfilesRealtime = ({
   const lastBounceTimestamps = useRef<Map<string, string>>(new Map());
   const channelsRef = useRef<ReturnType<typeof supabase.channel>[]>([]);
 
-  // Fetch a single user's profile via RPC (fuzzed coords for non-self)
-  // For guests: use get_nearby_profiles with a tiny radius centered on the user
-  const fetchUserProfile = useCallback(async (userId: string, lat?: number, lng?: number) => {
-    console.log('[Broadcast] Fetching profile for user:', userId);
-
-    // If logged in, use the authenticated RPC
-    if (currentUserId) {
-      const { data, error } = await supabase.rpc('get_public_profiles_by_ids', {
-        user_ids: [userId]
-      });
-
-      if (error) {
-        console.error('[Broadcast] Error fetching profile:', error);
-        return null;
-      }
-
-      if (data && data.length > 0) {
-        console.log('[Broadcast] ✓ Got profile data:', data[0]);
-        return data[0] as unknown as ProfileData;
-      }
-      return null;
-    }
-
-    // For guests: fetch nearby profiles using the broadcast coordinates
-    // This works because get_nearby_profiles now allows anon access
-    if (lat !== undefined && lng !== undefined) {
-      const { data, error } = await supabase.rpc('get_nearby_profiles', {
-        p_lat: lat,
-        p_lng: lng,
-        p_radius_meters: 500 // Small radius to get just this user's area
-      });
-
-      if (error) {
-        console.error('[Broadcast] Error fetching profile for guest:', error);
-        return null;
-      }
-
-      // Find the specific user in the results
-      const profile = data?.find((p: any) => p.id === userId);
-      if (profile) {
-        console.log('[Broadcast] ✓ Got profile data for guest:', profile);
-        return profile as unknown as ProfileData;
-      }
-    }
-
-    return null;
-  }, [currentUserId]);
-
-  // Handle incoming broadcast message
-  const handleBroadcast = useCallback(async (payload: { payload: ProfileBroadcast }) => {
-    const { user_id, event_type, lat, lng, timestamp } = payload.payload;
+  // Handle incoming broadcast message - USE PAYLOAD DIRECTLY, NO RPC FETCH
+  const handleBroadcast = useCallback((payload: { payload: ProfileBroadcastPayload }) => {
+    const { 
+      user_id, 
+      event_type, 
+      lat, 
+      lng, 
+      timestamp,
+      nick,
+      avatar_config,
+      avatar_url,
+      tags,
+      bio,
+      is_active,
+      last_bounce_at
+    } = payload.payload;
 
     // Skip our own broadcasts (only if logged in)
     if (currentUserId && user_id === currentUserId) {
@@ -157,11 +134,21 @@ export const useProfilesRealtime = ({
     console.log('[Broadcast] Received:', { user_id, event_type, lat, lng });
 
     if (event_type === 'location_update' && onProfileUpdate) {
-      // Fetch the user's profile (pass coords for guest fallback)
-      const profile = await fetchUserProfile(user_id, lat, lng);
-      if (profile) {
-        onProfileUpdate(profile);
-      }
+      // DIRECT UPDATE from broadcast payload - NO RPC CALL
+      const profile: ProfileData = {
+        id: user_id,
+        nick: nick ?? null,
+        location_lat: lat,
+        location_lng: lng,
+        avatar_config: avatar_config ?? null,
+        avatar_url: avatar_url ?? null,
+        tags: tags ?? null,
+        bio: bio ?? null,
+        is_active: is_active ?? true,
+        last_bounce_at: last_bounce_at ?? null
+      };
+      console.log('[Broadcast] ✓ Direct profile update from payload:', profile.id);
+      onProfileUpdate(profile);
     }
 
     if (event_type === 'bounce' && onBounceUpdate) {
@@ -173,12 +160,21 @@ export const useProfilesRealtime = ({
     }
 
     if (event_type === 'status_change' && onProfileUpdate) {
-      const profile = await fetchUserProfile(user_id, lat, lng);
-      if (profile) {
-        onProfileUpdate(profile);
-      }
+      const profile: ProfileData = {
+        id: user_id,
+        nick: nick ?? null,
+        location_lat: lat,
+        location_lng: lng,
+        avatar_config: avatar_config ?? null,
+        avatar_url: avatar_url ?? null,
+        tags: tags ?? null,
+        bio: bio ?? null,
+        is_active: is_active ?? true,
+        last_bounce_at: last_bounce_at ?? null
+      };
+      onProfileUpdate(profile);
     }
-  }, [currentUserId, onProfileUpdate, onBounceUpdate, fetchUserProfile]);
+  }, [currentUserId, onProfileUpdate, onBounceUpdate]);
 
   useEffect(() => {
     // Subscribe for EVERYONE (guests included) as long as we have coordinates
@@ -213,31 +209,58 @@ export const useProfilesRealtime = ({
   return null;
 };
 
-// Utility function to broadcast profile updates (call after DB update)
+/**
+ * Broadcast a profile update to nearby users.
+ * IMPORTANT: Include FULL profile data so receivers don't need RPC calls.
+ * 
+ * @param profile - Full profile data including avatar_config, nick, etc.
+ * @param lat - Current latitude
+ * @param lng - Current longitude  
+ * @param eventType - Type of update
+ */
 export const broadcastProfileUpdate = async (
-  userId: string,
+  profile: {
+    id: string;
+    nick?: string | null;
+    avatar_config?: any;
+    avatar_url?: string | null;
+    tags?: string[] | null;
+    bio?: string | null;
+    is_active?: boolean;
+    last_bounce_at?: string | null;
+  },
   lat: number,
   lng: number,
   eventType: 'location_update' | 'bounce' | 'status_change' = 'location_update'
 ) => {
   const channelKey = getChannelKey(lat, lng);
   
-  console.log('[Broadcast] Sending update to channel:', channelKey, { userId, eventType });
+  console.log('[Broadcast] Sending update to channel:', channelKey, { userId: profile.id, eventType });
   
   const channel = supabase.channel(channelKey);
+  
+  const payload: ProfileBroadcastPayload = {
+    user_id: profile.id,
+    event_type: eventType,
+    lat,
+    lng,
+    timestamp: new Date().toISOString(),
+    // Include full avatar data for direct rendering
+    nick: profile.nick,
+    avatar_config: profile.avatar_config,
+    avatar_url: profile.avatar_url,
+    tags: profile.tags,
+    bio: profile.bio,
+    is_active: profile.is_active ?? true,
+    last_bounce_at: profile.last_bounce_at
+  };
   
   await channel.subscribe((status) => {
     if (status === 'SUBSCRIBED') {
       channel.send({
         type: 'broadcast',
         event: 'profile_update',
-        payload: {
-          user_id: userId,
-          event_type: eventType,
-          lat,
-          lng,
-          timestamp: new Date().toISOString()
-        } as ProfileBroadcast
+        payload
       });
       
       // Cleanup after sending
@@ -246,4 +269,43 @@ export const broadcastProfileUpdate = async (
       }, 1000);
     }
   });
+};
+
+/**
+ * Legacy wrapper for simple broadcast calls.
+ * Fetches current user's profile and broadcasts it.
+ */
+export const broadcastCurrentUserUpdate = async (
+  userId: string,
+  lat: number,
+  lng: number,
+  eventType: 'location_update' | 'bounce' | 'status_change' = 'location_update'
+) => {
+  // Fetch current user's profile data for the broadcast
+  const { data } = await supabase
+    .from('profiles')
+    .select('nick, avatar_config, avatar_url, tags, bio, is_active, last_bounce_at')
+    .eq('id', userId)
+    .single();
+  
+  if (!data) {
+    console.error('[Broadcast] Failed to fetch profile for broadcast');
+    return;
+  }
+  
+  await broadcastProfileUpdate(
+    {
+      id: userId,
+      nick: data.nick,
+      avatar_config: data.avatar_config,
+      avatar_url: data.avatar_url,
+      tags: data.tags,
+      bio: data.bio,
+      is_active: data.is_active,
+      last_bounce_at: data.last_bounce_at
+    },
+    lat,
+    lng,
+    eventType
+  );
 };

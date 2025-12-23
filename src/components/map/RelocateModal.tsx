@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import LocationSearch from "@/components/LocationSearch";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { broadcastProfileUpdate } from "@/hooks/useProfilesRealtime";
+import { broadcastCurrentUserUpdate } from "@/hooks/useProfilesRealtime";
 import { MapPin, Loader2 } from "lucide-react";
 
 interface RelocateModalProps {
@@ -55,8 +55,8 @@ const RelocateModal = ({
 
       if (error) throw error;
 
-      // Broadcast location update for real-time sync
-      await broadcastProfileUpdate(currentUserId, selectedLocation.lat, selectedLocation.lng, 'location_update');
+      // Broadcast location update for real-time sync (includes full profile data)
+      await broadcastCurrentUserUpdate(currentUserId, selectedLocation.lat, selectedLocation.lng, 'location_update');
 
       toast({
         title: "Location Updated",

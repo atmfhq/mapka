@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { MapPin, Megaphone, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { broadcastProfileUpdate } from '@/hooks/useProfilesRealtime';
+import { broadcastCurrentUserUpdate } from '@/hooks/useProfilesRealtime';
 
 interface MapContextMenuProps {
   coords: { lat: number; lng: number };
@@ -96,8 +96,8 @@ const MapContextMenu = ({
 
       if (error) throw error;
 
-      // Broadcast location update for real-time sync
-      await broadcastProfileUpdate(currentUserId, coords.lat, coords.lng, 'location_update');
+      // Broadcast location update for real-time sync (includes full profile data)
+      await broadcastCurrentUserUpdate(currentUserId, coords.lat, coords.lng, 'location_update');
 
       onMoveComplete(coords.lat, coords.lng);
       onClose();

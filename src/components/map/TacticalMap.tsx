@@ -15,7 +15,7 @@ import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Json } from '@/integrations/supabase/types';
 import { ACTIVITIES, getCategoryForActivity, getActivityById } from '@/constants/activities';
 import { useConnectedUsers } from '@/hooks/useConnectedUsers';
-import { useProfilesRealtime, broadcastProfileUpdate } from '@/hooks/useProfilesRealtime';
+import { useProfilesRealtime, broadcastCurrentUserUpdate } from '@/hooks/useProfilesRealtime';
 import { useMegaphonesRealtime } from '@/hooks/useMegaphonesRealtime';
 import { useParticipantsRealtime } from '@/hooks/useParticipantsRealtime';
 import { Button } from '@/components/ui/button';
@@ -311,10 +311,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       if (error) {
         console.error('Error updating bounce timestamp:', error);
       } else {
-        // Broadcast bounce for real-time sync
+        // Broadcast bounce for real-time sync (includes full profile data)
         const lat = locationLat ?? userLat;
         const lng = locationLng ?? userLng;
-        await broadcastProfileUpdate(currentUserId, lat, lng, 'bounce');
+        await broadcastCurrentUserUpdate(currentUserId, lat, lng, 'bounce');
       }
     } catch (err) {
       console.error('Failed to trigger bounce:', err);
