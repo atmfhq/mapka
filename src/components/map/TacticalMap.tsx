@@ -1336,7 +1336,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         }
         .quest-marker:hover .quest-icon {
           transform: scale(1.08);
-          background: hsl(var(--primary) / 0.2);
+          /* Keep background SOLID - no opacity change */
           border-color: hsl(var(--primary));
           box-shadow: 0 0 16px hsl(var(--primary) / 0.4);
         }
