@@ -147,20 +147,11 @@ const Navbar = ({
 
       if (error) throw error;
 
-      toast({
-        title: 'Teleported!',
-        description: result.place_name,
-      });
-
       onFlyTo(lat, lng);
       onLocationUpdated?.(lat, lng, result.place_name);
       setQuery(result.place_name);
     } catch (error: any) {
-      toast({
-        title: 'Teleport Failed',
-        description: error.message || 'Could not teleport',
-        variant: 'destructive',
-      });
+      console.error('Teleport failed:', error);
     } finally {
       setIsTeleporting(false);
       setResults([]);
