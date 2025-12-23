@@ -551,7 +551,7 @@ const QuestLobby = ({
                         className="flex items-center gap-2 p-2.5 rounded-lg border bg-muted/30 border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-left"
                       >
                         <span className="text-lg">{activity.icon}</span>
-                        <span className="font-rajdhani text-sm truncate">{activity.label}</span>
+                        <span className="font-nunito text-sm truncate">{activity.label}</span>
                       </button>
                     ))}
                   </div>
@@ -562,7 +562,7 @@ const QuestLobby = ({
             {/* Date and Time */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+                <Label className="text-xs font-nunito font-medium text-muted-foreground">
                   Date
                 </Label>
                 <Popover>
@@ -592,7 +592,7 @@ const QuestLobby = ({
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+                <Label className="text-xs font-nunito font-medium text-muted-foreground">
                   Time
                 </Label>
                 <Input
@@ -607,7 +607,7 @@ const QuestLobby = ({
 
             {/* Duration */}
             <div className="space-y-2">
-              <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+              <Label className="text-xs font-nunito font-medium text-muted-foreground flex items-center gap-1">
                 <Clock className="w-3 h-3" /> Duration (hrs)
               </Label>
               <Input
@@ -623,7 +623,7 @@ const QuestLobby = ({
 
             {/* Description */}
             <div className="space-y-2">
-              <Label className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
+              <Label className="text-xs font-nunito font-medium text-muted-foreground">
                 Description
               </Label>
               <Textarea
@@ -658,23 +658,23 @@ const QuestLobby = ({
           /* Normal View Mode */
           <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4 flex-1 flex flex-col min-h-0">
             <TabsList className="grid w-full grid-cols-2 bg-muted/30 flex-shrink-0">
-              <TabsTrigger value="info" className="font-mono text-xs min-h-[44px]">
-                INTEL
+              <TabsTrigger value="info" className="font-nunito text-sm font-medium min-h-[44px]">
+                Details
               </TabsTrigger>
               <TabsTrigger 
                 value="comms" 
                 disabled={!canAccessChat}
-                className="font-mono text-xs min-h-[44px]"
+                className="font-nunito text-sm font-medium min-h-[44px]"
               >
-                COMMS {!canAccessChat && '🔒'}
+                Chat {!canAccessChat && '🔒'}
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="info" className="py-4 space-y-6 overflow-y-auto flex-1">
               {/* Host */}
               <div className="space-y-3">
-                <h4 className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-                  Mission Commander
+                <h4 className="text-sm font-nunito font-semibold text-muted-foreground">
+                  Quest Host
                 </h4>
                 <button
                   onClick={() => {
@@ -702,8 +702,8 @@ const QuestLobby = ({
               {/* Participants */}
               {participants.length > 0 && (
                 <div className="space-y-3">
-                  <h4 className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-                    Squad Members ({participants.length})
+                  <h4 className="text-sm font-nunito font-semibold text-muted-foreground">
+                    Party Members ({participants.length})
                   </h4>
                   <ScrollArea className="w-full">
                     <div className="flex gap-3 pb-2">
@@ -778,12 +778,12 @@ const QuestLobby = ({
                   </Button>
                 ) : (
                   <Button 
-                    className="w-full bg-success hover:bg-success/90 text-success-foreground font-orbitron min-h-[52px] text-base"
+                    className="w-full bg-success hover:bg-success/90 text-success-foreground font-fredoka min-h-[52px] text-base"
                     onClick={handleJoin}
                     disabled={loading}
                   >
                     <UserPlus className="w-5 h-5 mr-2" />
-                    JOIN MISSION
+                    Join Quest
                   </Button>
                 )}
               </div>

@@ -166,11 +166,11 @@ const Onboarding = () => {
               <Target className="w-6 h-6 text-primary" />
             </div>
           </div>
-          <h1 className="font-orbitron text-2xl font-bold mb-2">
+          <h1 className="font-fredoka text-2xl font-bold mb-2">
             Character <span className="text-primary">Creation</span>
           </h1>
-          <p className="font-mono text-sm text-muted-foreground">
-            Initialize your operative profile
+          <p className="font-nunito text-sm text-muted-foreground">
+            Create your adventure profile
           </p>
         </div>
 
@@ -184,13 +184,13 @@ const Onboarding = () => {
             <div className="space-y-6 animate-fade-in-up">
               <div className="flex items-center gap-2 mb-4">
                 <Shield className="w-5 h-5 text-primary" />
-                <h2 className="font-orbitron text-lg font-semibold">Identity Protocol</h2>
+                <h2 className="font-fredoka text-lg font-semibold">Your Identity</h2>
               </div>
 
               {/* Nickname */}
               <div className="space-y-2">
-                <Label htmlFor="nick" className="font-mono text-xs uppercase text-muted-foreground">
-                  Callsign / Nickname *
+                <Label htmlFor="nick" className="font-nunito text-sm font-medium text-foreground">
+                  Nickname *
                 </Label>
                 <Input
                   id="nick"
