@@ -494,6 +494,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     currentUserId,
     userLat: locationLat ?? userLat,
     userLng: locationLng ?? userLng,
+    radiusMeters: 5000,
     enabled: !isGuest && !!currentUserId,
     onProfileUpdate: useCallback((profile: any) => {
       // Skip our own updates
