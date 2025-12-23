@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { createRoot, Root } from 'react-dom/client';
@@ -237,6 +238,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [selectedQuest, setSelectedQuest] = useState<Quest | null>(null);
   const [lobbyOpen, setLobbyOpen] = useState(false);
   const [isTacticalView, setIsTacticalView] = useState(true);
+  
+  const navigate = useNavigate();
 
   // Get connected users (skip for guests)
   const { connectedUserIds, getInvitationIdForUser, refetch: refetchConnections } = useConnectedUsers(currentUserId ?? '');
@@ -1042,6 +1045,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         onOpenChat={onOpenChatWithUser}
         onDisconnect={refetchConnections}
         onCloseChat={onCloseChat}
+        onNavigate={navigate}
       />
     );
 

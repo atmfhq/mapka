@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { X, Zap, MessageCircle, UserX, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SendInviteModal from './SendInviteModal';
@@ -30,6 +29,7 @@ interface UserPopupContentProps {
   onOpenChat?: (userId: string) => void;
   onDisconnect?: () => void;
   onCloseChat?: () => void;
+  onNavigate?: (path: string) => void; // Callback for navigation (avoids useNavigate outside Router)
 }
 
 const UserPopupContent = ({ 
@@ -40,11 +40,11 @@ const UserPopupContent = ({
   onClose, 
   onOpenChat, 
   onDisconnect, 
-  onCloseChat 
+  onCloseChat,
+  onNavigate
 }: UserPopupContentProps) => {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-  const navigate = useNavigate();
 
   const isGuest = !currentUserId;
   const isOwnProfile = currentUserId ? user.id === currentUserId : false;
@@ -153,7 +153,7 @@ const UserPopupContent = ({
             <Button
               onClick={() => {
                 onClose();
-                navigate('/auth');
+                onNavigate?.('/auth');
               }}
               className="w-full mt-4 bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka text-xs"
               size="sm"
