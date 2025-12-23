@@ -108,23 +108,8 @@ export const useProfilesRealtime = ({
     onBounceUpdateRef.current = onBounceUpdate;
   }, [onBounceUpdate]);
 
-  const shouldAcceptEvent = useCallback((eventLat: number, eventLng: number) => {
-    const { lat, lng } = userCoordsRef.current;
-
-    // If we don't know viewer coords yet, accept (prevents "no updates until move")
-    if (lat === undefined || lng === undefined) return true;
-
-    const d = distanceMeters(lat, lng, eventLat, eventLng);
-    const ok = d <= MAX_DISTANCE_METERS;
-
-    if (!ok) {
-      console.log('[Broadcast] Ignoring event (too far):', { d_meters: Math.round(d) });
-    }
-
-    return ok;
-  }, []);
-
   // Stable handler: uses refs only (no stale closures, no resubscribe)
+  // CRITICAL: No dependencies that change - this runs ONCE
   const handleBroadcast = useCallback((raw: any) => {
     if (!enabledRef.current) return;
 
@@ -152,8 +137,24 @@ export const useProfilesRealtime = ({
 
     console.log('[Broadcast] Received POS_UPDATE:', { user_id, event_type, lat, lng });
 
-    // Client-side distance filter
-    if (!shouldAcceptEvent(lat, lng)) return;
+    // Client-side distance filter (inline, no dependency)
+    const { lat: myLat, lng: myLng } = userCoordsRef.current;
+    if (myLat !== undefined && myLng !== undefined) {
+      const R = 6371_000;
+      const dLat = ((lat - myLat) * Math.PI) / 180;
+      const dLng = ((lng - myLng) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((myLat * Math.PI) / 180) *
+          Math.cos((lat * Math.PI) / 180) *
+          Math.sin(dLng / 2) *
+          Math.sin(dLng / 2);
+      const d = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      if (d > MAX_DISTANCE_METERS) {
+        console.log('[Broadcast] Ignoring event (too far):', { d_meters: Math.round(d) });
+        return;
+      }
+    }
 
     const profile: ProfileData = {
       id: user_id,
@@ -179,18 +180,16 @@ export const useProfilesRealtime = ({
         onBounceUpdateRef.current?.(user_id, timestamp);
       }
     }
-  }, [shouldAcceptEvent]);
+  }, []); // EMPTY deps - stable forever
 
   // Connect ONCE on mount, clean up on unmount.
-  // IMPORTANT: no userLat/userLng dependencies here.
+  // CRITICAL: Empty dependency array - subscribe exactly once
   useEffect(() => {
     console.log('[Broadcast] Setting up GLOBAL subscription:', GLOBAL_MAP_CHANNEL);
 
     const channel = supabase
       .channel(GLOBAL_MAP_CHANNEL)
-      // canonical
       .on('broadcast', { event: 'POS_UPDATE' }, handleBroadcast)
-      // backwards compatibility
       .on('broadcast', { event: 'profile_update' }, handleBroadcast)
       .subscribe((status) => {
         console.log('[Broadcast] Global subscription status:', status);
@@ -205,7 +204,7 @@ export const useProfilesRealtime = ({
         channelRef.current = null;
       }
     };
-  }, [handleBroadcast]);
+  }, []); // EMPTY deps - mount once
 
   return null;
 };
