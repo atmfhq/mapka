@@ -15,6 +15,7 @@ import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Json } from '@/integrations/supabase/types';
 import { ACTIVITIES, getCategoryForActivity, getActivityById } from '@/constants/activities';
 import { useConnectedUsers } from '@/hooks/useConnectedUsers';
+import { useProfilesRealtime } from '@/hooks/useProfilesRealtime';
 import { Button } from '@/components/ui/button';
 import { Crosshair, Plus, Minus, Compass, Users, UsersRound } from 'lucide-react';
 
@@ -402,6 +403,50 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   useEffect(() => {
     fetchProfiles();
   }, [fetchProfiles]);
+
+  // Callback to trigger bounce animation on a specific remote user
+  const triggerRemoteUserBounce = useCallback((userId: string, bounceAt: string) => {
+    // Skip if it's our own bounce
+    if (userId === currentUserId) return;
+    
+    const existing = userMarkersMapRef.current.get(userId);
+    if (!existing) return;
+    
+    // Get the profile for this user
+    const profile = profiles.find(p => p.id === userId);
+    if (!profile) return;
+    
+    const isConnected = connectedUserIds.has(userId);
+    const bounceKey = Date.now();
+    
+    // Re-render with particles and animation
+    existing.root.render(
+      <div 
+        key={bounceKey}
+        className={`user-avatar-marker animate-bounce-wave ${isConnected ? 'connected' : ''}`}
+      >
+        <AvatarDisplay 
+          config={profile.avatar_config} 
+          size={40} 
+          showGlow={false}
+        />
+        <FloatingParticles trigger={bounceKey} />
+      </div>
+    );
+  }, [currentUserId, profiles, connectedUserIds]);
+
+  // Realtime subscription for live multiplayer updates
+  useProfilesRealtime({
+    enabled: !isGuest,
+    onLocationUpdate: useCallback((userId: string) => {
+      // Skip our own updates
+      if (userId === currentUserId) return;
+      console.log('[Realtime] Refetching profiles due to location change from user:', userId);
+      // Refetch all profiles to get updated positions
+      fetchProfiles();
+    }, [currentUserId, fetchProfiles]),
+    onBounceUpdate: triggerRemoteUserBounce
+  });
 
   // Fetch nearby quests using spatial RPC
   const fetchQuests = useCallback(async () => {
