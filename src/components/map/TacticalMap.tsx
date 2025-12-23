@@ -15,7 +15,7 @@ import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Json } from '@/integrations/supabase/types';
 import { ACTIVITIES, getCategoryForActivity, getActivityById } from '@/constants/activities';
 import { useConnectedUsers } from '@/hooks/useConnectedUsers';
-import { useProfilesRealtime } from '@/hooks/useProfilesRealtime';
+import { useProfilesRealtime, broadcastProfileUpdate } from '@/hooks/useProfilesRealtime';
 import { useMegaphonesRealtime } from '@/hooks/useMegaphonesRealtime';
 import { useParticipantsRealtime } from '@/hooks/useParticipantsRealtime';
 import { Button } from '@/components/ui/button';
@@ -310,11 +310,16 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       
       if (error) {
         console.error('Error updating bounce timestamp:', error);
+      } else {
+        // Broadcast bounce for real-time sync
+        const lat = locationLat ?? userLat;
+        const lng = locationLng ?? userLng;
+        await broadcastProfileUpdate(currentUserId, lat, lng, 'bounce');
       }
     } catch (err) {
       console.error('Failed to trigger bounce:', err);
     }
-  }, [currentUserId, isGuest]);
+  }, [currentUserId, isGuest, locationLat, locationLng, userLat, userLng]);
 
   // Filter quests - HIDE PRIVATE EVENTS from map, apply date filter
   const filteredQuests = useMemo(() => {
@@ -484,9 +489,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     requestAnimationFrame(animate);
   }, []);
 
-  // Realtime subscription for live multiplayer updates - SURGICAL UPDATES
+  // Realtime subscription for live multiplayer updates - SURGICAL UPDATES via Broadcast
   useProfilesRealtime({
-    enabled: !isGuest,
+    currentUserId,
+    userLat: locationLat ?? userLat,
+    userLng: locationLng ?? userLng,
+    enabled: !isGuest && !!currentUserId,
     onProfileUpdate: useCallback((profile: any) => {
       // Skip our own updates
       if (profile.id === currentUserId) return;
