@@ -253,6 +253,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [showUsers, setShowUsers] = useState(true); // Toggle visibility of user avatars on map
   const [activeBubbles, setActiveBubbles] = useState<Map<string, ActiveBubble>>(new Map()); // Speech bubbles per user
   const speechBubbleRootsRef = useRef<Map<string, Root>>(new Map()); // Roots for speech bubble DOM elements
+  const bubbleOverlayRef = useRef<HTMLDivElement>(null); // Overlay container for all bubbles
   
   const navigate = useNavigate();
 
@@ -1374,12 +1375,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             speechBubbleRootsRef.current.delete(userId);
           }
 
-          // Remove the container element so future bubbles can re-create a root cleanly
-          if (userId === currentUserId && myMarkerRef.current) {
-            myMarkerRef.current.getElement().querySelector('.speech-bubble-container')?.remove();
-          } else {
-            userMarkersMapRef.current.get(userId)?.element.querySelector('.speech-bubble-container')?.remove();
-          }
+          // Remove the container element from overlay
+          bubbleOverlayRef.current?.querySelector(`[data-bubble-user="${userId}"]`)?.remove();
         });
 
         return changed ? next : prev;
@@ -1387,37 +1384,46 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [currentUserId]);
+  }, []);
 
-  // Render speech bubbles above user markers
+  // Render speech bubbles in a separate overlay (above all markers)
   useEffect(() => {
-    if (!map.current || !mapStyleLoaded) return;
+    if (!map.current || !mapStyleLoaded || !bubbleOverlayRef.current) return;
+
+    const mapInstance = map.current;
 
     activeBubbles.forEach((bubble, userId) => {
-      // Find the marker element for this user
+      // Find the marker to get its screen position
       const markerEntry = userMarkersMapRef.current.get(userId);
       const isMyBubble = userId === currentUserId;
       
-      // Get target element
-      let targetEl: HTMLElement | null = null;
+      let markerRef: mapboxgl.Marker | null = null;
       
       if (isMyBubble && myMarkerRef.current) {
-        targetEl = myMarkerRef.current.getElement();
+        markerRef = myMarkerRef.current;
       } else if (markerEntry) {
-        targetEl = markerEntry.element;
+        markerRef = markerEntry.marker;
       }
       
-      if (!targetEl) return;
+      if (!markerRef) return;
 
-      // Check if bubble container already exists
-      let bubbleContainer = targetEl.querySelector('.speech-bubble-container') as HTMLElement;
+      // Get marker's screen position
+      const lngLat = markerRef.getLngLat();
+      const point = mapInstance.project(lngLat);
+
+      // Check if bubble container already exists in overlay
+      let bubbleContainer = bubbleOverlayRef.current!.querySelector(`[data-bubble-user="${userId}"]`) as HTMLElement;
 
       if (!bubbleContainer) {
-        // Create bubble container
         bubbleContainer = document.createElement('div');
-        bubbleContainer.className = 'speech-bubble-container';
-        targetEl.appendChild(bubbleContainer);
+        bubbleContainer.className = 'speech-bubble-overlay-item';
+        bubbleContainer.dataset.bubbleUser = userId;
+        bubbleOverlayRef.current!.appendChild(bubbleContainer);
       }
+
+      // Position the bubble at the marker's screen coordinates
+      bubbleContainer.style.left = `${point.x}px`;
+      bubbleContainer.style.top = `${point.y - 30}px`; // Offset above avatar
 
       // Ensure we always have a React root for this container
       let root = speechBubbleRootsRef.current.get(userId);
@@ -1436,24 +1442,58 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     // Remove bubbles for users no longer in activeBubbles
     speechBubbleRootsRef.current.forEach((root, userId) => {
       if (!activeBubbles.has(userId)) {
-        queueMicrotask(() => {
-          try { root.unmount(); } catch (e) { /* ignore */ }
-        });
+        try { root.unmount(); } catch (e) { /* ignore */ }
         speechBubbleRootsRef.current.delete(userId);
         
-        // Also remove the container from DOM
-        const markerEntry = userMarkersMapRef.current.get(userId);
-        if (markerEntry) {
-          const container = markerEntry.element.querySelector('.speech-bubble-container');
-          if (container) container.remove();
-        }
-        if (userId === currentUserId && myMarkerRef.current) {
-          const container = myMarkerRef.current.getElement().querySelector('.speech-bubble-container');
-          if (container) container.remove();
-        }
+        // Remove container from overlay
+        const container = bubbleOverlayRef.current?.querySelector(`[data-bubble-user="${userId}"]`);
+        if (container) container.remove();
       }
     });
   }, [activeBubbles, mapStyleLoaded, currentUserId]);
+
+  // Update bubble positions when map moves
+  useEffect(() => {
+    if (!map.current || !bubbleOverlayRef.current) return;
+
+    const mapInstance = map.current;
+
+    const updateBubblePositions = () => {
+      if (!bubbleOverlayRef.current) return;
+
+      activeBubbles.forEach((bubble, userId) => {
+        const markerEntry = userMarkersMapRef.current.get(userId);
+        const isMyBubble = userId === currentUserId;
+        
+        let markerRef: mapboxgl.Marker | null = null;
+        
+        if (isMyBubble && myMarkerRef.current) {
+          markerRef = myMarkerRef.current;
+        } else if (markerEntry) {
+          markerRef = markerEntry.marker;
+        }
+        
+        if (!markerRef) return;
+
+        const lngLat = markerRef.getLngLat();
+        const point = mapInstance.project(lngLat);
+
+        const bubbleContainer = bubbleOverlayRef.current!.querySelector(`[data-bubble-user="${userId}"]`) as HTMLElement;
+        if (bubbleContainer) {
+          bubbleContainer.style.left = `${point.x}px`;
+          bubbleContainer.style.top = `${point.y - 30}px`;
+        }
+      });
+    };
+
+    mapInstance.on('move', updateBubblePositions);
+    mapInstance.on('zoom', updateBubblePositions);
+
+    return () => {
+      mapInstance.off('move', updateBubblePositions);
+      mapInstance.off('zoom', updateBubblePositions);
+    };
+  }, [activeBubbles, currentUserId]);
 
   // Render quest markers (public only) with dynamic activity icons - INCREMENTAL UPDATE
   useEffect(() => {
@@ -1861,15 +1901,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             transform: scale(1) translateY(0);
           }
         }
-        /* Speech bubble styles */
-        .speech-bubble-container {
+        /* Speech bubble overlay item - positioned absolutely in the overlay */
+        .speech-bubble-overlay-item {
           position: absolute;
-          bottom: 100%;
-          left: 50%;
-          transform: translateX(-50%);
-          z-index: 40; /* Above avatars (z-10), below UI overlays (z-50+) */
+          transform: translateX(-50%) translateY(-100%);
           pointer-events: none;
-          margin-bottom: 10px;
           display: flex;
           justify-content: center;
         }
@@ -1880,16 +1916,16 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           border: 2px solid hsl(var(--primary) / 0.6);
           border-radius: 14px;
           padding: 10px 16px;
-          min-width: 100px;
-          max-width: 220px;
+          min-width: 200px;
+          max-width: 280px;
           box-shadow: 
             0 4px 16px hsl(var(--primary) / 0.25), 
             0 0 24px hsl(var(--primary) / 0.15),
-            0 2px 4px rgba(0, 0, 0, 0.1);
+            0 2px 4px rgba(0, 0, 0, 0.15);
         }
         .speech-bubble-text {
           font-family: var(--font-nunito), sans-serif;
-          font-size: 13px;
+          font-size: 14px;
           font-weight: 600;
           color: hsl(var(--foreground));
           line-height: 1.45;
@@ -1926,14 +1962,14 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         @keyframes bubble-pop {
           0% {
             opacity: 0;
-            transform: scale(0.5) translateY(10px);
+            transform: translateX(-50%) translateY(-100%) scale(0.5);
           }
           50% {
-            transform: scale(1.05) translateY(-2px);
+            transform: translateX(-50%) translateY(-100%) scale(1.05);
           }
           100% {
             opacity: 1;
-            transform: scale(1) translateY(0);
+            transform: translateX(-50%) translateY(-100%) scale(1);
           }
         }
         .animate-bubble-pop {
@@ -1945,6 +1981,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       <div 
         ref={mapContainer} 
         className={`absolute inset-0 ${isGuest ? 'guest-spawn-cursor' : ''}`} 
+      />
+
+      {/* Speech bubble overlay - sits above all markers */}
+      <div 
+        ref={bubbleOverlayRef}
+        className="absolute inset-0 pointer-events-none z-[35] overflow-hidden"
       />
 
       {/* Guest spawn tooltip */}
