@@ -236,7 +236,25 @@ export const useProfilesRealtime = ({
     };
   }, []); // EMPTY deps - mount once
 
-  return null;
+  // Send a chat message via the shared channel
+  const sendChatMessage = useCallback((message: string) => {
+    const userId = currentUserIdRef.current;
+    if (!userId || !channelRef.current) {
+      console.warn('[useProfilesRealtime] Cannot send chat - no user or channel');
+      return;
+    }
+
+    const payload: ChatBubblePayload = {
+      user_id: userId,
+      message,
+      timestamp: new Date().toISOString(),
+    };
+
+    console.log('💬 SENDING Chat bubble to', REALTIME_CHANNEL, payload);
+    channelRef.current.send({ type: 'broadcast', event: CHAT_EVENT, payload });
+  }, []);
+
+  return { sendChatMessage };
 };
 
 /**
