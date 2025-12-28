@@ -11,6 +11,7 @@ import GuestPromptModal from './GuestPromptModal';
 import GuestSpawnTooltip from './GuestSpawnTooltip';
 import MapContextMenu from './MapContextMenu';
 import FloatingParticles from './FloatingParticles';
+import BubbleChat, { ActiveBubble } from './BubbleChat';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Json } from '@/integrations/supabase/types';
 import { ACTIVITIES, getCategoryForActivity, getActivityById } from '@/constants/activities';
@@ -250,6 +251,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const lastDbUpdateRef = useRef<number>(0); // Throttle DB updates separately from visual
   const bounceTimestampsRef = useRef<Map<string, string>>(new Map()); // Track last bounce timestamps per user
   const [showUsers, setShowUsers] = useState(true); // Toggle visibility of user avatars on map
+  const [activeBubbles, setActiveBubbles] = useState<Map<string, ActiveBubble>>(new Map()); // Speech bubbles per user
+  const speechBubbleRootsRef = useRef<Map<string, Root>>(new Map()); // Roots for speech bubble DOM elements
   
   const navigate = useNavigate();
 
@@ -1316,6 +1319,110 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     );
   }, [myBounceCount, particleTrigger, currentUserAvatarConfig, isGhostMode]);
 
+  // Handle incoming chat bubbles
+  const handleBubbleReceived = useCallback((bubble: ActiveBubble) => {
+    setActiveBubbles(prev => {
+      const next = new Map(prev);
+      next.set(bubble.userId, bubble);
+      return next;
+    });
+  }, []);
+
+  // Cleanup expired bubbles every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setActiveBubbles(prev => {
+        let changed = false;
+        const next = new Map(prev);
+        next.forEach((bubble, userId) => {
+          if (bubble.expiresAt < now) {
+            next.delete(userId);
+            changed = true;
+            // Clean up DOM root
+            const root = speechBubbleRootsRef.current.get(userId);
+            if (root) {
+              queueMicrotask(() => {
+                try { root.unmount(); } catch (e) { /* ignore */ }
+              });
+              speechBubbleRootsRef.current.delete(userId);
+            }
+          }
+        });
+        return changed ? next : prev;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Render speech bubbles above user markers
+  useEffect(() => {
+    if (!map.current || !mapStyleLoaded) return;
+
+    activeBubbles.forEach((bubble, userId) => {
+      // Find the marker element for this user
+      const markerEntry = userMarkersMapRef.current.get(userId);
+      const isMyBubble = userId === currentUserId;
+      
+      // Get target element
+      let targetEl: HTMLElement | null = null;
+      
+      if (isMyBubble && myMarkerRef.current) {
+        targetEl = myMarkerRef.current.getElement();
+      } else if (markerEntry) {
+        targetEl = markerEntry.element;
+      }
+      
+      if (!targetEl) return;
+
+      // Check if bubble container already exists
+      let bubbleContainer = targetEl.querySelector('.speech-bubble-container') as HTMLElement;
+      
+      if (!bubbleContainer) {
+        // Create bubble container
+        bubbleContainer = document.createElement('div');
+        bubbleContainer.className = 'speech-bubble-container';
+        targetEl.appendChild(bubbleContainer);
+        
+        const root = createRoot(bubbleContainer);
+        speechBubbleRootsRef.current.set(userId, root);
+      }
+      
+      // Render/update the bubble content
+      const root = speechBubbleRootsRef.current.get(userId);
+      if (root) {
+        root.render(
+          <div className="speech-bubble animate-bubble-pop">
+            <span className="speech-bubble-text">{bubble.message}</span>
+            <div className="speech-bubble-tail" />
+          </div>
+        );
+      }
+    });
+
+    // Remove bubbles for users no longer in activeBubbles
+    speechBubbleRootsRef.current.forEach((root, userId) => {
+      if (!activeBubbles.has(userId)) {
+        queueMicrotask(() => {
+          try { root.unmount(); } catch (e) { /* ignore */ }
+        });
+        speechBubbleRootsRef.current.delete(userId);
+        
+        // Also remove the container from DOM
+        const markerEntry = userMarkersMapRef.current.get(userId);
+        if (markerEntry) {
+          const container = markerEntry.element.querySelector('.speech-bubble-container');
+          if (container) container.remove();
+        }
+        if (userId === currentUserId && myMarkerRef.current) {
+          const container = myMarkerRef.current.getElement().querySelector('.speech-bubble-container');
+          if (container) container.remove();
+        }
+      }
+    });
+  }, [activeBubbles, mapStyleLoaded, currentUserId]);
+
   // Render quest markers (public only) with dynamic activity icons - INCREMENTAL UPDATE
   useEffect(() => {
     if (!map.current) return;
@@ -1722,6 +1829,74 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             transform: scale(1) translateY(0);
           }
         }
+        /* Speech bubble styles */
+        .speech-bubble-container {
+          position: absolute;
+          bottom: 100%;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 100;
+          pointer-events: none;
+          margin-bottom: 8px;
+        }
+        .speech-bubble {
+          position: relative;
+          background: hsl(var(--card) / 0.95);
+          backdrop-filter: blur(8px);
+          border: 2px solid hsl(var(--primary) / 0.5);
+          border-radius: 12px;
+          padding: 6px 12px;
+          max-width: 180px;
+          box-shadow: 0 4px 12px hsl(var(--primary) / 0.2), 0 0 20px hsl(var(--primary) / 0.1);
+        }
+        .speech-bubble-text {
+          font-family: var(--font-nunito), sans-serif;
+          font-size: 12px;
+          font-weight: 600;
+          color: hsl(var(--foreground));
+          line-height: 1.3;
+          word-break: break-word;
+          display: block;
+        }
+        .speech-bubble-tail {
+          position: absolute;
+          bottom: -8px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 0;
+          height: 0;
+          border-left: 8px solid transparent;
+          border-right: 8px solid transparent;
+          border-top: 8px solid hsl(var(--primary) / 0.5);
+        }
+        .speech-bubble-tail::before {
+          content: '';
+          position: absolute;
+          bottom: 2px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 0;
+          height: 0;
+          border-left: 6px solid transparent;
+          border-right: 6px solid transparent;
+          border-top: 6px solid hsl(var(--card) / 0.95);
+        }
+        @keyframes bubble-pop {
+          0% {
+            opacity: 0;
+            transform: translateX(-50%) scale(0.5) translateY(10px);
+          }
+          50% {
+            transform: translateX(-50%) scale(1.05) translateY(-2px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateX(-50%) scale(1) translateY(0);
+          }
+        }
+        .animate-bubble-pop {
+          animation: bubble-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
       `}</style>
       
       
@@ -1743,6 +1918,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           <span className="font-nunito text-xs text-muted-foreground">Scanning area...</span>
         </div>
       )}
+
+      {/* Bubble Chat Input - only for logged-in users */}
+      <BubbleChat
+        currentUserId={currentUserId}
+        isGuest={isGuest}
+        onBubbleReceived={handleBubbleReceived}
+      />
 
       {/* Custom Map Controls */}
       {!isTokenMissing && (
