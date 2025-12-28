@@ -2,8 +2,6 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { Send } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
-import { REALTIME_CHANNEL, CHAT_EVENT, ChatBubblePayload } from '@/hooks/useProfilesRealtime';
 
 const MAX_MESSAGE_LENGTH = 60;
 const BUBBLE_DURATION_MS = 7000;
@@ -19,34 +17,14 @@ interface BubbleChatProps {
   currentUserId: string | null;
   isGuest?: boolean;
   onLocalBubble?: (bubble: ActiveBubble) => void;
+  onSendMessage?: (message: string) => void;
 }
 
-const BubbleChat = ({ currentUserId, isGuest = false, onLocalBubble }: BubbleChatProps) => {
+const BubbleChat = ({ currentUserId, isGuest = false, onLocalBubble, onSendMessage }: BubbleChatProps) => {
   const [message, setMessage] = useState('');
   const [cooldown, setCooldown] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const sendChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
-
-  // Create a persistent send channel on mount
-  useEffect(() => {
-    if (!currentUserId || isGuest) return;
-
-    // Use the EXACT same channel name - Supabase will reuse if exists
-    const channel = supabase.channel(REALTIME_CHANNEL);
-    
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        console.log('[BubbleChat] Send channel ready on', REALTIME_CHANNEL);
-      }
-    });
-
-    sendChannelRef.current = channel;
-
-    return () => {
-      // Don't remove the channel - it's shared with useProfilesRealtime
-      sendChannelRef.current = null;
-    };
-  }, [currentUserId, isGuest]);
+  const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep input focused after cooldown ends
   useEffect(() => {
@@ -55,42 +33,48 @@ const BubbleChat = ({ currentUserId, isGuest = false, onLocalBubble }: BubbleCha
     }
   }, [cooldown]);
 
-  const handleSend = useCallback(async () => {
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current) {
+        clearTimeout(cooldownTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleSend = useCallback(() => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage || !currentUserId || isGuest || cooldown) return;
+
+    const finalMessage = trimmedMessage.slice(0, MAX_MESSAGE_LENGTH);
 
     // Clear input FIRST for instant feedback
     setMessage('');
     
+    // Clear any existing cooldown timer
+    if (cooldownTimerRef.current) {
+      clearTimeout(cooldownTimerRef.current);
+    }
+    
     // Start cooldown immediately
     setCooldown(true);
-
-    const payload: ChatBubblePayload = {
-      user_id: currentUserId,
-      message: trimmedMessage.slice(0, MAX_MESSAGE_LENGTH),
-      timestamp: new Date().toISOString(),
-    };
 
     // Show our own bubble immediately
     onLocalBubble?.({
       userId: currentUserId,
-      message: trimmedMessage.slice(0, MAX_MESSAGE_LENGTH),
+      message: finalMessage,
       expiresAt: Date.now() + BUBBLE_DURATION_MS,
     });
 
-    // Send via the shared channel
-    if (sendChannelRef.current) {
-      console.log('💬 SENDING Chat bubble to', REALTIME_CHANNEL, payload);
-      sendChannelRef.current.send({ type: 'broadcast', event: CHAT_EVENT, payload });
-    } else {
-      console.warn('[BubbleChat] No send channel available');
-    }
+    // Send via the shared channel (passed from parent)
+    onSendMessage?.(finalMessage);
 
     // End cooldown after delay
-    setTimeout(() => {
+    cooldownTimerRef.current = setTimeout(() => {
       setCooldown(false);
+      cooldownTimerRef.current = null;
     }, COOLDOWN_MS);
-  }, [message, currentUserId, isGuest, cooldown, onLocalBubble]);
+  }, [message, currentUserId, isGuest, cooldown, onLocalBubble, onSendMessage]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

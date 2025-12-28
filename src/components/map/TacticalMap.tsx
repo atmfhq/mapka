@@ -529,7 +529,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
   // Realtime subscription for live multiplayer updates - SURGICAL UPDATES via Broadcast
   // Now enabled for EVERYONE (including guests) for public "window shopping"
-  useProfilesRealtime({
+  const { sendChatMessage } = useProfilesRealtime({
     currentUserId,
     userLat: locationLat ?? userLat,
     userLng: locationLng ?? userLng,
@@ -1947,6 +1947,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         currentUserId={currentUserId}
         isGuest={isGuest}
         onLocalBubble={handleLocalBubble}
+        onSendMessage={sendChatMessage}
       />
 
       {/* Custom Map Controls */}
