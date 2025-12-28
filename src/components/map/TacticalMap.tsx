@@ -1422,10 +1422,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       }
 
       // Position the bubble centered above the marker
-      bubbleContainer.style.position = 'absolute';
+      // CSS class .speech-bubble-overlay-item handles transform: translateX(-50%) translateY(-100%)
       bubbleContainer.style.left = `${point.x}px`;
       bubbleContainer.style.top = `${point.y - 30}px`; // Offset above avatar
-      bubbleContainer.style.transform = 'translateX(-50%)'; // Center horizontally
 
       // Ensure we always have a React root for this container
       let root = speechBubbleRootsRef.current.get(userId);
@@ -1482,9 +1481,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
         const bubbleContainer = bubbleOverlayRef.current!.querySelector(`[data-bubble-user="${userId}"]`) as HTMLElement;
         if (bubbleContainer) {
+          // Only update left/top - CSS class handles the centering transform
           bubbleContainer.style.left = `${point.x}px`;
           bubbleContainer.style.top = `${point.y - 30}px`;
-          bubbleContainer.style.transform = 'translateX(-50%)'; // Center horizontally
         }
       });
     };
@@ -1965,14 +1964,14 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         @keyframes bubble-pop {
           0% {
             opacity: 0;
-            transform: translateX(-50%) translateY(-100%) scale(0.5);
+            transform: scale(0.5);
           }
           50% {
-            transform: translateX(-50%) translateY(-100%) scale(1.05);
+            transform: scale(1.05);
           }
           100% {
             opacity: 1;
-            transform: translateX(-50%) translateY(-100%) scale(1);
+            transform: scale(1);
           }
         }
         .animate-bubble-pop {
