@@ -42,6 +42,14 @@ export interface ProfileData {
   bio: string | null;
 }
 
+export const CHAT_EVENT = 'chat-message';
+
+export interface ChatBubblePayload {
+  user_id: string;
+  message: string;
+  timestamp: string;
+}
+
 interface UseProfilesRealtimeOptions {
   /** Current user's ID */
   currentUserId?: string | null;
@@ -54,6 +62,8 @@ interface UseProfilesRealtimeOptions {
   onProfileUpdate?: (profile: ProfileData) => void;
   /** Called when a bounce is detected */
   onBounceUpdate?: (userId: string, bounceAt: string) => void;
+  /** Called when a chat bubble is received */
+  onChatBubble?: (payload: ChatBubblePayload) => void;
   enabled?: boolean;
 }
 
@@ -77,6 +87,7 @@ export const useProfilesRealtime = ({
   userLng,
   onProfileUpdate,
   onBounceUpdate,
+  onChatBubble,
   enabled = true,
 }: UseProfilesRealtimeOptions) => {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -88,6 +99,7 @@ export const useProfilesRealtime = ({
   const userCoordsRef = useRef<{ lat?: number; lng?: number }>({ lat: userLat, lng: userLng });
   const onProfileUpdateRef = useRef(onProfileUpdate);
   const onBounceUpdateRef = useRef(onBounceUpdate);
+  const onChatBubbleRef = useRef(onChatBubble);
 
   useEffect(() => {
     enabledRef.current = enabled;
@@ -108,6 +120,10 @@ export const useProfilesRealtime = ({
   useEffect(() => {
     onBounceUpdateRef.current = onBounceUpdate;
   }, [onBounceUpdate]);
+
+  useEffect(() => {
+    onChatBubbleRef.current = onChatBubble;
+  }, [onChatBubble]);
 
   // Stable handler: uses refs only (no stale closures, no resubscribe)
   // CRITICAL: No dependencies that change - this runs ONCE
@@ -183,6 +199,19 @@ export const useProfilesRealtime = ({
     }
   }, []); // EMPTY deps - stable forever
 
+  // Chat message handler - separate from position updates
+  const handleChatBroadcast = useCallback((raw: any) => {
+    if (!enabledRef.current) return;
+
+    const payload: ChatBubblePayload | undefined = raw?.payload;
+    if (!payload) return;
+
+    console.log('💬 RECEIVED Chat bubble on', REALTIME_CHANNEL, payload);
+
+    // Don't filter own messages - let BubbleChat handle that for instant display
+    onChatBubbleRef.current?.(payload);
+  }, []);
+
   // Connect ONCE on mount, clean up on unmount.
   // CRITICAL: Empty dependency array - subscribe exactly once
   useEffect(() => {
@@ -191,6 +220,7 @@ export const useProfilesRealtime = ({
     const channel = supabase
       .channel(REALTIME_CHANNEL)
       .on('broadcast', { event: EVENT_NAME }, handleBroadcast)
+      .on('broadcast', { event: CHAT_EVENT }, handleChatBroadcast)
       .subscribe((status) => {
         console.log('[Broadcast] Global subscription status:', status);
       });
