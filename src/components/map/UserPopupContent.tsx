@@ -182,7 +182,7 @@ const UserPopupContent = ({
                 size="sm"
               >
                 <UserX className="w-4 h-4 mr-2" />
-                {disconnecting ? 'Leaving...' : 'Leave Party'}
+                {disconnecting ? 'Disconnecting...' : 'Disconnect'}
               </Button>
             </div>
           ) : (
