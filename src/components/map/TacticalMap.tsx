@@ -1917,9 +1917,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           backdrop-filter: blur(12px);
           border: 2px solid hsl(var(--primary) / 0.6);
           border-radius: 14px;
-          padding: 10px 16px;
-          min-width: 200px;
-          max-width: 280px;
+          padding: 8px 14px;
+          width: fit-content;
+          min-width: 40px;
+          max-width: 220px;
           box-shadow: 
             0 4px 16px hsl(var(--primary) / 0.25), 
             0 0 24px hsl(var(--primary) / 0.15),
