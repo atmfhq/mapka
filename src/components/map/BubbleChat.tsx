@@ -25,6 +25,18 @@ const BubbleChat = ({ currentUserId, isGuest = false, onLocalBubble, onSendMessa
   const [cooldown, setCooldown] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  
+  // Use refs to avoid stale closures in callbacks
+  const messageRef = useRef(message);
+  const cooldownRef = useRef(cooldown);
+  const onLocalBubbleRef = useRef(onLocalBubble);
+  const onSendMessageRef = useRef(onSendMessage);
+  
+  // Keep refs in sync
+  useEffect(() => { messageRef.current = message; }, [message]);
+  useEffect(() => { cooldownRef.current = cooldown; }, [cooldown]);
+  useEffect(() => { onLocalBubbleRef.current = onLocalBubble; }, [onLocalBubble]);
+  useEffect(() => { onSendMessageRef.current = onSendMessage; }, [onSendMessage]);
 
   // Keep input focused after cooldown ends
   useEffect(() => {
@@ -42,11 +54,37 @@ const BubbleChat = ({ currentUserId, isGuest = false, onLocalBubble, onSendMessa
     };
   }, []);
 
+  // Stable send function that uses refs - won't go stale
   const handleSend = useCallback(() => {
-    const trimmedMessage = message.trim();
-    if (!trimmedMessage || !currentUserId || isGuest || cooldown) return;
+    const currentMessage = messageRef.current.trim();
+    const inCooldown = cooldownRef.current;
+    
+    console.log('[BubbleChat] handleSend called', { 
+      message: currentMessage, 
+      currentUserId, 
+      isGuest, 
+      cooldown: inCooldown,
+      hasOnSendMessage: !!onSendMessageRef.current 
+    });
+    
+    if (!currentMessage) {
+      console.log('[BubbleChat] Empty message, skipping');
+      return;
+    }
+    if (!currentUserId) {
+      console.log('[BubbleChat] No currentUserId, skipping');
+      return;
+    }
+    if (isGuest) {
+      console.log('[BubbleChat] Is guest, skipping');
+      return;
+    }
+    if (inCooldown) {
+      console.log('[BubbleChat] In cooldown, skipping');
+      return;
+    }
 
-    const finalMessage = trimmedMessage.slice(0, MAX_MESSAGE_LENGTH);
+    const finalMessage = currentMessage.slice(0, MAX_MESSAGE_LENGTH);
 
     // Clear input FIRST for instant feedback
     setMessage('');
@@ -60,35 +98,37 @@ const BubbleChat = ({ currentUserId, isGuest = false, onLocalBubble, onSendMessa
     setCooldown(true);
 
     // Show our own bubble immediately
-    onLocalBubble?.({
+    console.log('[BubbleChat] Showing local bubble');
+    onLocalBubbleRef.current?.({
       userId: currentUserId,
       message: finalMessage,
       expiresAt: Date.now() + BUBBLE_DURATION_MS,
     });
 
     // Send via the shared channel (passed from parent)
-    onSendMessage?.(finalMessage);
+    console.log('[BubbleChat] Calling onSendMessage');
+    onSendMessageRef.current?.(finalMessage);
 
     // End cooldown after delay
     cooldownTimerRef.current = setTimeout(() => {
+      console.log('[BubbleChat] Cooldown ended');
       setCooldown(false);
       cooldownTimerRef.current = null;
     }, COOLDOWN_MS);
-  }, [message, currentUserId, isGuest, cooldown, onLocalBubble, onSendMessage]);
+  }, [currentUserId, isGuest]); // Only stable deps - refs handle the rest
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
+      console.log('[BubbleChat] Enter key pressed');
       e.preventDefault();
       handleSend();
     }
-  };
+  }, [handleSend]);
 
   // Don't show input for guests
   if (isGuest || !currentUserId) {
     return null;
   }
-
-  const isDisabled = cooldown;
 
   return (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
@@ -105,7 +145,7 @@ const BubbleChat = ({ currentUserId, isGuest = false, onLocalBubble, onSendMessa
           placeholder={cooldown ? "Wait..." : "Say something..."}
           className="w-48 sm:w-64 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm placeholder:text-muted-foreground/60"
           maxLength={MAX_MESSAGE_LENGTH}
-          disabled={isDisabled}
+          disabled={cooldown}
           autoComplete="off"
         />
         <span className="text-[10px] text-muted-foreground/50 font-mono">
@@ -115,7 +155,7 @@ const BubbleChat = ({ currentUserId, isGuest = false, onLocalBubble, onSendMessa
           size="icon"
           variant="ghost"
           onClick={handleSend}
-          disabled={isDisabled || !message.trim()}
+          disabled={cooldown || !message.trim()}
           className="h-8 w-8 rounded-full bg-primary/20 hover:bg-primary/30 text-primary disabled:opacity-40"
         >
           <Send className="w-4 h-4" />

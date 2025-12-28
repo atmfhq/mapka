@@ -1357,6 +1357,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         const next = new Map(prev);
         next.forEach((bubble, userId) => {
           if (bubble.expiresAt < now) {
+            console.log('[TacticalMap] Bubble expired for user:', userId);
             next.delete(userId);
             changed = true;
             // Clean up DOM root
@@ -1369,6 +1370,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             }
           }
         });
+        if (changed) {
+          console.log('[TacticalMap] Bubbles cleanup complete, remaining:', next.size);
+        }
         return changed ? next : prev;
       });
     }, 1000);
