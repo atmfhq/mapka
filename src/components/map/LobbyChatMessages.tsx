@@ -1,17 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import { format } from 'date-fns';
-import { Send, Radio } from 'lucide-react';
+import { Send } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+
+interface AvatarConfig {
+  skinColor?: string;
+  shape?: string;
+  eyes?: string;
+  mouth?: string;
+}
 
 interface PublicProfile {
   id: string;
   nick: string;
   avatar_url: string;
-  avatar_config: unknown;
+  avatar_config: AvatarConfig | null;
   bio: string;
   tags: string[];
   location_lat: number;
@@ -63,7 +71,7 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
 
         const messagesWithProfiles = data.map(msg => ({
           ...msg,
-          profile: profiles?.find(p => p.id === msg.user_id),
+          profile: profiles?.find(p => p.id === msg.user_id) as PublicProfile | undefined,
         }));
 
         setMessages(messagesWithProfiles);
@@ -92,9 +100,9 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
           const { data: profiles } = await supabase
             .rpc('get_public_profiles_by_ids', { user_ids: [newMsg.user_id] });
           
-          const profile = profiles?.[0];
+          const profile = profiles?.[0] as PublicProfile | undefined;
 
-          setMessages(prev => [...prev, { ...newMsg, profile: profile || undefined }]);
+          setMessages(prev => [...prev, { ...newMsg, profile }]);
         }
       )
       .subscribe();
@@ -154,53 +162,95 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
     }
   };
 
+  // Group consecutive messages from the same user
+  const groupedMessages = messages.reduce<{ messages: ChatMessage[]; showAvatar: boolean }[]>((acc, msg, idx) => {
+    const prevMsg = messages[idx - 1];
+    const isSameUser = prevMsg && prevMsg.user_id === msg.user_id;
+    
+    if (isSameUser) {
+      // Add to last group, don't show avatar
+      acc[acc.length - 1].messages.push(msg);
+    } else {
+      // Start new group, show avatar
+      acc.push({ messages: [msg], showAvatar: true });
+    }
+    
+    return acc;
+  }, []);
+
   return (
     <div className="flex flex-col h-full min-h-0">
-      <div className="flex items-center gap-2 flex-shrink-0 mb-3">
-        <Radio className="w-4 h-4 text-primary animate-pulse" />
-        <h4 className="text-xs font-mono uppercase tracking-wider text-muted-foreground">
-          Tactical Comms
-        </h4>
-      </div>
-
       {/* Messages */}
-      <ScrollArea className="flex-1 min-h-0 rounded-lg bg-background/50 border border-border/50 p-3 mb-3">
-        <div ref={scrollRef} className="space-y-2">
+      <ScrollArea className="flex-1 min-h-0 pr-2">
+        <div ref={scrollRef} className="space-y-4 py-2">
           {messages.length === 0 ? (
-            <p className="text-center text-muted-foreground text-xs py-4">
-              No messages yet. Start the tactical comms.
+            <p className="text-center text-muted-foreground text-sm py-8">
+              No messages yet. Start the conversation!
             </p>
           ) : (
-            messages.map((msg) => (
-              <div 
-                key={msg.id} 
-                className={`text-sm font-mono ${
-                  msg.user_id === currentUserId 
-                    ? 'text-primary' 
-                    : 'text-foreground'
-                }`}
-              >
-                <span className="text-warning font-semibold">
-                  {msg.profile?.nick || 'UNKNOWN'}
-                </span>
-                <span className="text-muted-foreground mx-1">
-                  [{format(new Date(msg.created_at), 'HH:mm')}]:
-                </span>
-                <span className="text-foreground/90">{msg.content}</span>
-              </div>
-            ))
+            groupedMessages.map((group, groupIdx) => {
+              const firstMsg = group.messages[0];
+              const isOwn = firstMsg.user_id === currentUserId;
+              
+              return (
+                <div key={groupIdx} className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+                  {/* Avatar - only for other users */}
+                  {!isOwn && group.showAvatar ? (
+                    <div className="w-8 h-8 flex-shrink-0">
+                      <AvatarDisplay 
+                        config={firstMsg.profile?.avatar_config} 
+                        size={32} 
+                        showGlow={false}
+                      />
+                    </div>
+                  ) : !isOwn ? (
+                    <div className="w-8 flex-shrink-0" />
+                  ) : null}
+                  
+                  {/* Message bubbles */}
+                  <div className={`flex flex-col gap-1 max-w-[75%] ${isOwn ? 'items-end' : 'items-start'}`}>
+                    {/* Show nickname for first message in group (not own) */}
+                    {!isOwn && group.showAvatar && (
+                      <span className="text-xs font-medium text-muted-foreground ml-1">
+                        {firstMsg.profile?.nick || 'Unknown'}
+                      </span>
+                    )}
+                    
+                    {group.messages.map((msg, msgIdx) => (
+                      <div
+                        key={msg.id}
+                        className={`rounded-2xl px-3 py-2 ${
+                          isOwn
+                            ? 'bg-primary text-primary-foreground rounded-br-md'
+                            : 'bg-muted rounded-bl-md'
+                        } ${msgIdx > 0 ? (isOwn ? 'rounded-tr-md' : 'rounded-tl-md') : ''}`}
+                      >
+                        <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                        <p
+                          className={`text-[10px] mt-1 ${
+                            isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground'
+                          }`}
+                        >
+                          {format(new Date(msg.created_at), 'h:mm a')}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })
           )}
         </div>
       </ScrollArea>
 
-      {/* Input - sticky at bottom with padding for keyboard */}
-      <div className="flex gap-2 flex-shrink-0 pb-safe">
+      {/* Input - fixed at bottom */}
+      <div className="flex gap-2 flex-shrink-0 pt-3 border-t border-border/50 pb-safe">
         <Input
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
           onKeyPress={handleKeyPress}
-          placeholder="Type message..."
-          className="flex-1 bg-background/50 border-border/50 font-mono text-sm min-h-[48px]"
+          placeholder="Type a message..."
+          className="flex-1 bg-muted/50 border-border/50 rounded-full px-4 min-h-[44px]"
           maxLength={MAX_MESSAGE_LENGTH}
           disabled={sending}
         />
@@ -208,7 +258,7 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
           size="icon"
           onClick={handleSend}
           disabled={sending || !newMessage.trim()}
-          className="bg-primary hover:bg-primary/90 min-w-[48px] min-h-[48px]"
+          className="bg-primary hover:bg-primary/90 rounded-full min-w-[44px] min-h-[44px]"
         >
           <Send className="w-5 h-5" />
         </Button>

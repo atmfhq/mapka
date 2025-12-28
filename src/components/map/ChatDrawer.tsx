@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { MessageCircle, User, Send, ChevronLeft, Loader2, Users, Megaphone, Radio } from 'lucide-react';
+import { MessageCircle, Send, ChevronLeft, Loader2, Users, Megaphone, Radio } from 'lucide-react';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import { useConnectedUsers } from '@/hooks/useConnectedUsers';
 import { useInvitationRealtime } from '@/hooks/useInvitationRealtime';
 import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 import { useChatUnreadCounts } from '@/hooks/useChatUnreadCounts';
+import ProfileModal from './ProfileModal';
 
 interface ChatMessage {
   id: string;
@@ -54,7 +56,9 @@ const ChatDrawer = ({
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [activeMissions, setActiveMissions] = useState<ActiveMission[]>([]);
   const [loadingMissions, setLoadingMissions] = useState(true);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
   
   const { connectedUsers, loading, refetch: refetchConnections, getInvitationIdForUser } = useConnectedUsers(currentUserId);
   const { pendingInvitations, pendingCount, refetch: refetchPending } = useInvitationRealtime(currentUserId);
@@ -384,24 +388,22 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                 >
                   <ChevronLeft className="w-5 h-5" />
                 </Button>
-                <div className="w-9 h-9">
+                <button
+                  className="w-9 h-9 hover:opacity-80 transition-opacity"
+                  onClick={() => setProfileModalOpen(true)}
+                >
                   <AvatarDisplay 
                     config={selectedUserData?.avatar_config} 
                     size={36} 
                     showGlow={false} 
                   />
-                </div>
-                <span className="flex-1 font-semibold">{selectedUserData?.nick || 'Unknown'}</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-8 h-8 text-muted-foreground hover:text-foreground"
-                  onClick={() => {
-                    toast({ title: 'Profile view coming soon' });
-                  }}
+                </button>
+                <button
+                  className="flex-1 text-left hover:opacity-80 transition-opacity"
+                  onClick={() => setProfileModalOpen(true)}
                 >
-                  <User className="w-4 h-4" />
-                </Button>
+                  <span className="font-semibold">{selectedUserData?.nick || 'Unknown'}</span>
+                </button>
               </div>
             ) : (
               <>
@@ -661,6 +663,38 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
           </div>
         )}
       </SheetContent>
+
+      {/* Profile Modal for viewing user profile from chat */}
+      {selectedUserData && (
+        <ProfileModal
+          open={profileModalOpen}
+          onOpenChange={setProfileModalOpen}
+          user={{
+            id: selectedUserData.id,
+            nick: selectedUserData.nick,
+            avatar_url: selectedUserData.avatar_url,
+            avatar_config: selectedUserData.avatar_config,
+            tags: selectedUserData.tags,
+            bio: selectedUserData.bio,
+          }}
+          currentUserId={currentUserId}
+          isConnected={true}
+          invitationId={invitationId || undefined}
+          onOpenChat={() => {
+            setProfileModalOpen(false);
+          }}
+          onDisconnect={() => {
+            setProfileModalOpen(false);
+            setSelectedUser(null);
+            setMessages([]);
+            refetchConnections();
+          }}
+          onCloseChat={() => {
+            handleOpenChange(false);
+          }}
+          onNavigate={(path) => navigate(path)}
+        />
+      )}
     </Sheet>
   );
 };
