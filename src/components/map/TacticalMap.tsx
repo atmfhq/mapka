@@ -500,6 +500,33 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     requestAnimationFrame(animate);
   }, []);
 
+  // Handle incoming chat bubbles from realtime
+  const handleChatBubbleReceived = useCallback((payload: { user_id: string; message: string }) => {
+    // Don't duplicate our own bubble - we show it instantly on send
+    if (payload.user_id === currentUserId) return;
+    
+    const bubble: ActiveBubble = {
+      userId: payload.user_id,
+      message: payload.message,
+      expiresAt: Date.now() + 7000, // 7 second display
+    };
+    
+    setActiveBubbles(prev => {
+      const next = new Map(prev);
+      next.set(bubble.userId, bubble);
+      return next;
+    });
+  }, [currentUserId]);
+
+  // Handle local bubble (from BubbleChat component for instant feedback)
+  const handleLocalBubble = useCallback((bubble: ActiveBubble) => {
+    setActiveBubbles(prev => {
+      const next = new Map(prev);
+      next.set(bubble.userId, bubble);
+      return next;
+    });
+  }, []);
+
   // Realtime subscription for live multiplayer updates - SURGICAL UPDATES via Broadcast
   // Now enabled for EVERYONE (including guests) for public "window shopping"
   useProfilesRealtime({
@@ -538,7 +565,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         updateUserMarkerPosition(incoming.id, incoming.location_lat, incoming.location_lng);
       }
     }, [currentUserId, updateUserMarkerPosition]),
-    onBounceUpdate: triggerRemoteUserBounce
+    onBounceUpdate: triggerRemoteUserBounce,
+    onChatBubble: handleChatBubbleReceived,
   });
 
   // DATABASE-DRIVEN realtime: postgres_changes for TRUE background updates
@@ -1319,14 +1347,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     );
   }, [myBounceCount, particleTrigger, currentUserAvatarConfig, isGhostMode]);
 
-  // Handle incoming chat bubbles
-  const handleBubbleReceived = useCallback((bubble: ActiveBubble) => {
-    setActiveBubbles(prev => {
-      const next = new Map(prev);
-      next.set(bubble.userId, bubble);
-      return next;
-    });
-  }, []);
 
   // Cleanup expired bubbles every second
   useEffect(() => {
@@ -1845,17 +1865,20 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           backdrop-filter: blur(8px);
           border: 2px solid hsl(var(--primary) / 0.5);
           border-radius: 12px;
-          padding: 6px 12px;
-          max-width: 180px;
+          padding: 8px 14px;
+          min-width: 60px;
+          max-width: 200px;
           box-shadow: 0 4px 12px hsl(var(--primary) / 0.2), 0 0 20px hsl(var(--primary) / 0.1);
         }
         .speech-bubble-text {
           font-family: var(--font-nunito), sans-serif;
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 600;
           color: hsl(var(--foreground));
-          line-height: 1.3;
-          word-break: break-word;
+          line-height: 1.4;
+          white-space: pre-wrap;
+          word-wrap: break-word;
+          text-align: center;
           display: block;
         }
         .speech-bubble-tail {
@@ -1923,7 +1946,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       <BubbleChat
         currentUserId={currentUserId}
         isGuest={isGuest}
-        onBubbleReceived={handleBubbleReceived}
+        onLocalBubble={handleLocalBubble}
       />
 
       {/* Custom Map Controls */}
