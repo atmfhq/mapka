@@ -1867,29 +1867,36 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           bottom: 100%;
           left: 50%;
           transform: translateX(-50%);
-          z-index: 100;
+          z-index: 40; /* Above avatars (z-10), below UI overlays (z-50+) */
           pointer-events: none;
-          margin-bottom: 8px;
+          margin-bottom: 10px;
+          display: flex;
+          justify-content: center;
         }
         .speech-bubble {
           position: relative;
-          background: hsl(var(--card) / 0.95);
-          backdrop-filter: blur(8px);
-          border: 2px solid hsl(var(--primary) / 0.5);
-          border-radius: 12px;
-          padding: 8px 14px;
-          min-width: 60px;
-          max-width: 200px;
-          box-shadow: 0 4px 12px hsl(var(--primary) / 0.2), 0 0 20px hsl(var(--primary) / 0.1);
+          background: hsl(var(--card));
+          backdrop-filter: blur(12px);
+          border: 2px solid hsl(var(--primary) / 0.6);
+          border-radius: 14px;
+          padding: 10px 16px;
+          min-width: 100px;
+          max-width: 220px;
+          box-shadow: 
+            0 4px 16px hsl(var(--primary) / 0.25), 
+            0 0 24px hsl(var(--primary) / 0.15),
+            0 2px 4px rgba(0, 0, 0, 0.1);
         }
         .speech-bubble-text {
           font-family: var(--font-nunito), sans-serif;
           font-size: 13px;
           font-weight: 600;
           color: hsl(var(--foreground));
-          line-height: 1.4;
+          line-height: 1.45;
           white-space: pre-wrap;
           word-wrap: break-word;
+          overflow-wrap: break-word;
+          hyphens: auto;
           text-align: center;
           display: block;
         }
@@ -1902,7 +1909,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           height: 0;
           border-left: 8px solid transparent;
           border-right: 8px solid transparent;
-          border-top: 8px solid hsl(var(--primary) / 0.5);
+          border-top: 8px solid hsl(var(--primary) / 0.6);
         }
         .speech-bubble-tail::before {
           content: '';
@@ -1914,19 +1921,19 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           height: 0;
           border-left: 6px solid transparent;
           border-right: 6px solid transparent;
-          border-top: 6px solid hsl(var(--card) / 0.95);
+          border-top: 6px solid hsl(var(--card));
         }
         @keyframes bubble-pop {
           0% {
             opacity: 0;
-            transform: translateX(-50%) scale(0.5) translateY(10px);
+            transform: scale(0.5) translateY(10px);
           }
           50% {
-            transform: translateX(-50%) scale(1.05) translateY(-2px);
+            transform: scale(1.05) translateY(-2px);
           }
           100% {
             opacity: 1;
-            transform: translateX(-50%) scale(1) translateY(0);
+            transform: scale(1) translateY(0);
           }
         }
         .animate-bubble-pop {
