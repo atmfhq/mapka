@@ -23,65 +23,73 @@ interface BubbleChatProps {
 
 const BubbleChat = ({ currentUserId, isGuest = false, onLocalBubble }: BubbleChatProps) => {
   const [message, setMessage] = useState('');
-  const [sending, setSending] = useState(false);
   const [cooldown, setCooldown] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const sendChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
 
-  // Keep input focused after operations
+  // Create a persistent send channel on mount
   useEffect(() => {
-    if (!cooldown && !sending && inputRef.current) {
+    if (!currentUserId || isGuest) return;
+
+    // Use the EXACT same channel name - Supabase will reuse if exists
+    const channel = supabase.channel(REALTIME_CHANNEL);
+    
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        console.log('[BubbleChat] Send channel ready on', REALTIME_CHANNEL);
+      }
+    });
+
+    sendChannelRef.current = channel;
+
+    return () => {
+      // Don't remove the channel - it's shared with useProfilesRealtime
+      sendChannelRef.current = null;
+    };
+  }, [currentUserId, isGuest]);
+
+  // Keep input focused after cooldown ends
+  useEffect(() => {
+    if (!cooldown && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [cooldown, sending]);
+  }, [cooldown]);
 
   const handleSend = useCallback(async () => {
     const trimmedMessage = message.trim();
     if (!trimmedMessage || !currentUserId || isGuest || cooldown) return;
 
-    setSending(true);
+    // Clear input FIRST for instant feedback
+    setMessage('');
+    
+    // Start cooldown immediately
     setCooldown(true);
 
-    try {
-      const payload: ChatBubblePayload = {
-        user_id: currentUserId,
-        message: trimmedMessage.slice(0, MAX_MESSAGE_LENGTH),
-        timestamp: new Date().toISOString(),
-      };
+    const payload: ChatBubblePayload = {
+      user_id: currentUserId,
+      message: trimmedMessage.slice(0, MAX_MESSAGE_LENGTH),
+      timestamp: new Date().toISOString(),
+    };
 
-      // Show our own bubble immediately for instant feedback
-      onLocalBubble?.({
-        userId: currentUserId,
-        message: trimmedMessage.slice(0, MAX_MESSAGE_LENGTH),
-        expiresAt: Date.now() + BUBBLE_DURATION_MS,
-      });
+    // Show our own bubble immediately
+    onLocalBubble?.({
+      userId: currentUserId,
+      message: trimmedMessage.slice(0, MAX_MESSAGE_LENGTH),
+      expiresAt: Date.now() + BUBBLE_DURATION_MS,
+    });
 
-      // Send via the SAME channel everyone is subscribed to
-      const sendChannel = supabase.channel(`${REALTIME_CHANNEL}-send-${Date.now()}`);
-
-      await sendChannel.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('💬 SENDING Chat bubble to', REALTIME_CHANNEL, payload);
-          sendChannel.send({ type: 'broadcast', event: CHAT_EVENT, payload });
-
-          // Cleanup after sending
-          setTimeout(() => {
-            supabase.removeChannel(sendChannel);
-          }, 500);
-        }
-      });
-
-      // Clear input immediately
-      setMessage('');
-    } catch (err) {
-      console.error('[BubbleChat] Failed to send message:', err);
-    } finally {
-      setSending(false);
-      
-      // Start cooldown timer
-      setTimeout(() => {
-        setCooldown(false);
-      }, COOLDOWN_MS);
+    // Send via the shared channel
+    if (sendChannelRef.current) {
+      console.log('💬 SENDING Chat bubble to', REALTIME_CHANNEL, payload);
+      sendChannelRef.current.send({ type: 'broadcast', event: CHAT_EVENT, payload });
+    } else {
+      console.warn('[BubbleChat] No send channel available');
     }
+
+    // End cooldown after delay
+    setTimeout(() => {
+      setCooldown(false);
+    }, COOLDOWN_MS);
   }, [message, currentUserId, isGuest, cooldown, onLocalBubble]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -96,7 +104,7 @@ const BubbleChat = ({ currentUserId, isGuest = false, onLocalBubble }: BubbleCha
     return null;
   }
 
-  const isDisabled = sending || cooldown;
+  const isDisabled = cooldown;
 
   return (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
