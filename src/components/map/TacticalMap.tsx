@@ -1352,33 +1352,42 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   useEffect(() => {
     const interval = setInterval(() => {
       const now = Date.now();
-      setActiveBubbles(prev => {
+
+      setActiveBubbles((prev) => {
         let changed = false;
         const next = new Map(prev);
+
         next.forEach((bubble, userId) => {
-          if (bubble.expiresAt < now) {
-            console.log('[TacticalMap] Bubble expired for user:', userId);
-            next.delete(userId);
-            changed = true;
-            // Clean up DOM root
-            const root = speechBubbleRootsRef.current.get(userId);
-            if (root) {
-              queueMicrotask(() => {
-                try { root.unmount(); } catch (e) { /* ignore */ }
-              });
-              speechBubbleRootsRef.current.delete(userId);
+          if (bubble.expiresAt >= now) return;
+
+          next.delete(userId);
+          changed = true;
+
+          // Unmount bubble root (if any)
+          const root = speechBubbleRootsRef.current.get(userId);
+          if (root) {
+            try {
+              root.unmount();
+            } catch (e) {
+              // ignore
             }
+            speechBubbleRootsRef.current.delete(userId);
+          }
+
+          // Remove the container element so future bubbles can re-create a root cleanly
+          if (userId === currentUserId && myMarkerRef.current) {
+            myMarkerRef.current.getElement().querySelector('.speech-bubble-container')?.remove();
+          } else {
+            userMarkersMapRef.current.get(userId)?.element.querySelector('.speech-bubble-container')?.remove();
           }
         });
-        if (changed) {
-          console.log('[TacticalMap] Bubbles cleanup complete, remaining:', next.size);
-        }
+
         return changed ? next : prev;
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [currentUserId]);
 
   // Render speech bubbles above user markers
   useEffect(() => {
@@ -1402,27 +1411,26 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       // Check if bubble container already exists
       let bubbleContainer = targetEl.querySelector('.speech-bubble-container') as HTMLElement;
-      
+
       if (!bubbleContainer) {
         // Create bubble container
         bubbleContainer = document.createElement('div');
         bubbleContainer.className = 'speech-bubble-container';
         targetEl.appendChild(bubbleContainer);
-        
-        const root = createRoot(bubbleContainer);
+      }
+
+      // Ensure we always have a React root for this container
+      let root = speechBubbleRootsRef.current.get(userId);
+      if (!root) {
+        root = createRoot(bubbleContainer);
         speechBubbleRootsRef.current.set(userId, root);
       }
-      
-      // Render/update the bubble content
-      const root = speechBubbleRootsRef.current.get(userId);
-      if (root) {
-        root.render(
-          <div className="speech-bubble animate-bubble-pop">
-            <span className="speech-bubble-text">{bubble.message}</span>
-            <div className="speech-bubble-tail" />
-          </div>
-        );
-      }
+      root.render(
+        <div className="speech-bubble animate-bubble-pop">
+          <span className="speech-bubble-text">{bubble.message}</span>
+          <div className="speech-bubble-tail" />
+        </div>
+      );
     });
 
     // Remove bubbles for users no longer in activeBubbles
