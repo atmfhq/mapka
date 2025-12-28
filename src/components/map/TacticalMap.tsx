@@ -1421,9 +1421,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         bubbleOverlayRef.current!.appendChild(bubbleContainer);
       }
 
-      // Position the bubble at the marker's screen coordinates
+      // Position the bubble centered above the marker
+      bubbleContainer.style.position = 'absolute';
       bubbleContainer.style.left = `${point.x}px`;
       bubbleContainer.style.top = `${point.y - 30}px`; // Offset above avatar
+      bubbleContainer.style.transform = 'translateX(-50%)'; // Center horizontally
 
       // Ensure we always have a React root for this container
       let root = speechBubbleRootsRef.current.get(userId);
@@ -1482,6 +1484,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         if (bubbleContainer) {
           bubbleContainer.style.left = `${point.x}px`;
           bubbleContainer.style.top = `${point.y - 30}px`;
+          bubbleContainer.style.transform = 'translateX(-50%)'; // Center horizontally
         }
       });
     };
