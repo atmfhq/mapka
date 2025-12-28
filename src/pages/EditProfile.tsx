@@ -48,6 +48,9 @@ const EditProfile = () => {
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [activeTab, setActiveTab] = useState("identity");
   
   // Form state
   const [nick, setNick] = useState("");
@@ -204,7 +207,7 @@ const EditProfile = () => {
 
         {/* Edit Form with Tabs */}
         <TacticalCard className="mb-6">
-          <Tabs defaultValue="identity" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid grid-cols-3 w-full bg-muted/50 mb-6">
               <TabsTrigger value="identity" className="gap-1.5 text-xs">
                 <Shield className="w-4 h-4" />
@@ -271,64 +274,8 @@ const EditProfile = () => {
           </Tabs>
         </TacticalCard>
 
-        {/* Danger Zone */}
-        <TacticalCard className="mb-6 border-destructive/30 bg-destructive/5">
-          <div className="flex items-center gap-2 mb-4">
-            <AlertTriangle className="w-5 h-5 text-destructive" />
-            <h3 className="font-fredoka text-sm font-semibold text-destructive">
-              Danger Zone
-            </h3>
-          </div>
-          
-          <p className="text-sm text-muted-foreground mb-4">
-            Once you delete your account, there is no going back. All your data, connections, and events will be permanently removed.
-          </p>
-          
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button 
-                variant="destructive" 
-                className="w-full"
-                disabled={deletingAccount}
-              >
-                {deletingAccount ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete Account
-                  </>
-                )}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="bg-card border-destructive/30">
-              <AlertDialogHeader>
-              <AlertDialogTitle className="font-fredoka flex items-center gap-2">
-                  <AlertTriangle className="w-5 h-5 text-destructive" />
-                  Delete Account Permanently?
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  This action cannot be undone. This will permanently delete your account, profile, all connections, events you've hosted, and remove all your data from our servers.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={handleDeleteAccount}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Yes, Delete My Account
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </TacticalCard>
-
         {/* Navigation */}
-        <div className="flex justify-between">
+        <div className="flex justify-between mb-6">
           <Button variant="ghost" onClick={() => navigate("/dashboard")}>
             <ChevronLeft className="w-4 h-4" />
             Back to Map
@@ -352,6 +299,75 @@ const EditProfile = () => {
             )}
           </Button>
         </div>
+
+        {/* Delete Account - only show on Identity/Interests tabs */}
+        {activeTab !== "appearance" && (
+          <div className="text-center pt-4 border-t border-border/30">
+            <button
+              onClick={() => {
+                setDeleteConfirmText("");
+                setDeleteConfirmOpen(true);
+              }}
+              className="text-xs text-muted-foreground hover:text-destructive transition-colors underline-offset-2 hover:underline"
+              disabled={deletingAccount}
+            >
+              {deletingAccount ? "Deleting..." : "Delete my account"}
+            </button>
+          </div>
+        )}
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+          <AlertDialogContent className="bg-card border-destructive/30">
+            <AlertDialogHeader>
+              <AlertDialogTitle className="font-fredoka flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
+                Delete Account Permanently?
+              </AlertDialogTitle>
+              <AlertDialogDescription className="space-y-4">
+                <p>
+                  This action cannot be undone. This will permanently delete your account, profile, all connections, events you've hosted, and remove all your data from our servers.
+                </p>
+                <div className="space-y-2 pt-2">
+                  <Label htmlFor="delete-confirm" className="text-sm font-medium text-foreground">
+                    Type <span className="font-mono font-bold text-destructive">delete</span> to confirm
+                  </Label>
+                  <Input
+                    id="delete-confirm"
+                    value={deleteConfirmText}
+                    onChange={(e) => setDeleteConfirmText(e.target.value.toLowerCase())}
+                    placeholder="Type 'delete' here"
+                    className="bg-muted/50 border-2 border-border focus:border-destructive"
+                    autoComplete="off"
+                  />
+                </div>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setDeleteConfirmText("")}>
+                Cancel
+              </AlertDialogCancel>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setDeleteConfirmOpen(false);
+                  handleDeleteAccount();
+                }}
+                disabled={deleteConfirmText !== "delete" || deletingAccount}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deletingAccount ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Yes, Delete My Account"
+                )}
+              </Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* Bottom breathing room */}
         <div className="h-8" />
