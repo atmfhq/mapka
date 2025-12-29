@@ -206,7 +206,6 @@ const Dashboard = () => {
           onSignOut={handleSignOut}
           onMissionCreated={handleMissionCreated}
           onOpenMission={handleOpenMission}
-          onFlyToQuest={handleFlyToQuest}
           chatOpenUserId={chatOpenUserId}
           onChatOpenChange={handleChatOpenChange}
           onFlyTo={handleFlyTo}
