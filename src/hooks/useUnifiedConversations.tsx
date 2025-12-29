@@ -251,6 +251,7 @@ export const useUnifiedConversations = (
         },
         (payload) => {
           const msg = payload.new as { invitation_id: string; content: string; created_at: string; sender_id: string };
+          console.log('[UnifiedConversations] New DM received:', msg.invitation_id);
           
           // Update the lastMessages map immediately for instant reordering
           setDmLastMessages(prev => {
@@ -269,6 +270,56 @@ export const useUnifiedConversations = (
 
     return () => {
       supabase.removeChannel(channel);
+    };
+  }, [currentUserId]);
+
+  // Real-time subscription for invitation changes - to pick up new connections immediately
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const senderChannel = supabase
+      .channel(`conversations-inv-sender-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'invitations',
+          filter: `sender_id=eq.${currentUserId}`,
+        },
+        (payload) => {
+          const newStatus = (payload.new as { status: string }).status;
+          if (newStatus === 'accepted') {
+            console.log('[UnifiedConversations] Invitation accepted (sender), will refetch...');
+            // The parent component's connectedUsers will update which triggers our useMemo
+          }
+        }
+      )
+      .subscribe();
+
+    const receiverChannel = supabase
+      .channel(`conversations-inv-receiver-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'invitations',
+          filter: `receiver_id=eq.${currentUserId}`,
+        },
+        (payload) => {
+          const newStatus = (payload.new as { status: string }).status;
+          if (newStatus === 'accepted') {
+            console.log('[UnifiedConversations] Invitation accepted (receiver), will refetch...');
+            // The parent component's connectedUsers will update which triggers our useMemo
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(senderChannel);
+      supabase.removeChannel(receiverChannel);
     };
   }, [currentUserId]);
 

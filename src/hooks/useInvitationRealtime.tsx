@@ -143,7 +143,7 @@ export const useInvitationRealtime = (currentUserId: string | null) => {
   useEffect(() => {
     if (!currentUserId) return;
 
-    console.log('Setting up sender realtime subscription for user:', currentUserId);
+    console.log('[InvitationRealtime] Setting up sender subscription for:', currentUserId);
 
     const channel = supabase
       .channel(`invitations-sender-${currentUserId}`)
@@ -153,36 +153,37 @@ export const useInvitationRealtime = (currentUserId: string | null) => {
           event: 'UPDATE',
           schema: 'public',
           table: 'invitations',
+          filter: `sender_id=eq.${currentUserId}`,
         },
         async (payload) => {
-          console.log('Invitation UPDATE received:', payload);
+          console.log('[InvitationRealtime] Sender invitation UPDATE:', payload);
           
-          // Check if this update is for the current user as sender
-          if (payload.new.sender_id !== currentUserId) {
-            console.log('Not for this sender, ignoring');
-            return;
-          }
-
-          console.log('Sender match! Checking status change...');
+          const newRecord = payload.new as {
+            id: string;
+            sender_id: string;
+            receiver_id: string;
+            status: string;
+            activity_type: string;
+          };
+          const oldRecord = payload.old as { status?: string } | null;
           
           // Check if the invitation was just accepted
-          // With REPLICA IDENTITY FULL, payload.old should have the previous status
-          const isAccepted = payload.new.status === 'accepted';
-          const wasNotAccepted = !payload.old?.status || payload.old.status === 'pending';
+          const isAccepted = newRecord.status === 'accepted';
+          const wasNotAccepted = !oldRecord?.status || oldRecord.status === 'pending';
           
-          console.log('Status check:', { 
-            newStatus: payload.new.status, 
-            oldStatus: payload.old?.status,
+          console.log('[InvitationRealtime] Status transition:', { 
+            oldStatus: oldRecord?.status,
+            newStatus: newRecord.status,
             isAccepted,
             wasNotAccepted 
           });
 
           if (isAccepted && wasNotAccepted) {
-            console.log('Invitation accepted! Showing toast...');
+            console.log('[InvitationRealtime] Invitation accepted! Showing toast...');
             
             // Fetch receiver profile using secure RPC function
             const { data: receiverProfiles } = await supabase
-              .rpc('get_public_profiles_by_ids', { user_ids: [payload.new.receiver_id] });
+              .rpc('get_public_profiles_by_ids', { user_ids: [newRecord.receiver_id] });
             
             const receiverProfile = receiverProfiles?.[0];
 
@@ -194,11 +195,11 @@ export const useInvitationRealtime = (currentUserId: string | null) => {
         }
       )
       .subscribe((status) => {
-        console.log('Sender subscription status:', status);
+        console.log('[InvitationRealtime] Sender subscription status:', status);
       });
 
     return () => {
-      console.log('Cleaning up sender subscription');
+      console.log('[InvitationRealtime] Cleaning up sender subscription');
       supabase.removeChannel(channel);
     };
   }, [currentUserId]);
