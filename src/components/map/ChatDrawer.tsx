@@ -13,6 +13,7 @@ import { useConnectedUsers } from '@/hooks/useConnectedUsers';
 import { useInvitationRealtime } from '@/hooks/useInvitationRealtime';
 import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 import { useChatUnreadCounts } from '@/hooks/useChatUnreadCounts';
+import { useMutedChats } from '@/hooks/useMutedChats';
 import { useUnifiedConversations, type ConversationItem } from '@/hooks/useUnifiedConversations';
 import ConversationRow from './ConversationRow';
 import ProfileModal from './ProfileModal';
@@ -63,6 +64,7 @@ const ChatDrawer = ({
   const { connectedUsers, loading, refetch: refetchConnections, getInvitationIdForUser } = useConnectedUsers(currentUserId);
   const { pendingInvitations, pendingCount, refetch: refetchPending } = useInvitationRealtime(currentUserId);
   const { markInvitationAsRead, markEventAsRead, silentRefetch } = useUnreadMessages(currentUserId);
+  const { mutedEventIds, mutedInvitationIds } = useMutedChats(currentUserId);
 
   // Collect all event IDs for per-chat unread counts
   const allEventIds = useMemo(() => {
@@ -78,7 +80,7 @@ const ChatDrawer = ({
     setActiveEventChat,
     setActiveDmChat,
     refetch: refetchUnreadCounts 
-  } = useChatUnreadCounts(currentUserId, allEventIds);
+  } = useChatUnreadCounts(currentUserId, allEventIds, mutedEventIds, mutedInvitationIds);
 
   // Unified conversations list
   const { conversations, loading: loadingConversations, refetch: refetchConversations } = useUnifiedConversations(
