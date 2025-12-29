@@ -227,44 +227,25 @@ export const useChatUnreadCounts = (
   }, [currentUserId]);
 
   // Subscribe to invitation status changes to refetch when new connections are made
+  // Using broad subscription with client-side filtering for reliability
   useEffect(() => {
     if (!currentUserId) return;
 
-    const senderChannel = supabase
-      .channel(`unread-invitations-sender-${currentUserId}`)
+    const channel = supabase
+      .channel(`unread-invitations-${currentUserId}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'invitations',
-          filter: `sender_id=eq.${currentUserId}`,
         },
         (payload) => {
-          const newStatus = (payload.new as { status: string }).status;
-          if (newStatus === 'accepted') {
-            console.log('[UnreadCounts] Invitation accepted (sender), refetching...');
-            // Refetch to pick up the new conversation
-            fetchUnreadCounts();
-          }
-        }
-      )
-      .subscribe();
-
-    const receiverChannel = supabase
-      .channel(`unread-invitations-receiver-${currentUserId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'invitations',
-          filter: `receiver_id=eq.${currentUserId}`,
-        },
-        (payload) => {
-          const newStatus = (payload.new as { status: string }).status;
-          if (newStatus === 'accepted') {
-            console.log('[UnreadCounts] Invitation accepted (receiver), refetching...');
+          const newInv = payload.new as { sender_id: string; receiver_id: string; status: string };
+          // Check if this invitation involves current user and was just accepted
+          if ((newInv.sender_id === currentUserId || newInv.receiver_id === currentUserId) && 
+              newInv.status === 'accepted') {
+            console.log('[UnreadCounts] Invitation accepted, refetching...');
             // Refetch to pick up the new conversation
             fetchUnreadCounts();
           }
@@ -273,8 +254,7 @@ export const useChatUnreadCounts = (
       .subscribe();
 
     return () => {
-      supabase.removeChannel(senderChannel);
-      supabase.removeChannel(receiverChannel);
+      supabase.removeChannel(channel);
     };
   }, [currentUserId, fetchUnreadCounts]);
 
