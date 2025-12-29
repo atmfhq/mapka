@@ -1,9 +1,10 @@
 import { formatDistanceToNow } from 'date-fns';
-import { Megaphone, Radio } from 'lucide-react';
+import { Radio } from 'lucide-react';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ConversationItem } from '@/hooks/useUnifiedConversations';
+import { ACTIVITIES, getCategoryForActivity, ACTIVITY_CATEGORIES } from '@/constants/activities';
 
 interface ConversationRowProps {
   item: ConversationItem;
@@ -11,6 +12,35 @@ interface ConversationRowProps {
   onAcceptInvite?: (invitationId: string, senderId: string, activityType: string) => void;
   onDeclineInvite?: (invitationId: string) => void;
 }
+
+// Category colors matching TacticalMap marker styling (HSL format)
+const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  sport: { bg: 'bg-[hsl(15,100%,55%)]/20', border: 'border-[hsl(15,100%,55%)]/40', text: 'text-[hsl(15,100%,55%)]' },
+  tabletop: { bg: 'bg-[hsl(200,100%,50%)]/20', border: 'border-[hsl(200,100%,50%)]/40', text: 'text-[hsl(200,100%,50%)]' },
+  social: { bg: 'bg-[hsl(45,100%,55%)]/20', border: 'border-[hsl(45,100%,55%)]/40', text: 'text-[hsl(45,100%,55%)]' },
+  outdoor: { bg: 'bg-[hsl(145,70%,45%)]/20', border: 'border-[hsl(145,70%,45%)]/40', text: 'text-[hsl(145,70%,45%)]' },
+};
+
+// Get activity icon from category (label/id)
+const getSpotIcon = (category: string): string => {
+  // First try to find exact activity match
+  const activity = ACTIVITIES.find(
+    a => a.label.toLowerCase() === category.toLowerCase() || a.id.toLowerCase() === category.toLowerCase()
+  );
+  if (activity) return activity.icon;
+  
+  // Fallback to category icon
+  const categoryInfo = ACTIVITY_CATEGORIES.find(c => c.id === category.toLowerCase());
+  if (categoryInfo) return categoryInfo.icon;
+  
+  return '📍'; // Default fallback
+};
+
+// Get category color styles from category
+const getCategoryStyles = (category: string): { bg: string; border: string; text: string } => {
+  const categoryKey = getCategoryForActivity(category) || category.toLowerCase();
+  return CATEGORY_COLORS[categoryKey] || { bg: 'bg-primary/20', border: 'border-primary/40', text: 'text-primary' };
+};
 
 const ConversationRow = ({ 
   item, 
@@ -26,6 +56,10 @@ const ConversationRow = ({
   const hasUnread = item.unreadCount > 0;
   const isSpot = item.type === 'spot';
 
+  // Get icon and colors for spots
+  const spotIcon = isSpot ? getSpotIcon(item.category || '') : null;
+  const categoryStyles = isSpot ? getCategoryStyles(item.category || '') : null;
+
   return (
     <div
       className={`
@@ -38,11 +72,11 @@ const ConversationRow = ({
       `}
       onClick={() => !isPendingInvite && onSelect(item)}
     >
-      {/* Avatar */}
+      {/* Avatar / Spot Icon */}
       <div className="relative flex-shrink-0">
-        {isSpot ? (
-          <div className="w-12 h-12 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center">
-            <Megaphone className="w-6 h-6 text-primary" />
+        {isSpot && spotIcon && categoryStyles ? (
+          <div className={`w-12 h-12 rounded-xl ${categoryStyles.bg} border ${categoryStyles.border} flex items-center justify-center`}>
+            <span className="text-2xl">{spotIcon}</span>
           </div>
         ) : (
           <div className="w-12 h-12">
@@ -120,8 +154,8 @@ const ConversationRow = ({
       </div>
 
       {/* Type badge for spots */}
-      {isSpot && (
-        <Badge variant="outline" className="bg-primary/20 text-primary border-primary/40 text-xs capitalize flex-shrink-0">
+      {isSpot && categoryStyles && (
+        <Badge variant="outline" className={`${categoryStyles.bg} ${categoryStyles.text} ${categoryStyles.border} text-xs capitalize flex-shrink-0`}>
           {item.category}
         </Badge>
       )}
