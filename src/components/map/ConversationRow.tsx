@@ -63,7 +63,7 @@ const ConversationRow = ({
   return (
     <div
       className={`
-        flex items-center gap-3 p-3 rounded-xl transition-colors cursor-pointer
+        flex items-center gap-3 p-3 rounded-xl transition-colors cursor-pointer w-full overflow-hidden
         ${isPendingInvite 
           ? 'bg-warning/10 border border-warning/30 hover:bg-warning/20' 
           : 'hover:bg-muted/50'
@@ -73,19 +73,17 @@ const ConversationRow = ({
       onClick={() => !isPendingInvite && onSelect(item)}
     >
       {/* Avatar / Spot Icon */}
-      <div className="relative flex-shrink-0">
+      <div className="relative flex-shrink-0 w-12 h-12">
         {isSpot && spotIcon && categoryStyles ? (
           <div className={`w-12 h-12 rounded-xl ${categoryStyles.bg} border ${categoryStyles.border} flex items-center justify-center`}>
             <span className="text-2xl">{spotIcon}</span>
           </div>
         ) : (
-          <div className="w-12 h-12">
-            <AvatarDisplay
-              config={item.avatarConfig}
-              size={48}
-              showGlow={false}
-            />
-          </div>
+          <AvatarDisplay
+            config={item.avatarConfig}
+            size={48}
+            showGlow={false}
+          />
         )}
         
         {/* Pending invite indicator */}
@@ -103,16 +101,22 @@ const ConversationRow = ({
         )}
       </div>
 
-      {/* Content */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-2">
-          <h4 className={`font-semibold text-sm truncate ${hasUnread ? 'text-foreground' : 'text-foreground'}`}>
+      {/* Content - takes remaining space with overflow handling */}
+      <div className="flex-1 min-w-0 overflow-hidden">
+        <div className="flex items-center gap-2">
+          <h4 className={`font-semibold text-sm truncate flex-1 min-w-0 ${hasUnread ? 'text-foreground' : 'text-foreground'}`}>
             {item.title}
           </h4>
           {timeAgo && (
-            <span className={`text-xs flex-shrink-0 ${hasUnread ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
+            <span className={`text-xs flex-shrink-0 whitespace-nowrap ${hasUnread ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
               {timeAgo}
             </span>
+          )}
+          {/* Type badge for spots - inline with timestamp */}
+          {isSpot && categoryStyles && (
+            <Badge variant="outline" className={`${categoryStyles.bg} ${categoryStyles.text} ${categoryStyles.border} text-[10px] capitalize flex-shrink-0 px-1.5 py-0`}>
+              {item.category}
+            </Badge>
           )}
         </div>
         <p className={`text-xs truncate mt-0.5 ${
@@ -152,13 +156,6 @@ const ConversationRow = ({
           </div>
         )}
       </div>
-
-      {/* Type badge for spots */}
-      {isSpot && categoryStyles && (
-        <Badge variant="outline" className={`${categoryStyles.bg} ${categoryStyles.text} ${categoryStyles.border} text-xs capitalize flex-shrink-0`}>
-          {item.category}
-        </Badge>
-      )}
     </div>
   );
 };
