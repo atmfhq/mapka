@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import AlertsDrawer from './AlertsDrawer';
 import ChatDrawer from './ChatDrawer';
+import NotificationsDropdown from './NotificationsDropdown';
 import InstallPrompt from '@/components/InstallPrompt';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { supabase } from '@/integrations/supabase/client';
@@ -39,7 +39,6 @@ interface NavbarProps {
   onSignOut: () => void;
   onMissionCreated?: () => void;
   onOpenMission?: (missionId: string) => void;
-  onFlyToQuest?: (lat: number, lng: number) => void;
   chatOpenUserId?: string | null;
   onChatOpenChange?: (open: boolean) => void;
   onFlyTo: (lat: number, lng: number) => void;
@@ -56,7 +55,6 @@ const Navbar = ({
   onSignOut,
   onMissionCreated,
   onOpenMission,
-  onFlyToQuest,
   chatOpenUserId,
   onChatOpenChange,
   onFlyTo,
@@ -227,18 +225,9 @@ const Navbar = ({
             {/* Spacer */}
             <div className="flex-1 hidden lg:block" />
 
-            {/* User Controls - Floating Buttons */}
+            {/* User Controls - Social Media Style: Chat | Bell | Avatar */}
             <div className="flex items-center gap-2 pointer-events-auto flex-shrink-0">
-              {/* Alerts (Public Events) */}
-              <div className="bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-hard">
-                <AlertsDrawer 
-                  currentUserId={currentUserId}
-                  onOpenMission={onOpenMission}
-                  onFlyToQuest={onFlyToQuest}
-                />
-              </div>
-
-              {/* Chats (Active Connections) */}
+              {/* Chats (All Conversations) */}
               <div className="bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-hard">
                 <ChatDrawer 
                   key={`chat-drawer-${currentUserId}`}
@@ -246,6 +235,15 @@ const Navbar = ({
                   externalOpen={!!chatOpenUserId}
                   externalUserId={chatOpenUserId}
                   onOpenChange={onChatOpenChange}
+                  onOpenMission={onOpenMission}
+                />
+              </div>
+
+              {/* Notifications (Bell) */}
+              <div className="bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-hard">
+                <NotificationsDropdown 
+                  currentUserId={currentUserId}
+                  onFlyToSpot={onFlyTo}
                   onOpenMission={onOpenMission}
                 />
               </div>
