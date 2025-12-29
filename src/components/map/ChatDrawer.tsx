@@ -140,23 +140,26 @@ const ChatDrawer = ({
     }
   }, [externalEventId, externalOpen, activeMissions]);
 
-  // Fetch active missions (public megaphones where user is a participant)
+  // Fetch active missions (public megaphones where user is a participant with chat_active)
   const fetchActiveMissions = useCallback(async () => {
     if (!currentUserId) return;
     
     setLoadingMissions(true);
     
+    // Get hosted missions (hosts are always in chat)
     const { data: hostedMissions } = await supabase
       .from('megaphones')
       .select('id, title, category, host_id')
       .eq('host_id', currentUserId)
       .eq('is_private', false);
 
+    // Get participations where chat_active is true
     const { data: participations } = await supabase
       .from('event_participants')
       .select('event_id')
       .eq('user_id', currentUserId)
-      .eq('status', 'joined');
+      .eq('status', 'joined')
+      .eq('chat_active', true);
 
     const participatedEventIds = participations?.map(p => p.event_id) || [];
     
