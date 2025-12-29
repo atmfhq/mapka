@@ -1,59 +1,116 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface UnreadCounts {
   [eventId: string]: number;
 }
 
+interface DirectMessageCounts {
+  [invitationId: string]: number;
+}
+
 export const useChatUnreadCounts = (currentUserId: string | null, eventIds: string[]) => {
   const [unreadCounts, setUnreadCounts] = useState<UnreadCounts>({});
+  const [dmUnreadCounts, setDmUnreadCounts] = useState<DirectMessageCounts>({});
   const [loading, setLoading] = useState(true);
+  const eventIdsRef = useRef<string[]>(eventIds);
+
+  // Keep ref in sync
+  useEffect(() => {
+    eventIdsRef.current = eventIds;
+  }, [eventIds]);
 
   const fetchUnreadCounts = useCallback(async () => {
-    if (!currentUserId || eventIds.length === 0) {
+    if (!currentUserId) {
       setUnreadCounts({});
+      setDmUnreadCounts({});
       setLoading(false);
       return;
     }
 
     try {
-      // Get user's last_read_at for each event they participate in (includes hosts via upsert)
-      const { data: participations } = await supabase
-        .from('event_participants')
-        .select('event_id, last_read_at')
-        .eq('user_id', currentUserId)
-        .in('event_id', eventIds);
+      // Fetch event chat unread counts
+      if (eventIds.length > 0) {
+        // Get user's last_read_at for each event they participate in
+        const { data: participations } = await supabase
+          .from('event_participants')
+          .select('event_id, last_read_at')
+          .eq('user_id', currentUserId)
+          .in('event_id', eventIds);
 
-      // Build a map of event_id -> last_read_at
-      const lastReadMap: { [eventId: string]: string } = {};
-      
-      for (const p of participations || []) {
-        lastReadMap[p.event_id] = p.last_read_at || '1970-01-01T00:00:00Z';
-      }
+        // Also check if user is host (they might not have a participant record)
+        const { data: hostedEvents } = await supabase
+          .from('megaphones')
+          .select('id, created_at')
+          .eq('host_id', currentUserId)
+          .in('id', eventIds);
 
-      // Now count unread messages for each event
-      const counts: UnreadCounts = {};
-      
-      for (const eventId of eventIds) {
-        const lastReadAt = lastReadMap[eventId];
+        // Build a map of event_id -> last_read_at
+        const lastReadMap: { [eventId: string]: string } = {};
         
-        // If no participation record, they haven't read any messages yet
-        // Use a very old date to count all messages
-        const cutoffTime = lastReadAt || '1970-01-01T00:00:00Z';
-        
-        const { count, error } = await supabase
-          .from('event_chat_messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('event_id', eventId)
-          .neq('user_id', currentUserId)
-          .gt('created_at', cutoffTime);
-
-        if (!error && count !== null) {
-          counts[eventId] = count;
+        for (const p of participations || []) {
+          lastReadMap[p.event_id] = p.last_read_at || '1970-01-01T00:00:00Z';
         }
+
+        // For hosted events without participation record, use created_at as fallback
+        for (const h of hostedEvents || []) {
+          if (!lastReadMap[h.id]) {
+            lastReadMap[h.id] = h.created_at || '1970-01-01T00:00:00Z';
+          }
+        }
+
+        // Now count unread messages for each event
+        const counts: UnreadCounts = {};
+        
+        for (const eventId of eventIds) {
+          const cutoffTime = lastReadMap[eventId] || '1970-01-01T00:00:00Z';
+          
+          const { count, error } = await supabase
+            .from('event_chat_messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('event_id', eventId)
+            .neq('user_id', currentUserId)
+            .gt('created_at', cutoffTime);
+
+          if (!error && count !== null) {
+            counts[eventId] = count;
+          }
+        }
+
+        setUnreadCounts(counts);
+      } else {
+        setUnreadCounts({});
       }
 
-      setUnreadCounts(counts);
+      // Fetch direct message unread counts
+      const { data: invitations } = await supabase
+        .from('invitations')
+        .select('id, last_read_at')
+        .eq('status', 'accepted')
+        .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+
+      if (invitations && invitations.length > 0) {
+        const dmCounts: DirectMessageCounts = {};
+        
+        for (const inv of invitations) {
+          const cutoffTime = inv.last_read_at || '1970-01-01T00:00:00Z';
+          
+          const { count, error } = await supabase
+            .from('direct_messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('invitation_id', inv.id)
+            .neq('sender_id', currentUserId)
+            .gt('created_at', cutoffTime);
+
+          if (!error && count !== null && count > 0) {
+            dmCounts[inv.id] = count;
+          }
+        }
+
+        setDmUnreadCounts(dmCounts);
+      } else {
+        setDmUnreadCounts({});
+      }
     } catch (err) {
       console.error('useChatUnreadCounts: Error fetching counts:', err);
     }
@@ -65,12 +122,12 @@ export const useChatUnreadCounts = (currentUserId: string | null, eventIds: stri
     fetchUnreadCounts();
   }, [fetchUnreadCounts]);
 
-  // Subscribe to new messages for these events
+  // Subscribe to new event messages
   useEffect(() => {
-    if (!currentUserId || eventIds.length === 0) return;
+    if (!currentUserId) return;
 
     const channel = supabase
-      .channel('chat-unread-counts')
+      .channel('chat-unread-events')
       .on(
         'postgres_changes',
         {
@@ -79,12 +136,16 @@ export const useChatUnreadCounts = (currentUserId: string | null, eventIds: stri
           table: 'event_chat_messages',
         },
         (payload) => {
-          // If message is in one of our events and from someone else, refetch
-          if (
-            eventIds.includes(payload.new.event_id) &&
-            payload.new.user_id !== currentUserId
-          ) {
-            fetchUnreadCounts();
+          // If message is from someone else, increment count immediately
+          if (payload.new.user_id !== currentUserId) {
+            const eventId = payload.new.event_id;
+            // Only update if we're tracking this event
+            if (eventIdsRef.current.includes(eventId)) {
+              setUnreadCounts(prev => ({
+                ...prev,
+                [eventId]: (prev[eventId] || 0) + 1
+              }));
+            }
           }
         }
       )
@@ -93,15 +154,77 @@ export const useChatUnreadCounts = (currentUserId: string | null, eventIds: stri
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUserId, eventIds.join(','), fetchUnreadCounts]);
+  }, [currentUserId]);
+
+  // Subscribe to new direct messages
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const channel = supabase
+      .channel('chat-unread-dms')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'direct_messages',
+        },
+        (payload) => {
+          // If message is from someone else, increment count immediately
+          if (payload.new.sender_id !== currentUserId) {
+            const invitationId = payload.new.invitation_id;
+            setDmUnreadCounts(prev => ({
+              ...prev,
+              [invitationId]: (prev[invitationId] || 0) + 1
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId]);
 
   const getUnreadCount = (eventId: string): number => {
     return unreadCounts[eventId] || 0;
   };
 
+  const getDmUnreadCount = (invitationId: string): number => {
+    return dmUnreadCounts[invitationId] || 0;
+  };
+
+  const getTotalUnreadCount = (): number => {
+    const eventTotal = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
+    const dmTotal = Object.values(dmUnreadCounts).reduce((sum, count) => sum + count, 0);
+    return eventTotal + dmTotal;
+  };
+
+  const clearUnreadForEvent = (eventId: string) => {
+    setUnreadCounts(prev => {
+      const newCounts = { ...prev };
+      delete newCounts[eventId];
+      return newCounts;
+    });
+  };
+
+  const clearUnreadForDm = (invitationId: string) => {
+    setDmUnreadCounts(prev => {
+      const newCounts = { ...prev };
+      delete newCounts[invitationId];
+      return newCounts;
+    });
+  };
+
   return {
     unreadCounts,
+    dmUnreadCounts,
     getUnreadCount,
+    getDmUnreadCount,
+    getTotalUnreadCount,
+    clearUnreadForEvent,
+    clearUnreadForDm,
     loading,
     refetch: fetchUnreadCounts,
   };
