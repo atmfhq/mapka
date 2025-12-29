@@ -20,7 +20,7 @@ import { useProfilesRealtime, broadcastCurrentUserUpdate } from '@/hooks/useProf
 import { useMegaphonesRealtime } from '@/hooks/useMegaphonesRealtime';
 import { useParticipantsRealtime } from '@/hooks/useParticipantsRealtime';
 import { Button } from '@/components/ui/button';
-import { Crosshair, Plus, Minus, Compass, Users, UsersRound } from 'lucide-react';
+import { Crosshair, Plus, Minus, Compass, Users, UsersRound, Eye, Ghost } from 'lucide-react';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HERE';
 
@@ -71,6 +71,7 @@ interface TacticalMapProps {
   locationLat?: number | null;
   locationLng?: number | null;
   isGhostMode?: boolean;
+  onGhostModeChange?: (isGhost: boolean) => void;
   isGuest?: boolean;
   onOpenChatWithUser?: (userId: string) => void;
   onOpenSpotChat?: (eventId: string) => void;
@@ -214,6 +215,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   locationLat,
   locationLng,
   isGhostMode = false,
+  onGhostModeChange,
   isGuest = false,
   onOpenChatWithUser,
   onOpenSpotChat,
@@ -2121,6 +2123,27 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
               <UsersRound className="w-5 h-5 text-muted-foreground opacity-50" />
             )}
           </Button>
+
+          {/* Ghost Mode Toggle - only for logged-in users */}
+          {currentUserId && !isGuest && onGhostModeChange && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => onGhostModeChange(!isGhostMode)}
+              className={`w-11 h-11 backdrop-blur-md border-border/50 transition-all ${
+                isGhostMode
+                  ? 'bg-muted/80 hover:bg-muted border-muted-foreground/50'
+                  : 'bg-card/90 hover:bg-primary/20 hover:border-primary'
+              }`}
+              title={isGhostMode ? 'You are hidden (Ghost Mode)' : 'You are visible to others'}
+            >
+              {isGhostMode ? (
+                <Ghost className="w-5 h-5 text-muted-foreground" />
+              ) : (
+                <Eye className="w-5 h-5 text-primary" />
+              )}
+            </Button>
+          )}
         </div>
       )}
       
