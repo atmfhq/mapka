@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["icon.svg", "favicon.ico"],
+      includeAssets: ["assets/cursors/spawn-cursor.svg", "favicon.ico"],
       manifest: {
         name: "SquadMap",
         short_name: "SquadMap",
@@ -33,7 +33,7 @@ export default defineConfig(({ mode }) => ({
         background_color: "#020617",
         icons: [
           {
-            src: "/icon.svg",
+            src: "/assets/cursors/spawn-cursor.svg",
             sizes: "any",
             type: "image/svg+xml",
             purpose: "any maskable",
