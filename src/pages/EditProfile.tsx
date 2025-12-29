@@ -16,14 +16,12 @@ import type { Json } from "@/integrations/supabase/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { 
   ChevronLeft,
@@ -33,9 +31,9 @@ import {
   Shield,
   Heart,
   Sparkles,
-  Trash2,
   AlertTriangle
 } from "lucide-react";
+import { getShortUserId } from "@/utils/userIdDisplay";
 
 interface AvatarConfig {
   skinColor?: string;
@@ -225,6 +223,15 @@ const EditProfile = () => {
 
             {/* Identity Tab */}
             <TabsContent value="identity" className="space-y-6 animate-fade-in-up">
+              {/* User ID Display */}
+              {user && (
+                <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl border border-border/50">
+                  <span className="font-nunito text-sm text-muted-foreground">Your ID:</span>
+                  <span className="font-mono text-sm font-bold text-primary">{getShortUserId(user.id)}</span>
+                  <span className="text-xs text-muted-foreground/70">(unique identifier)</span>
+                </div>
+              )}
+
               {/* Nickname */}
               <div className="space-y-2">
                 <Label htmlFor="nick" className="font-nunito text-sm font-medium text-foreground">

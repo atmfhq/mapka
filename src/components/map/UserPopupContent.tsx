@@ -5,6 +5,7 @@ import SendInviteModal from './SendInviteModal';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { getShortUserId } from '@/utils/userIdDisplay';
 
 interface AvatarConfig {
   skinColor?: string;
@@ -116,6 +117,9 @@ const UserPopupContent = ({
             }`}>
               {user.nick || 'Unknown Adventurer'}
             </h3>
+            <span className="font-mono text-[10px] text-muted-foreground/70">
+              {getShortUserId(user.id)}
+            </span>
             {user.bio && (
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                 {user.bio}

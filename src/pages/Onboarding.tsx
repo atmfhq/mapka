@@ -163,25 +163,11 @@ const Onboarding = () => {
       
       navigate("/");
     } catch (error: any) {
-      // Handle duplicate nickname error specifically
-      const isDuplicateNick = error.message?.includes('profiles_nick_key') || 
-                              error.code === '23505';
-      
-      if (isDuplicateNick) {
-        toast({
-          title: "Nickname Taken",
-          description: "This nickname is already in use. Try adding numbers or changing it slightly!",
-          variant: "destructive",
-        });
-        // Go back to identity step so user can change nickname
-        setStep(0);
-      } else {
-        toast({
-          title: "Initialization Failed",
-          description: error.message || "Could not save profile",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Initialization Failed",
+        description: error.message || "Could not save profile",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
