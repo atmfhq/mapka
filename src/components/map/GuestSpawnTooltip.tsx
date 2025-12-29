@@ -73,7 +73,7 @@ const GuestSpawnTooltip = ({ mapContainer, isVisible }: GuestSpawnTooltipProps) 
     >
       <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground rounded-lg border-2 border-primary-foreground/20 shadow-lg font-fredoka text-sm whitespace-nowrap">
         <MapPin className="w-4 h-4" />
-        <span>Kliknij, by wylądować tutaj!</span>
+        <span>Click to land here!</span>
       </div>
     </div>
   );
