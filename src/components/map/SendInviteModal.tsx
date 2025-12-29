@@ -7,10 +7,17 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { getActivityById, Activity, ACTIVITIES } from '@/constants/activities';
+
+interface AvatarConfig {
+  skinColor?: string;
+  shape?: string;
+  eyes?: string;
+  mouth?: string;
+}
 
 interface SendInviteModalProps {
   open: boolean;
@@ -19,6 +26,7 @@ interface SendInviteModalProps {
     id: string;
     nick: string | null;
     avatar_url: string | null;
+    avatar_config?: AvatarConfig | null;
     tags?: string[] | null;
   };
   currentUserId: string;
@@ -109,12 +117,13 @@ const SendInviteModal = ({
         <div className="space-y-4">
           {/* Target user */}
           <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
-            <Avatar className="w-12 h-12 border-2 border-primary/50">
-              <AvatarImage src={targetUser.avatar_url || undefined} />
-              <AvatarFallback className="bg-primary/20 text-primary">
-                {targetUser.nick?.[0]?.toUpperCase() || '?'}
-              </AvatarFallback>
-            </Avatar>
+            <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center border-2 border-primary/50">
+              <AvatarDisplay 
+                config={targetUser.avatar_config} 
+                size={48} 
+                showGlow={false}
+              />
+            </div>
             <div>
               <p className="font-semibold">{targetUser.nick || 'Unknown'}</p>
               <p className="text-xs text-muted-foreground">
