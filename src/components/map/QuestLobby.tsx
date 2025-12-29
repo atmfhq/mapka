@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useChatUnreadCounts } from '@/hooks/useChatUnreadCounts';
 import LobbyChatMessages from './LobbyChatMessages';
 import { ACTIVITIES, ACTIVITY_CATEGORIES, getCategoryForActivity, getActivityById, getActivitiesByCategory, ActivityCategory } from '@/constants/activities';
 
@@ -132,9 +133,23 @@ const QuestLobby = ({
   const [editCategory, setEditCategory] = useState<ActivityCategory | null>(null);
   const [editActivity, setEditActivity] = useState<string | null>(null);
 
+  // Track active event chat for real-time read status
+  const eventIds = useMemo(() => quest ? [quest.id] : [], [quest?.id]);
+  const { setActiveEventChat } = useChatUnreadCounts(currentUserId, eventIds);
+
   const isGuest = !currentUserId;
   const isHost = quest?.host_id === currentUserId;
   const canAccessChat = (isHost || hasJoined) && !isGuest;
+  
+  // Handle tab changes - track active chat
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab);
+    if (tab === 'comms' && quest) {
+      setActiveEventChat(quest.id);
+    } else {
+      setActiveEventChat(null);
+    }
+  };
 
   // Get activities for selected category
   const categoryActivities = useMemo(() => {
@@ -398,7 +413,10 @@ const QuestLobby = ({
 
   return (
     <Sheet open={open} onOpenChange={(newOpen) => {
-      if (!newOpen) setIsEditing(false);
+      if (!newOpen) {
+        setIsEditing(false);
+        setActiveEventChat(null); // Clear active chat when closing
+      }
       onOpenChange(newOpen);
     }}>
       <SheetContent 
@@ -659,7 +677,7 @@ const QuestLobby = ({
           </div>
         ) : (
           /* Normal View Mode */
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-4 flex-1 flex flex-col min-h-0">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="mt-4 flex-1 flex flex-col min-h-0">
             <TabsList className="grid w-full grid-cols-2 bg-muted/30 flex-shrink-0">
               <TabsTrigger value="info" className="font-nunito text-sm font-medium min-h-[44px]">
                 Details

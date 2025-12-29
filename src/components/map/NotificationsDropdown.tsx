@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { Bell, MapPin, UserPlus, Radio, CheckCheck, Trash2 } from 'lucide-react';
+import { Bell, MapPin, UserPlus, Radio, CheckCheck, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -226,7 +226,7 @@ const NotificationsDropdown = ({
                   onClick={() => handleNotificationClick(notif)}
                 >
                   <div
-                    className={`flex items-start gap-3 p-3 cursor-pointer ${
+                    className={`group relative flex items-start gap-3 p-3 cursor-pointer ${
                       !notif.read ? 'bg-primary/5' : ''
                     } hover:bg-muted/50`}
                   >
@@ -237,7 +237,7 @@ const NotificationsDropdown = ({
                     }`}>
                       {getNotificationIcon(notif.type)}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 pr-6">
                       <p className="text-sm font-medium truncate">{notif.title}</p>
                       <p className="text-xs text-muted-foreground truncate">
                         {notif.description}
@@ -249,6 +249,17 @@ const NotificationsDropdown = ({
                     {!notif.read && (
                       <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />
                     )}
+                    {/* Desktop dismiss button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        dismissNotification(notif.id);
+                      }}
+                      className="absolute top-2 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-destructive/20 transition-opacity hidden md:flex items-center justify-center"
+                      aria-label="Dismiss notification"
+                    >
+                      <X className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+                    </button>
                   </div>
                 </SwipeableNotification>
               ))}
