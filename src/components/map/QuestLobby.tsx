@@ -660,19 +660,12 @@ const QuestLobby = ({
             </div>
           </div>
         ) : (
-          /* Details View - Event Flyer Style */
-          <div className="flex flex-col flex-1 overflow-y-auto">
-            {/* Header with Badge */}
-            <SheetHeader className="pb-4">
-              {quest.is_private && (
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/30 mb-3">
-                  <Shield className="w-5 h-5 text-warning" />
-                  <span className="font-fredoka text-sm text-warning">Private Spot</span>
-                  <Lock className="w-4 h-4 text-warning ml-auto" />
-                </div>
-              )}
-
-              <div className="flex items-center justify-between">
+          /* Details View - Optimized Layout */
+          <div className="flex flex-col flex-1 overflow-y-auto py-3">
+            {/* 1. HEADER - Title at top */}
+            <div className="px-1">
+              {/* Status badges row */}
+              <div className="flex items-center justify-between mb-2">
                 {(() => {
                   const activityData = getActivityByLabel(quest.category);
                   return (
@@ -684,7 +677,10 @@ const QuestLobby = ({
                       }
                     >
                       {quest.is_private ? (
-                        'Private Spot'
+                        <span className="flex items-center gap-1">
+                          <Lock className="w-3 h-3" />
+                          Private
+                        </span>
                       ) : (
                         <span className="flex items-center gap-1.5">
                           {activityData && <span>{activityData.icon}</span>}
@@ -696,146 +692,150 @@ const QuestLobby = ({
                 })()}
                 <div className="flex items-center gap-2">
                   {isHost && (
-                    <Badge variant="outline" className="bg-success/20 text-success border-success/40">
+                    <Badge variant="outline" className="bg-success/20 text-success border-success/40 text-xs">
                       HOST
                     </Badge>
                   )}
                   {hasJoined && !isHost && (
-                    <Badge variant="outline" className="bg-primary/20 text-primary border-primary/40">
+                    <Badge variant="outline" className="bg-primary/20 text-primary border-primary/40 text-xs">
                       JOINED
                     </Badge>
                   )}
                 </div>
               </div>
 
-              {/* Spot Name - Prominent Header */}
-              <SheetTitle className="font-fredoka text-3xl text-left pt-2">
+              {/* Spot Name - Prominent */}
+              <h2 className="font-fredoka text-2xl text-foreground leading-tight">
                 {quest.title}
-              </SheetTitle>
-            </SheetHeader>
-
-            {/* Event Info Cards */}
-            <div className="space-y-4 py-4">
-              {/* Date & Time */}
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/50">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <CalendarIcon className="w-6 h-6 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground font-nunito uppercase tracking-wide">Date & Time</p>
-                  <p className="font-semibold text-foreground">{format(startTime, 'EEEE, MMMM d')}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {format(startTime, 'h:mm a')} → {format(endTime, 'h:mm a')}
-                  </p>
-                </div>
-              </div>
-
-              {/* Duration */}
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/50">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Hourglass className="w-6 h-6 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground font-nunito uppercase tracking-wide">Duration</p>
-                  <p className="font-semibold text-foreground">
-                    {durationHours} {durationHours === 1 ? 'hour' : 'hours'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Organizer */}
-              <button
-                onClick={() => {
-                  if (host) {
-                    onOpenChange(false);
-                    onViewUserProfile?.(host);
-                  }
-                }}
-                className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors w-full text-left"
-              >
-                <div className="w-12 h-12 rounded-xl overflow-hidden">
-                  <AvatarDisplay 
-                    config={host?.avatar_config} 
-                    size={48} 
-                    showGlow={false}
-                  />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground font-nunito uppercase tracking-wide">Organizer</p>
-                  <p className="font-semibold text-warning">{host?.nick || 'Unknown'}</p>
-                </div>
-                <User className="w-5 h-5 text-muted-foreground" />
-              </button>
-
-              {/* Participants Count */}
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/50">
-                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Users className="w-6 h-6 text-primary" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-xs text-muted-foreground font-nunito uppercase tracking-wide">Participants</p>
-                  <p className="font-semibold text-foreground">
-                    {totalMembers} joined
-                    {quest.max_participants && (
-                      <span className="text-muted-foreground font-normal"> / {quest.max_participants} max</span>
-                    )}
-                  </p>
-                </div>
-              </div>
-
-              {/* Description if exists */}
-              {quest.description && (
-                <div className="p-4 rounded-xl bg-muted/20 border border-border/30">
-                  <p className="text-sm text-muted-foreground leading-relaxed">
-                    {quest.description}
-                  </p>
-                </div>
-              )}
-
-              {/* Participant Avatars */}
-              {participants.length > 0 && (
-                <div className="space-y-3">
-                  <h4 className="text-sm font-nunito font-semibold text-muted-foreground px-1">
-                    Party Members
-                  </h4>
-                  <ScrollArea className="w-full">
-                    <div className="flex gap-3 pb-2">
-                      {participants.slice(0, 10).map((p) => (
-                        <button
-                          key={p.id}
-                          onClick={() => {
-                            if (p.profile) {
-                              onOpenChange(false);
-                              onViewUserProfile?.(p.profile);
-                            }
-                          }}
-                          className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-primary/10 transition-colors min-w-[72px]"
-                        >
-                          <div className="w-12 h-12 rounded-xl overflow-hidden">
-                            <AvatarDisplay 
-                              config={p.profile?.avatar_config} 
-                              size={48} 
-                              showGlow={false}
-                            />
-                          </div>
-                          <span className="text-xs font-medium text-foreground truncate max-w-[64px]">
-                            {p.profile?.nick || 'Anonymous'}
-                          </span>
-                        </button>
-                      ))}
-                      {participants.length > 10 && (
-                        <div className="flex items-center justify-center min-w-[72px] p-2">
-                          <span className="text-xs text-muted-foreground font-medium">
-                            +{participants.length - 10} more
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
-                </div>
-              )}
+              </h2>
             </div>
+
+            {/* 2. PARTICIPANTS - Avatars (organizer first, no clipping) */}
+            <div className="mt-4 px-1">
+              <div className="flex items-center gap-1 overflow-visible">
+                {/* Organizer avatar - always first with crown indicator */}
+                <button
+                  onClick={() => {
+                    if (host) {
+                      onOpenChange(false);
+                      onViewUserProfile?.(host);
+                    }
+                  }}
+                  className="flex flex-col items-center gap-1 p-1.5 rounded-xl hover:bg-primary/10 transition-colors flex-shrink-0"
+                >
+                  <div className="relative">
+                    <div className="w-12 h-12">
+                      <AvatarDisplay 
+                        config={host?.avatar_config} 
+                        size={48} 
+                        showGlow={false}
+                      />
+                    </div>
+                    {/* Crown indicator for host */}
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-warning rounded-full flex items-center justify-center border-2 border-card">
+                      <span className="text-[10px]">👑</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-medium text-warning truncate max-w-[52px]">
+                    {host?.nick || 'Host'}
+                  </span>
+                </button>
+
+                {/* Participant avatars */}
+                {participants.slice(0, 6).map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      if (p.profile) {
+                        onOpenChange(false);
+                        onViewUserProfile?.(p.profile);
+                      }
+                    }}
+                    className="flex flex-col items-center gap-1 p-1.5 rounded-xl hover:bg-primary/10 transition-colors flex-shrink-0"
+                  >
+                    <div className="w-12 h-12">
+                      <AvatarDisplay 
+                        config={p.profile?.avatar_config} 
+                        size={48} 
+                        showGlow={false}
+                      />
+                    </div>
+                    <span className="text-[10px] font-medium text-foreground truncate max-w-[52px]">
+                      {p.profile?.nick || '?'}
+                    </span>
+                  </button>
+                ))}
+
+                {/* More participants indicator */}
+                {participants.length > 6 && (
+                  <div className="flex flex-col items-center gap-1 p-1.5 flex-shrink-0">
+                    <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center border-2 border-dashed border-border">
+                      <span className="text-xs font-bold text-muted-foreground">
+                        +{participants.length - 6}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">more</span>
+                  </div>
+                )}
+
+                {/* Empty slot if few participants */}
+                {totalMembers < 3 && (
+                  <div className="flex flex-col items-center gap-1 p-1.5 flex-shrink-0">
+                    <div className="w-12 h-12 rounded-full bg-muted/30 flex items-center justify-center border-2 border-dashed border-border/50">
+                      <Users className="w-5 h-5 text-muted-foreground/50" />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">Join!</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* 3. META-INFO - Compact grid with icons */}
+            <div className="mt-4 px-1">
+              <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-muted/20 border border-border/30">
+                {/* Date */}
+                <div className="flex flex-col items-center text-center">
+                  <CalendarIcon className="w-5 h-5 text-primary mb-1" />
+                  <span className="text-xs font-semibold text-foreground">
+                    {format(startTime, 'MMM d')}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {format(startTime, 'EEE')}
+                  </span>
+                </div>
+                
+                {/* Time */}
+                <div className="flex flex-col items-center text-center border-x border-border/30">
+                  <Clock className="w-5 h-5 text-primary mb-1" />
+                  <span className="text-xs font-semibold text-foreground">
+                    {format(startTime, 'h:mm a')}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    Start
+                  </span>
+                </div>
+                
+                {/* Duration */}
+                <div className="flex flex-col items-center text-center">
+                  <Hourglass className="w-5 h-5 text-primary mb-1" />
+                  <span className="text-xs font-semibold text-foreground">
+                    {durationHours}h
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    Duration
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 4. DESCRIPTION */}
+            {quest.description && (
+              <div className="mt-4 px-1">
+                <p className="text-sm text-foreground/90 leading-relaxed font-nunito">
+                  {quest.description}
+                </p>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="mt-auto pt-4 border-t border-border/50 space-y-3">
