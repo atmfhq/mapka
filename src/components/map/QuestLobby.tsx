@@ -1,13 +1,12 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, isToday } from 'date-fns';
-import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Info, BellOff, Bell } from 'lucide-react';
+import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Hourglass, User } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
@@ -16,10 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { useChatUnreadCounts } from '@/hooks/useChatUnreadCounts';
-import { useMutedChats } from '@/hooks/useMutedChats';
-import LobbyChatMessages from './LobbyChatMessages';
-import { ACTIVITIES, ACTIVITY_CATEGORIES, getCategoryForActivity, getActivityById, getActivitiesByCategory, ActivityCategory } from '@/constants/activities';
+import { ACTIVITIES, ACTIVITY_CATEGORIES, getActivityById, getActivitiesByCategory, ActivityCategory } from '@/constants/activities';
 
 interface Quest {
   id: string;
@@ -122,7 +118,6 @@ const QuestLobby = ({
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
-  const [activeTab, setActiveTab] = useState('info');
   
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -134,39 +129,8 @@ const QuestLobby = ({
   const [editCategory, setEditCategory] = useState<ActivityCategory | null>(null);
   const [editActivity, setEditActivity] = useState<string | null>(null);
 
-  // Track active event chat for real-time read status
-  const eventIds = useMemo(() => quest ? [quest.id] : [], [quest?.id]);
-  const { setActiveEventChat } = useChatUnreadCounts(currentUserId, eventIds);
-  
-  // Muted chats
-  const { isEventMuted, muteEvent, unmuteEvent } = useMutedChats(currentUserId);
-  const isMuted = quest ? isEventMuted(quest.id) : false;
-
   const isGuest = !currentUserId;
   const isHost = quest?.host_id === currentUserId;
-  const canAccessChat = (isHost || hasJoined) && !isGuest;
-  
-  // Handle mute toggle
-  const handleMuteToggle = async () => {
-    if (!quest) return;
-    if (isMuted) {
-      await unmuteEvent(quest.id);
-      toast({ title: 'Notifications unmuted' });
-    } else {
-      await muteEvent(quest.id);
-      toast({ title: 'Notifications muted', description: 'You won\'t receive notifications for this spot.' });
-    }
-  };
-  
-  // Handle tab changes - track active chat
-  const handleTabChange = (tab: string) => {
-    setActiveTab(tab);
-    if (tab === 'comms' && quest) {
-      setActiveEventChat(quest.id);
-    } else {
-      setActiveEventChat(null);
-    }
-  };
 
   // Get activities for selected category
   const categoryActivities = useMemo(() => {
@@ -220,11 +184,9 @@ const QuestLobby = ({
   useEffect(() => {
     if (!quest) return;
     
-    setActiveTab('info');
     setIsEditing(false);
 
     const fetchData = async () => {
-      // Use secure RPC function to get public profile data
       const { data: hostProfiles } = await supabase
         .rpc('get_public_profiles_by_ids', { user_ids: [quest.host_id] });
       
@@ -302,7 +264,6 @@ const QuestLobby = ({
     setHasJoined(true);
     onJoin?.(quest.id);
     await refreshParticipants();
-    setActiveTab('comms');
   };
 
   const handleLeave = async () => {
@@ -427,119 +388,29 @@ const QuestLobby = ({
   const startTime = new Date(quest.start_time);
   const endTime = new Date(startTime.getTime() + quest.duration_minutes * 60000);
   const totalMembers = participants.length + 1;
+  const durationHours = quest.duration_minutes / 60;
 
   return (
     <Sheet open={open} onOpenChange={(newOpen) => {
       if (!newOpen) {
         setIsEditing(false);
-        setActiveEventChat(null); // Clear active chat when closing
       }
       onOpenChange(newOpen);
     }}>
       <SheetContent 
         side="bottom" 
-        className="bg-card border-t border-primary/30 rounded-t-2xl max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-card border-t border-primary/30 rounded-t-2xl max-h-[85vh] overflow-hidden flex flex-col"
       >
-        <SheetHeader className="space-y-4 pb-4 border-b border-border/50">
-          {quest.is_private && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/30">
-              <Shield className="w-5 h-5 text-warning" />
-              <span className="font-fredoka text-sm text-warning">
-                Private Spot
-              </span>
-              <Lock className="w-4 h-4 text-warning ml-auto" />
-            </div>
-          )}
-
-          <div className="flex items-center justify-between">
-            {(() => {
-              const activityData = getActivityByLabel(quest.category);
-              return (
-                <Badge 
-                  variant="outline" 
-                  className={quest.is_private 
-                    ? 'bg-warning/20 text-warning border-warning/40' 
-                    : getCategoryColorClasses(quest.category)
-                  }
-                >
-                  {quest.is_private ? (
-                    'Private Spot'
-                  ) : (
-                    <span className="flex items-center gap-1.5">
-                      {activityData && <span>{activityData.icon}</span>}
-                      {quest.category}
-                    </span>
-                  )}
-                </Badge>
-              );
-            })()}
-            <div className="flex items-center gap-2">
-              {isHost && (
-                <Badge variant="outline" className="bg-success/20 text-success border-success/40">
-                  HOST
-                </Badge>
-              )}
-              {hasJoined && !isHost && (
-                <Badge variant="outline" className="bg-primary/20 text-primary border-primary/40">
-                  JOINED
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between gap-2">
-            <SheetTitle className="font-fredoka text-2xl text-left flex-1">
-              {quest.title}
-            </SheetTitle>
-            
-            {/* Header action icons for joined members */}
-            {canAccessChat && (
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-9 h-9 text-muted-foreground hover:text-primary"
-                  onClick={() => setActiveTab('info')}
-                  title="Spot Details"
-                >
-                  <Info className="w-5 h-5" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={`w-9 h-9 ${isMuted ? 'text-warning' : 'text-muted-foreground hover:text-primary'}`}
-                  onClick={handleMuteToggle}
-                  title={isMuted ? 'Unmute notifications' : 'Mute notifications'}
-                >
-                  {isMuted ? <BellOff className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-            <div className="flex items-center gap-1.5">
-              <Clock className="w-4 h-4 text-primary" />
-              <span>{format(startTime, 'MMM d, h:mm a')}</span>
-              <span className="text-muted-foreground/50">→</span>
-              <span>{format(endTime, 'h:mm a')}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Users className="w-4 h-4 text-primary" />
-              <span>{totalMembers} joined</span>
-            </div>
-          </div>
-
-          {quest.description && !isEditing && (
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {quest.description}
-            </p>
-          )}
-        </SheetHeader>
-
-        {/* Edit Mode */}
         {isEditing ? (
+          /* Edit Mode */
           <div className="py-4 space-y-4 overflow-y-auto flex-1">
+            <div className="flex items-center justify-between pb-2 border-b border-border/50">
+              <h2 className="font-fredoka text-xl">Edit Spot</h2>
+              <Button variant="ghost" size="icon" onClick={cancelEditing}>
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            
             {/* Title */}
             <div className="space-y-2">
               <Label className="font-nunito text-sm font-medium text-foreground">
@@ -719,55 +590,143 @@ const QuestLobby = ({
             </div>
           </div>
         ) : (
-          /* Normal View Mode */
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="mt-4 flex-1 flex flex-col min-h-0">
-            <TabsList className="grid w-full grid-cols-2 bg-muted/30 flex-shrink-0">
-              <TabsTrigger value="info" className="font-nunito text-sm font-medium min-h-[44px]">
-                Details
-              </TabsTrigger>
-              <TabsTrigger 
-                value="comms" 
-                disabled={!canAccessChat}
-                className="font-nunito text-sm font-medium min-h-[44px]"
-              >
-                Chat {!canAccessChat && '🔒'}
-              </TabsTrigger>
-            </TabsList>
+          /* Details View - Event Flyer Style */
+          <div className="flex flex-col flex-1 overflow-y-auto">
+            {/* Header with Badge */}
+            <SheetHeader className="pb-4">
+              {quest.is_private && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/30 mb-3">
+                  <Shield className="w-5 h-5 text-warning" />
+                  <span className="font-fredoka text-sm text-warning">Private Spot</span>
+                  <Lock className="w-4 h-4 text-warning ml-auto" />
+                </div>
+              )}
 
-            <TabsContent value="info" className="py-4 space-y-6 overflow-y-auto flex-1">
-              {/* Host */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-nunito font-semibold text-muted-foreground">
-                  Quest Host
-                </h4>
-                <button
-                  onClick={() => {
-                    if (host) {
-                      onOpenChange(false);
-                      onViewUserProfile?.(host);
-                    }
-                  }}
-                  className="flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors w-full text-left"
-                >
-                  <div className="w-12 h-12 rounded-xl overflow-hidden">
-                    <AvatarDisplay 
-                      config={host?.avatar_config} 
-                      size={48} 
-                      showGlow={false}
-                    />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-warning">{host?.nick || 'Unknown'}</p>
-                    <p className="text-xs text-muted-foreground">Host</p>
-                  </div>
-                </button>
+              <div className="flex items-center justify-between">
+                {(() => {
+                  const activityData = getActivityByLabel(quest.category);
+                  return (
+                    <Badge 
+                      variant="outline" 
+                      className={quest.is_private 
+                        ? 'bg-warning/20 text-warning border-warning/40' 
+                        : getCategoryColorClasses(quest.category)
+                      }
+                    >
+                      {quest.is_private ? (
+                        'Private Spot'
+                      ) : (
+                        <span className="flex items-center gap-1.5">
+                          {activityData && <span>{activityData.icon}</span>}
+                          {quest.category}
+                        </span>
+                      )}
+                    </Badge>
+                  );
+                })()}
+                <div className="flex items-center gap-2">
+                  {isHost && (
+                    <Badge variant="outline" className="bg-success/20 text-success border-success/40">
+                      HOST
+                    </Badge>
+                  )}
+                  {hasJoined && !isHost && (
+                    <Badge variant="outline" className="bg-primary/20 text-primary border-primary/40">
+                      JOINED
+                    </Badge>
+                  )}
+                </div>
               </div>
 
-              {/* Participants */}
+              {/* Spot Name - Prominent Header */}
+              <SheetTitle className="font-fredoka text-3xl text-left pt-2">
+                {quest.title}
+              </SheetTitle>
+            </SheetHeader>
+
+            {/* Event Info Cards */}
+            <div className="space-y-4 py-4">
+              {/* Date & Time */}
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/50">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <CalendarIcon className="w-6 h-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground font-nunito uppercase tracking-wide">Date & Time</p>
+                  <p className="font-semibold text-foreground">{format(startTime, 'EEEE, MMMM d')}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {format(startTime, 'h:mm a')} → {format(endTime, 'h:mm a')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Duration */}
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/50">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Hourglass className="w-6 h-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground font-nunito uppercase tracking-wide">Duration</p>
+                  <p className="font-semibold text-foreground">
+                    {durationHours} {durationHours === 1 ? 'hour' : 'hours'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Organizer */}
+              <button
+                onClick={() => {
+                  if (host) {
+                    onOpenChange(false);
+                    onViewUserProfile?.(host);
+                  }
+                }}
+                className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/50 hover:bg-muted/50 transition-colors w-full text-left"
+              >
+                <div className="w-12 h-12 rounded-xl overflow-hidden">
+                  <AvatarDisplay 
+                    config={host?.avatar_config} 
+                    size={48} 
+                    showGlow={false}
+                  />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground font-nunito uppercase tracking-wide">Organizer</p>
+                  <p className="font-semibold text-warning">{host?.nick || 'Unknown'}</p>
+                </div>
+                <User className="w-5 h-5 text-muted-foreground" />
+              </button>
+
+              {/* Participants Count */}
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-muted/30 border border-border/50">
+                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <Users className="w-6 h-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground font-nunito uppercase tracking-wide">Participants</p>
+                  <p className="font-semibold text-foreground">
+                    {totalMembers} joined
+                    {quest.max_participants && (
+                      <span className="text-muted-foreground font-normal"> / {quest.max_participants} max</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Description if exists */}
+              {quest.description && (
+                <div className="p-4 rounded-xl bg-muted/20 border border-border/30">
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    {quest.description}
+                  </p>
+                </div>
+              )}
+
+              {/* Participant Avatars */}
               {participants.length > 0 && (
                 <div className="space-y-3">
-                  <h4 className="text-sm font-nunito font-semibold text-muted-foreground">
-                    Party Members ({participants.length})
+                  <h4 className="text-sm font-nunito font-semibold text-muted-foreground px-1">
+                    Party Members
                   </h4>
                   <ScrollArea className="w-full">
                     <div className="flex gap-3 pb-2">
@@ -806,73 +765,64 @@ const QuestLobby = ({
                   </ScrollArea>
                 </div>
               )}
+            </div>
 
-              {/* Actions */}
-              <div className="space-y-3 pt-4 border-t border-border/50">
-                {isGuest ? (
+            {/* Actions */}
+            <div className="mt-auto pt-4 border-t border-border/50">
+              {isGuest ? (
+                <Button 
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka min-h-[52px] text-base"
+                  onClick={() => {
+                    onOpenChange(false);
+                    navigate('/auth');
+                  }}
+                >
+                  <LogIn className="w-5 h-5 mr-2" />
+                  Login to Join
+                </Button>
+              ) : isHost ? (
+                <div className="flex gap-2">
                   <Button 
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka min-h-[52px] text-base"
-                    onClick={() => {
-                      onOpenChange(false);
-                      navigate('/auth');
-                    }}
-                  >
-                    <LogIn className="w-5 h-5 mr-2" />
-                    Login to Join
-                  </Button>
-                ) : isHost ? (
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 border-primary/50 text-primary hover:bg-primary/10 min-h-[48px]"
-                      onClick={startEditing}
-                      disabled={loading}
-                    >
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Edit
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 border-destructive/50 text-destructive hover:bg-destructive/10 min-h-[48px]"
-                      onClick={handleDelete}
-                      disabled={loading}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </Button>
-                  </div>
-                ) : hasJoined ? (
-                  <Button 
-                    variant="outline"
-                    className="w-full border-destructive/50 text-destructive hover:bg-destructive/10 min-h-[48px]"
-                    onClick={handleLeave}
+                    variant="outline" 
+                    className="flex-1 border-primary/50 text-primary hover:bg-primary/10 min-h-[48px]"
+                    onClick={startEditing}
                     disabled={loading}
                   >
-                    <X className="w-4 h-4 mr-2" />
-                    Leave Spot
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Edit
                   </Button>
-                ) : (
                   <Button 
-                    className="w-full bg-success hover:bg-success/90 text-success-foreground font-fredoka min-h-[52px] text-base"
-                    onClick={handleJoin}
+                    variant="outline" 
+                    className="flex-1 border-destructive/50 text-destructive hover:bg-destructive/10 min-h-[48px]"
+                    onClick={handleDelete}
                     disabled={loading}
                   >
-                    <UserPlus className="w-5 h-5 mr-2" />
-                    Join Spot
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
                   </Button>
-                )}
-              </div>
-            </TabsContent>
-
-            <TabsContent value="comms" className="py-4 flex-1 flex flex-col min-h-0">
-              {canAccessChat && quest && (
-                <LobbyChatMessages 
-                  eventId={quest.id} 
-                  currentUserId={currentUserId} 
-                />
+                </div>
+              ) : hasJoined ? (
+                <Button 
+                  variant="outline"
+                  className="w-full border-destructive/50 text-destructive hover:bg-destructive/10 min-h-[48px]"
+                  onClick={handleLeave}
+                  disabled={loading}
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Leave Spot
+                </Button>
+              ) : (
+                <Button 
+                  className="w-full bg-success hover:bg-success/90 text-success-foreground font-fredoka min-h-[52px] text-base"
+                  onClick={handleJoin}
+                  disabled={loading}
+                >
+                  <UserPlus className="w-5 h-5 mr-2" />
+                  Join Spot
+                </Button>
               )}
-            </TabsContent>
-          </Tabs>
+            </div>
+          </div>
         )}
       </SheetContent>
     </Sheet>
