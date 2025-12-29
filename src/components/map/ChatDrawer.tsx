@@ -507,6 +507,8 @@ const ChatDrawer = ({
                   />
                 ))}
               </div>
+            )}
+          </ScrollArea>
         ) : selectedSpot ? (
           /* Spot Chat View */
           <div className="flex flex-col h-[60vh] mt-4">
@@ -516,6 +518,7 @@ const ChatDrawer = ({
             />
           </div>
         ) : (
+          /* DM Chat View */
           <div className="flex flex-col h-[60vh] mt-4">
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-3">
