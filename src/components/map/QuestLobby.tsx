@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, isToday } from 'date-fns';
 import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Hourglass, User, MessageCircle, LogOut, MessageCircleOff } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
@@ -70,6 +71,7 @@ interface QuestLobbyProps {
   onOpenSpotChat?: (eventId: string) => void;
   onLeaveChatSuccess?: (eventId: string) => void;
   onJoinChatSuccess?: (eventId: string) => void;
+  isUserInViewport?: (lat: number, lng: number) => boolean;
 }
 
 const getActivityByLabel = (label: string) => {
@@ -118,7 +120,8 @@ const QuestLobby = ({
   onViewUserProfile,
   onOpenSpotChat,
   onLeaveChatSuccess,
-  onJoinChatSuccess
+  onJoinChatSuccess,
+  isUserInViewport
 }: QuestLobbyProps) => {
   const navigate = useNavigate();
   const [host, setHost] = useState<Profile | null>(null);
@@ -126,6 +129,7 @@ const QuestLobby = ({
   const [loading, setLoading] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [isChatActive, setIsChatActive] = useState(true);
+  const [showAllParticipants, setShowAllParticipants] = useState(false);
   
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -137,8 +141,15 @@ const QuestLobby = ({
   const [editCategory, setEditCategory] = useState<ActivityCategory | null>(null);
   const [editActivity, setEditActivity] = useState<string | null>(null);
 
+  const MAX_VISIBLE_AVATARS = 5;
   const isGuest = !currentUserId;
   const isHost = quest?.host_id === currentUserId;
+
+  // Filter out host from participants to avoid duplication
+  const filteredParticipants = useMemo(() => {
+    if (!quest) return [];
+    return participants.filter(p => p.user_id !== quest.host_id);
+  }, [participants, quest]);
 
   // Get activities for selected category
   const categoryActivities = useMemo(() => {
@@ -457,10 +468,12 @@ const QuestLobby = ({
 
   const startTime = new Date(quest.start_time);
   const endTime = new Date(startTime.getTime() + quest.duration_minutes * 60000);
-  const totalMembers = participants.length + 1;
+  // Total members = host (1) + filtered participants (excluding host)
+  const totalMembers = filteredParticipants.length + 1;
   const durationHours = quest.duration_minutes / 60;
 
   return (
+    <>
     <Sheet open={open} onOpenChange={(newOpen) => {
       if (!newOpen) {
         setIsEditing(false);
@@ -473,7 +486,7 @@ const QuestLobby = ({
       >
         {isEditing ? (
           /* Edit Mode */
-          <div className="py-4 space-y-4 overflow-y-auto flex-1">
+          <div className="py-4 px-4 space-y-4 overflow-y-auto flex-1">
             <div className="flex items-center justify-between pb-2 border-b border-border/50">
               <h2 className="font-fredoka text-xl">Edit Spot</h2>
               <Button variant="ghost" size="icon" onClick={cancelEditing}>
@@ -717,6 +730,16 @@ const QuestLobby = ({
                 <button
                   onClick={() => {
                     if (host) {
+                      // Check if host is in viewport
+                      if (isUserInViewport && host.location_lat && host.location_lng) {
+                        if (!isUserInViewport(host.location_lat, host.location_lng)) {
+                          toast({
+                            title: "User not visible",
+                            description: "User is currently not visible in this area.",
+                          });
+                          return;
+                        }
+                      }
                       onOpenChange(false);
                       onViewUserProfile?.(host);
                     }
@@ -741,12 +764,22 @@ const QuestLobby = ({
                   </span>
                 </button>
 
-                {/* Participant avatars */}
-                {participants.slice(0, 6).map((p) => (
+                {/* Participant avatars - filtered to exclude host */}
+                {filteredParticipants.slice(0, MAX_VISIBLE_AVATARS).map((p) => (
                   <button
                     key={p.id}
                     onClick={() => {
                       if (p.profile) {
+                        // Check if participant is in viewport
+                        if (isUserInViewport && p.profile.location_lat && p.profile.location_lng) {
+                          if (!isUserInViewport(p.profile.location_lat, p.profile.location_lng)) {
+                            toast({
+                              title: "User not visible",
+                              description: "User is currently not visible in this area.",
+                            });
+                            return;
+                          }
+                        }
                         onOpenChange(false);
                         onViewUserProfile?.(p.profile);
                       }
@@ -766,16 +799,19 @@ const QuestLobby = ({
                   </button>
                 ))}
 
-                {/* More participants indicator */}
-                {participants.length > 6 && (
-                  <div className="flex flex-col items-center gap-1 p-1.5 flex-shrink-0">
-                    <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center border-2 border-dashed border-border">
-                      <span className="text-xs font-bold text-muted-foreground">
-                        +{participants.length - 6}
+                {/* More participants indicator - opens full list modal */}
+                {filteredParticipants.length > MAX_VISIBLE_AVATARS && (
+                  <button 
+                    onClick={() => setShowAllParticipants(true)}
+                    className="flex flex-col items-center gap-1 p-1.5 flex-shrink-0 hover:opacity-80 transition-opacity"
+                  >
+                    <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center border-2 border-primary/40">
+                      <span className="text-xs font-bold text-primary">
+                        +{filteredParticipants.length - MAX_VISIBLE_AVATARS}
                       </span>
                     </div>
-                    <span className="text-[10px] text-muted-foreground">more</span>
-                  </div>
+                    <span className="text-[10px] text-primary font-medium">See All</span>
+                  </button>
                 )}
 
                 {/* Empty slot if few participants */}
@@ -951,6 +987,91 @@ const QuestLobby = ({
         )}
       </SheetContent>
     </Sheet>
+
+      {/* See All Participants Modal */}
+      <Dialog open={showAllParticipants} onOpenChange={setShowAllParticipants}>
+        <DialogContent className="bg-card border-primary/30 max-w-md max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="font-fredoka text-xl">All Participants</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] pr-2">
+            <div className="grid grid-cols-4 gap-3 p-2">
+              {/* Host first */}
+              {host && (
+                <button
+                  onClick={() => {
+                    if (isUserInViewport && host.location_lat && host.location_lng) {
+                      if (!isUserInViewport(host.location_lat, host.location_lng)) {
+                        toast({
+                          title: "User not visible",
+                          description: "User is currently not visible in this area.",
+                        });
+                        return;
+                      }
+                    }
+                    setShowAllParticipants(false);
+                    onOpenChange(false);
+                    onViewUserProfile?.(host);
+                  }}
+                  className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-primary/10 transition-colors"
+                >
+                  <div className="relative">
+                    <div className="w-14 h-14">
+                      <AvatarDisplay 
+                        config={host.avatar_config} 
+                        size={56} 
+                        showGlow={false}
+                      />
+                    </div>
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-warning rounded-full flex items-center justify-center border-2 border-card">
+                      <span className="text-[10px]">👑</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-medium text-warning truncate max-w-[60px]">
+                    {host.nick || 'Host'}
+                  </span>
+                </button>
+              )}
+              
+              {/* All filtered participants */}
+              {filteredParticipants.map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => {
+                    if (p.profile) {
+                      if (isUserInViewport && p.profile.location_lat && p.profile.location_lng) {
+                        if (!isUserInViewport(p.profile.location_lat, p.profile.location_lng)) {
+                          toast({
+                            title: "User not visible",
+                            description: "User is currently not visible in this area.",
+                          });
+                          return;
+                        }
+                      }
+                      setShowAllParticipants(false);
+                      onOpenChange(false);
+                      onViewUserProfile?.(p.profile);
+                    }
+                  }}
+                  className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-primary/10 transition-colors"
+                >
+                  <div className="w-14 h-14">
+                    <AvatarDisplay 
+                      config={p.profile?.avatar_config} 
+                      size={56} 
+                      showGlow={false}
+                    />
+                  </div>
+                  <span className="text-[10px] font-medium text-foreground truncate max-w-[60px]">
+                    {p.profile?.nick || '?'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
