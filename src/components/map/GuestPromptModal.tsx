@@ -17,18 +17,18 @@ interface GuestPromptModalProps {
 
 const VARIANT_CONFIG = {
   join: {
-    title: 'Join the Quest!',
-    description: 'Sign in to join quests, chat with adventurers, and explore together.',
+    title: 'Join the Community!',
+    description: 'Sign in to join events, chat with people, and explore together.',
     icon: Sparkles,
   },
   connect: {
-    title: 'Connect with Adventurers',
-    description: 'Sign in to send invites, start conversations, and build your party.',
+    title: 'Connect with People',
+    description: 'Sign in to send invites, start conversations, and meet new friends.',
     icon: UserPlus,
   },
   create: {
-    title: 'Wybierz Miejsce Lądowania!',
-    description: 'Zaloguj się, by wylądować w tym miejscu i rozpocząć swoją przygodę na mapie!',
+    title: 'Set Your Location!',
+    description: 'Sign in to appear on the map and start connecting with people nearby.',
     icon: Sparkles,
   },
 };
@@ -84,7 +84,7 @@ const GuestPromptModal = ({ open, onOpenChange, variant }: GuestPromptModalProps
         </div>
 
         <p className="text-xs text-muted-foreground text-center pt-2">
-          It only takes a minute to join the adventure!
+          It only takes a minute to get started!
         </p>
       </DialogContent>
     </Dialog>

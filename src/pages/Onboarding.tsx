@@ -185,12 +185,9 @@ const Onboarding = () => {
               <Target className="w-6 h-6 text-primary" />
             </div>
           </div>
-          <h1 className="font-fredoka text-2xl font-bold mb-2">
-            Character <span className="text-primary">Creation</span>
+          <h1 className="font-nunito text-2xl font-bold mb-2">
+            Create Your <span className="text-primary">Profile</span>
           </h1>
-          <p className="font-nunito text-sm text-muted-foreground">
-            Create your adventure profile
-          </p>
         </div>
 
         {/* Stepper */}
@@ -203,7 +200,7 @@ const Onboarding = () => {
             <div className="space-y-6 animate-fade-in-up">
               <div className="flex items-center gap-2 mb-4">
                 <Shield className="w-5 h-5 text-primary" />
-                <h2 className="font-fredoka text-lg font-semibold">Your Identity</h2>
+                <h2 className="font-nunito text-lg font-semibold">Your Identity</h2>
               </div>
 
               {/* Nickname */}
@@ -243,7 +240,7 @@ const Onboarding = () => {
             <div className="space-y-6 animate-fade-in-up">
               <div className="flex items-center gap-2 mb-4">
                 <Heart className="w-5 h-5 text-accent" />
-                <h2 className="font-fredoka text-lg font-semibold">What Do You Enjoy?</h2>
+                <h2 className="font-nunito text-lg font-semibold">What Do You Enjoy?</h2>
               </div>
               
               <p className="text-sm text-muted-foreground mb-4">
@@ -262,7 +259,7 @@ const Onboarding = () => {
             <div className="space-y-6 animate-fade-in-up">
               <div className="flex items-center gap-2 mb-4">
                 <Sparkles className="w-5 h-5 text-accent" />
-                <h2 className="font-fredoka text-lg font-semibold">Create Your Avatar</h2>
+                <h2 className="font-nunito text-lg font-semibold">Create Your Avatar</h2>
               </div>
 
               <p className="text-sm text-muted-foreground mb-4">
@@ -281,7 +278,7 @@ const Onboarding = () => {
             <div className="space-y-6 animate-fade-in-up">
               <div className="flex items-center gap-2 mb-4">
                 <MapPin className="w-5 h-5 text-primary" />
-                <h2 className="font-fredoka text-lg font-semibold">Where is your Base?</h2>
+                <h2 className="font-nunito text-lg font-semibold">Set your location</h2>
               </div>
 
               <p className="text-sm text-muted-foreground mb-4">
@@ -359,12 +356,12 @@ const Onboarding = () => {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Initializing...
+                  Saving...
                 </>
               ) : (
                 <>
-                  <Target className="w-4 h-4" />
-                  Initialize Operative
+                  <MapPin className="w-4 h-4" />
+                  Enter Map
                 </>
               )}
             </Button>

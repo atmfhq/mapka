@@ -115,7 +115,7 @@ const UserPopupContent = ({
             <h3 className={`font-fredoka font-bold truncate ${
               isConnected ? 'text-success' : 'text-primary'
             }`}>
-              {user.nick || 'Unknown Adventurer'}
+              {user.nick || 'User'}
             </h3>
             <span className="font-mono text-[10px] text-muted-foreground/70">
               {getShortUserId(user.id)}
