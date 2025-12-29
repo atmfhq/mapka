@@ -1,7 +1,7 @@
 {
-  "name": "SquadMap",
-  "short_name": "SquadMap",
-  "description": "Tactical social mapping for finding your squad",
+  "name": "Mapka",
+  "short_name": "Mapka",
+  "description": "Find your spot and connect with nearby people",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",

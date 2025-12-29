@@ -266,7 +266,7 @@ const QuestLobby = ({
       return;
     }
 
-    toast({ title: "Quest joined!", description: "You're now part of the squad." });
+    toast({ title: "Spot joined!", description: "You're now part of the group." });
     setHasJoined(true);
     onJoin?.(quest.id);
     await refreshParticipants();
@@ -294,7 +294,7 @@ const QuestLobby = ({
       return;
     }
 
-    toast({ title: "Left quest" });
+    toast({ title: "Left spot" });
     setHasJoined(false);
     setParticipants(prev => prev.filter(p => p.user_id !== currentUserId));
     onLeave?.(quest.id);
@@ -320,7 +320,7 @@ const QuestLobby = ({
       return;
     }
 
-    toast({ title: "Quest deleted" });
+    toast({ title: "Spot deleted" });
     onDelete();
     onOpenChange(false);
   };
@@ -368,7 +368,7 @@ const QuestLobby = ({
       return;
     }
 
-    toast({ title: "Quest updated!" });
+    toast({ title: "Spot updated!" });
     setIsEditing(false);
     onUpdate?.(data);
   };
@@ -410,7 +410,7 @@ const QuestLobby = ({
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/30">
               <Shield className="w-5 h-5 text-warning" />
               <span className="font-fredoka text-sm text-warning">
-                Private Quest
+                Private Spot
               </span>
               <Lock className="w-4 h-4 text-warning ml-auto" />
             </div>
@@ -428,7 +428,7 @@ const QuestLobby = ({
                   }
                 >
                   {quest.is_private ? (
-                    'Private Quest'
+                    'Private Spot'
                   ) : (
                     <span className="flex items-center gap-1.5">
                       {activityData && <span>{activityData.icon}</span>}
@@ -788,7 +788,7 @@ const QuestLobby = ({
                     disabled={loading}
                   >
                     <X className="w-4 h-4 mr-2" />
-                    Leave Mission
+                    Leave Spot
                   </Button>
                 ) : (
                   <Button 
@@ -797,7 +797,7 @@ const QuestLobby = ({
                     disabled={loading}
                   >
                     <UserPlus className="w-5 h-5 mr-2" />
-                    Join Quest
+                    Join Spot
                   </Button>
                 )}
               </div>

@@ -217,7 +217,7 @@ const AlertsDrawer = ({ currentUserId, onOpenMission, onFlyToQuest }: AlertsDraw
         <SheetHeader>
           <SheetTitle className="font-fredoka text-xl flex items-center gap-2">
             <Bell className="w-5 h-5 text-warning" />
-            Quest Hub
+            Spot Hub
           </SheetTitle>
         </SheetHeader>
 
@@ -229,7 +229,7 @@ const AlertsDrawer = ({ currentUserId, onOpenMission, onFlyToQuest }: AlertsDraw
             </TabsTrigger>
             <TabsTrigger value="my-quests" className="gap-2">
               <Crown className="w-4 h-4" />
-              My Quests
+              My Spots
               {myQuests.length > 0 && (
                 <Badge variant="secondary" className="ml-1 h-5 px-1.5">
                   {myQuests.length}
@@ -262,9 +262,9 @@ const AlertsDrawer = ({ currentUserId, onOpenMission, onFlyToQuest }: AlertsDraw
                 {myQuests.length === 0 ? (
                   <div className="text-center py-12">
                     <Crown className="w-12 h-12 mx-auto text-muted-foreground/30 mb-3" />
-                    <p className="text-muted-foreground text-sm">You haven't created any quests</p>
+                    <p className="text-muted-foreground text-sm">You haven't created any spots</p>
                     <p className="text-muted-foreground/60 text-xs mt-1">
-                      Long-press on the map to deploy your first quest
+                      Long-press on the map to create your first spot
                     </p>
                   </div>
                 ) : (

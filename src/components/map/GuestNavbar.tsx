@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Target, LogIn, UserPlus, Search, X, Loader2, MapPin } from 'lucide-react';
+import { LogIn, UserPlus, Search, X, Loader2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -100,19 +100,7 @@ const GuestNavbar = ({ onFlyTo }: GuestNavbarProps) => {
     <header className="fixed top-0 left-0 right-0 z-50 pointer-events-none safe-area-top">
       <div className="container mx-auto px-3 sm:px-4 py-3">
         <div className="flex items-center gap-3">
-          {/* Logo - Floating Button Style */}
-          <div className="pointer-events-auto flex-shrink-0">
-            <div className="flex items-center gap-2 px-3 py-2 bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-hard">
-              <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center">
-                <Target className="w-4 h-4 text-primary" />
-              </div>
-              <span className="font-fredoka text-sm font-bold tracking-tight hidden md:block">
-                SQUAD<span className="text-primary">MAP</span>
-              </span>
-            </div>
-          </div>
-
-          {/* Search Bar - Floating in navbar */}
+          {/* Search Bar - Floating in top-left */}
           <div 
             ref={searchContainerRef}
             className="relative flex-1 max-w-md pointer-events-auto"
