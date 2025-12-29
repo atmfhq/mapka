@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface AvatarConfig {
@@ -11,22 +11,17 @@ interface AvatarConfig {
 export interface ConversationItem {
   id: string;
   type: 'pending_invite' | 'dm' | 'spot';
-  // Display info
   title: string;
   subtitle: string;
   avatarConfig: AvatarConfig | null;
   avatarUrl?: string;
-  // Timestamp for sorting
   lastActivityAt: Date;
-  // Unread count (for DMs and spots)
   unreadCount: number;
-  // Type-specific data
-  userId?: string; // For DMs and pending invites
-  invitationId?: string; // For DMs and pending invites  
-  eventId?: string; // For spots
-  activityType?: string; // For pending invites
-  category?: string; // For spots
-  // For pending invite actions
+  userId?: string;
+  invitationId?: string;
+  eventId?: string;
+  activityType?: string;
+  category?: string;
   senderId?: string;
 }
 
@@ -79,20 +74,42 @@ export const useUnifiedConversations = (
   const [senderNicks, setSenderNicks] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
 
+  // Use refs to avoid dependency issues with arrays
+  const connectedUsersRef = useRef(connectedUsers);
+  const activeMissionsRef = useRef(activeMissions);
+  
+  // Update refs when data changes
+  useEffect(() => {
+    connectedUsersRef.current = connectedUsers;
+  }, [connectedUsers]);
+  
+  useEffect(() => {
+    activeMissionsRef.current = activeMissions;
+  }, [activeMissions]);
+
+  // Stable keys for dependency tracking
+  const connectedUsersKey = connectedUsers.map(u => u.invitationId).join(',');
+  const activeMissionsKey = activeMissions.map(m => m.id).join(',');
+
   // Fetch last messages for DMs
   const fetchDmLastMessages = useCallback(async () => {
-    if (connectedUsers.length === 0) {
+    const users = connectedUsersRef.current;
+    
+    if (users.length === 0) {
       setDmLastMessages(new Map());
       return;
     }
 
-    const invitationIds = connectedUsers.map(u => u.invitationId).filter(Boolean);
-    if (invitationIds.length === 0) return;
+    const invitationIds = users.map(u => u.invitationId).filter(Boolean);
+    if (invitationIds.length === 0) {
+      setDmLastMessages(new Map());
+      return;
+    }
 
     const newLastMessages = new Map<string, LastMessageInfo>();
     
-    // Fetch last message for each DM conversation
-    for (const invId of invitationIds) {
+    // Fetch last message for each DM conversation in parallel
+    const promises = invitationIds.map(async (invId) => {
       const { data } = await supabase
         .from('direct_messages')
         .select('content, created_at, sender_id')
@@ -102,31 +119,44 @@ export const useUnifiedConversations = (
         .maybeSingle();
       
       if (data) {
-        newLastMessages.set(invId, {
-          invitationId: invId,
-          lastMessageAt: data.created_at,
-          lastMessagePreview: data.content.slice(0, 50) + (data.content.length > 50 ? '...' : ''),
-          lastMessageSenderId: data.sender_id,
-        });
+        return {
+          invId,
+          info: {
+            invitationId: invId,
+            lastMessageAt: data.created_at,
+            lastMessagePreview: data.content.slice(0, 50) + (data.content.length > 50 ? '...' : ''),
+            lastMessageSenderId: data.sender_id,
+          }
+        };
+      }
+      return null;
+    });
+
+    const results = await Promise.all(promises);
+    for (const result of results) {
+      if (result) {
+        newLastMessages.set(result.invId, result.info);
       }
     }
 
     setDmLastMessages(newLastMessages);
-  }, [connectedUsers]);
+  }, []);
 
   // Fetch last messages for event chats
   const fetchEventLastMessages = useCallback(async () => {
-    if (activeMissions.length === 0) {
+    const missions = activeMissionsRef.current;
+    
+    if (missions.length === 0) {
       setEventLastMessages(new Map());
       return;
     }
 
-    const eventIds = activeMissions.map(m => m.id);
+    const eventIds = missions.map(m => m.id);
     const newLastMessages = new Map<string, LastMessageInfo>();
     const senderIdsToFetch = new Set<string>();
     
-    // Fetch last message for each event
-    for (const eventId of eventIds) {
+    // Fetch last message for each event in parallel
+    const promises = eventIds.map(async (eventId) => {
       const { data } = await supabase
         .from('event_chat_messages')
         .select('content, created_at, user_id')
@@ -136,13 +166,24 @@ export const useUnifiedConversations = (
         .maybeSingle();
       
       if (data) {
-        newLastMessages.set(eventId, {
+        return {
           eventId,
-          lastMessageAt: data.created_at,
-          lastMessagePreview: data.content.slice(0, 40) + (data.content.length > 40 ? '...' : ''),
-          lastMessageSenderId: data.user_id,
-        });
-        senderIdsToFetch.add(data.user_id);
+          info: {
+            eventId,
+            lastMessageAt: data.created_at,
+            lastMessagePreview: data.content.slice(0, 40) + (data.content.length > 40 ? '...' : ''),
+            lastMessageSenderId: data.user_id,
+          }
+        };
+      }
+      return null;
+    });
+
+    const results = await Promise.all(promises);
+    for (const result of results) {
+      if (result) {
+        newLastMessages.set(result.eventId, result.info);
+        senderIdsToFetch.add(result.info.lastMessageSenderId);
       }
     }
 
@@ -161,17 +202,30 @@ export const useUnifiedConversations = (
     }
 
     setEventLastMessages(newLastMessages);
-  }, [activeMissions]);
+  }, []);
 
   // Fetch all last messages when data changes
   useEffect(() => {
+    let cancelled = false;
+    
     const fetchAll = async () => {
       setLoading(true);
-      await Promise.all([fetchDmLastMessages(), fetchEventLastMessages()]);
-      setLoading(false);
+      try {
+        await Promise.all([fetchDmLastMessages(), fetchEventLastMessages()]);
+      } catch (err) {
+        console.error('Error fetching conversation data:', err);
+      }
+      if (!cancelled) {
+        setLoading(false);
+      }
     };
+    
     fetchAll();
-  }, [fetchDmLastMessages, fetchEventLastMessages]);
+    
+    return () => {
+      cancelled = true;
+    };
+  }, [connectedUsersKey, activeMissionsKey, fetchDmLastMessages, fetchEventLastMessages]);
 
   // Build unified conversation list
   const conversations = useMemo((): ConversationItem[] => {
@@ -249,15 +303,7 @@ export const useUnifiedConversations = (
     }
 
     // Sort by lastActivityAt descending (newest first)
-    // Pending invites with no messages come first, then by timestamp
-    items.sort((a, b) => {
-      // Pending invites always have priority when recently received
-      const aIsPending = a.type === 'pending_invite';
-      const bIsPending = b.type === 'pending_invite';
-      
-      // Both same type or both not pending - sort by timestamp
-      return b.lastActivityAt.getTime() - a.lastActivityAt.getTime();
-    });
+    items.sort((a, b) => b.lastActivityAt.getTime() - a.lastActivityAt.getTime());
 
     return items;
   }, [
@@ -272,11 +318,13 @@ export const useUnifiedConversations = (
     getDmUnreadCount,
   ]);
 
+  const refetch = useCallback(async () => {
+    await Promise.all([fetchDmLastMessages(), fetchEventLastMessages()]);
+  }, [fetchDmLastMessages, fetchEventLastMessages]);
+
   return {
     conversations,
     loading,
-    refetch: useCallback(async () => {
-      await Promise.all([fetchDmLastMessages(), fetchEventLastMessages()]);
-    }, [fetchDmLastMessages, fetchEventLastMessages]),
+    refetch,
   };
 };
