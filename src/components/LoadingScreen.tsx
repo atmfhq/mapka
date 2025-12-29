@@ -27,7 +27,7 @@ const LoadingScreen = () => {
         
         {/* Loading text */}
         <div className="font-fredoka text-2xl font-bold mb-2">
-          SQUAD<span className="text-primary">MAP</span>
+          Map<span className="text-primary">ka</span>
         </div>
         <div className="font-nunito text-sm text-muted-foreground animate-pulse">
           Loading your adventure...

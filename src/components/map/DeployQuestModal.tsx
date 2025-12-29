@@ -200,15 +200,15 @@ const DeployQuestModal = ({
     if (error || !data) {
       toast({
         title: "Deploy failed",
-        description: error?.message || "Failed to create quest",
+        description: error?.message || "Failed to create spot",
         variant: "destructive",
       });
       return;
     }
 
     toast({
-      title: "Quest Deployed!",
-      description: "Your quest is now live on the tactical map.",
+      title: "Spot Created!",
+      description: "Your spot is now live on the map.",
     });
 
     // Reset form
@@ -236,10 +236,10 @@ const DeployQuestModal = ({
             </div>
             <div>
               <DialogTitle className="font-fredoka text-xl">
-                Create Quest
+                Create Spot
               </DialogTitle>
               <p className="text-xs text-muted-foreground font-nunito mt-1">
-                Start a new adventure
+                Start a new gathering
               </p>
             </div>
           </div>
@@ -279,7 +279,7 @@ const DeployQuestModal = ({
           {/* Title */}
           <div className="space-y-2">
             <Label className="font-nunito text-sm font-medium text-foreground">
-              Quest Title
+              Spot Title
             </Label>
             <Input
               placeholder="e.g., Quick 3v3 Basketball"
@@ -441,7 +441,7 @@ const DeployQuestModal = ({
               Description (optional)
             </Label>
             <Textarea
-              placeholder="Add details about your quest..."
+              placeholder="Add details about your spot..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className="bg-muted/50 border-2 border-border focus:border-primary rounded-xl min-h-[80px] resize-none"
@@ -457,7 +457,7 @@ const DeployQuestModal = ({
             <div className="flex items-start gap-2 p-3 rounded-xl bg-warning/10 border-2 border-warning/30">
               <AlertTriangle className="w-4 h-4 text-warning shrink-0 mt-0.5" />
               <p className="text-xs text-warning/80 font-nunito">
-                Once created, your quest will be visible to all adventurers in the area.
+                Once created, your spot will be visible to everyone in the area.
               </p>
             </div>
           )}

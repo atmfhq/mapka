@@ -53,8 +53,8 @@ const Auth = () => {
         });
         if (error) throw error;
         toast({
-          title: "Welcome back, Operator",
-          description: "Successfully logged in to SquadMap",
+          title: "Welcome back!",
+          description: "Successfully logged in to Mapka",
         });
         // Navigation handled by useEffect
       } else {
@@ -107,7 +107,7 @@ const Auth = () => {
             </div>
             <div>
               <h1 className="font-fredoka text-xl font-bold">
-                SQUAD<span className="text-primary">MAP</span>
+                Map<span className="text-primary">ka</span>
               </h1>
               <p className="font-nunito text-xs text-muted-foreground">
                 {isLogin ? "Welcome Back!" : "Create Your Character"}
@@ -152,7 +152,7 @@ const Auth = () => {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="adventurer@squadmap.com"
+                  placeholder="adventurer@mapka.app"
                   className="pl-10 bg-muted/50 border-2 border-border focus:border-primary rounded-xl"
                   required
                 />
