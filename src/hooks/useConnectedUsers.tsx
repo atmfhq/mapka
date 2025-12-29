@@ -128,58 +128,56 @@ export const useConnectedUsers = (currentUserId: string) => {
     fetchConnectedUsers();
   }, [fetchConnectedUsers]);
 
-  // Realtime subscription for invitation changes - using specific filters for reliability
+  // Realtime subscription for invitation changes - using broad subscription for reliability
+  // Note: Column filters (sender_id=eq.X) may not work reliably in all Supabase versions
+  // Using a broad subscription with client-side filtering is more robust
   useEffect(() => {
     if (!currentUserId) return;
 
     console.log('[Connections] Setting up realtime subscription for user:', currentUserId);
 
-    // Subscribe to invitations where user is sender
-    const senderChannel = supabase
-      .channel(`connections-sender-${currentUserId}`)
+    const channel = supabase
+      .channel(`connections-invitations-${currentUserId}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'invitations',
-          filter: `sender_id=eq.${currentUserId}`,
         },
         (payload) => {
-          console.log('[Connections] Sender invitation change:', payload.eventType, payload.new);
-          // Refetch immediately for instant UI update
-          fetchConnectedUsers();
+          const newInv = payload.new as { sender_id: string; receiver_id: string };
+          // Check if this invitation involves the current user
+          if (newInv.sender_id === currentUserId || newInv.receiver_id === currentUserId) {
+            console.log('[Connections] New invitation involving current user:', payload);
+            fetchConnectedUsers();
+          }
         }
       )
-      .subscribe((status) => {
-        console.log('[Connections] Sender subscription status:', status);
-      });
-
-    // Subscribe to invitations where user is receiver
-    const receiverChannel = supabase
-      .channel(`connections-receiver-${currentUserId}`)
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
           schema: 'public',
           table: 'invitations',
-          filter: `receiver_id=eq.${currentUserId}`,
         },
         (payload) => {
-          console.log('[Connections] Receiver invitation change:', payload.eventType, payload.new);
-          // Refetch immediately for instant UI update
-          fetchConnectedUsers();
+          const updatedInv = payload.new as { sender_id: string; receiver_id: string; status: string };
+          // Check if this invitation involves the current user
+          if (updatedInv.sender_id === currentUserId || updatedInv.receiver_id === currentUserId) {
+            console.log('[Connections] Invitation updated for current user:', updatedInv.status, payload);
+            // Refetch immediately for instant UI update
+            fetchConnectedUsers();
+          }
         }
       )
       .subscribe((status) => {
-        console.log('[Connections] Receiver subscription status:', status);
+        console.log('[Connections] Invitation subscription status:', status);
       });
 
     return () => {
-      console.log('[Connections] Cleaning up subscriptions');
-      supabase.removeChannel(senderChannel);
-      supabase.removeChannel(receiverChannel);
+      console.log('[Connections] Cleaning up subscription');
+      supabase.removeChannel(channel);
     };
   }, [currentUserId, fetchConnectedUsers]);
 

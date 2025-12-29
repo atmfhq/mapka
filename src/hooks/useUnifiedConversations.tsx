@@ -274,43 +274,25 @@ export const useUnifiedConversations = (
   }, [currentUserId]);
 
   // Real-time subscription for invitation changes - to pick up new connections immediately
+  // Using broad subscription with client-side filtering for reliability
   useEffect(() => {
     if (!currentUserId) return;
 
-    const senderChannel = supabase
-      .channel(`conversations-inv-sender-${currentUserId}`)
+    const channel = supabase
+      .channel(`conversations-inv-${currentUserId}`)
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
           table: 'invitations',
-          filter: `sender_id=eq.${currentUserId}`,
         },
         (payload) => {
-          const newStatus = (payload.new as { status: string }).status;
-          if (newStatus === 'accepted') {
-            console.log('[UnifiedConversations] Invitation accepted (sender), will refetch...');
-            // The parent component's connectedUsers will update which triggers our useMemo
-          }
-        }
-      )
-      .subscribe();
-
-    const receiverChannel = supabase
-      .channel(`conversations-inv-receiver-${currentUserId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'invitations',
-          filter: `receiver_id=eq.${currentUserId}`,
-        },
-        (payload) => {
-          const newStatus = (payload.new as { status: string }).status;
-          if (newStatus === 'accepted') {
-            console.log('[UnifiedConversations] Invitation accepted (receiver), will refetch...');
+          const updatedInv = payload.new as { sender_id: string; receiver_id: string; status: string };
+          // Only process if this invitation involves the current user and was accepted
+          if ((updatedInv.sender_id === currentUserId || updatedInv.receiver_id === currentUserId) &&
+              updatedInv.status === 'accepted') {
+            console.log('[UnifiedConversations] Invitation accepted, will refetch...');
             // The parent component's connectedUsers will update which triggers our useMemo
           }
         }
@@ -318,8 +300,7 @@ export const useUnifiedConversations = (
       .subscribe();
 
     return () => {
-      supabase.removeChannel(senderChannel);
-      supabase.removeChannel(receiverChannel);
+      supabase.removeChannel(channel);
     };
   }, [currentUserId]);
 
