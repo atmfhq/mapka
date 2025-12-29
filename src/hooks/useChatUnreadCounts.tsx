@@ -205,6 +205,7 @@ export const useChatUnreadCounts = (
           // If message is from someone else, increment count immediately
           if (payload.new.sender_id !== currentUserId) {
             const invitationId = payload.new.invitation_id;
+            console.log('[UnreadCounts] New DM received for invitation:', invitationId);
             // Only increment if this DM chat is NOT currently open AND not muted
             if (
               activeDmChatRef.current !== invitationId &&
@@ -224,6 +225,58 @@ export const useChatUnreadCounts = (
       supabase.removeChannel(channel);
     };
   }, [currentUserId]);
+
+  // Subscribe to invitation status changes to refetch when new connections are made
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const senderChannel = supabase
+      .channel(`unread-invitations-sender-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'invitations',
+          filter: `sender_id=eq.${currentUserId}`,
+        },
+        (payload) => {
+          const newStatus = (payload.new as { status: string }).status;
+          if (newStatus === 'accepted') {
+            console.log('[UnreadCounts] Invitation accepted (sender), refetching...');
+            // Refetch to pick up the new conversation
+            fetchUnreadCounts();
+          }
+        }
+      )
+      .subscribe();
+
+    const receiverChannel = supabase
+      .channel(`unread-invitations-receiver-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'invitations',
+          filter: `receiver_id=eq.${currentUserId}`,
+        },
+        (payload) => {
+          const newStatus = (payload.new as { status: string }).status;
+          if (newStatus === 'accepted') {
+            console.log('[UnreadCounts] Invitation accepted (receiver), refetching...');
+            // Refetch to pick up the new conversation
+            fetchUnreadCounts();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(senderChannel);
+      supabase.removeChannel(receiverChannel);
+    };
+  }, [currentUserId, fetchUnreadCounts]);
 
   const getUnreadCount = (eventId: string): number => {
     return unreadCounts[eventId] || 0;
