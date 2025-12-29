@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+// Export for real-time updates
+export interface LastMessageUpdate {
+  type: 'dm' | 'event';
+  id: string; // invitationId or eventId
+  messageAt: string;
+  preview: string;
+  senderId: string;
+}
+
 interface AvatarConfig {
   skinColor?: string;
   shape?: string;
@@ -226,6 +235,92 @@ export const useUnifiedConversations = (
       cancelled = true;
     };
   }, [connectedUsersKey, activeMissionsKey, fetchDmLastMessages, fetchEventLastMessages]);
+
+  // Real-time subscription for DM messages - instant reordering
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const channel = supabase
+      .channel('conversations-dm-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'direct_messages',
+        },
+        (payload) => {
+          const msg = payload.new as { invitation_id: string; content: string; created_at: string; sender_id: string };
+          
+          // Update the lastMessages map immediately for instant reordering
+          setDmLastMessages(prev => {
+            const next = new Map(prev);
+            next.set(msg.invitation_id, {
+              invitationId: msg.invitation_id,
+              lastMessageAt: msg.created_at,
+              lastMessagePreview: msg.content.slice(0, 50) + (msg.content.length > 50 ? '...' : ''),
+              lastMessageSenderId: msg.sender_id,
+            });
+            return next;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId]);
+
+  // Real-time subscription for event messages - instant reordering
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const channel = supabase
+      .channel('conversations-event-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'event_chat_messages',
+        },
+        async (payload) => {
+          const msg = payload.new as { event_id: string; content: string; created_at: string; user_id: string };
+          
+          // Fetch sender nick if we don't have it
+          if (!senderNicks.has(msg.user_id) && msg.user_id !== currentUserId) {
+            const { data: profiles } = await supabase
+              .rpc('get_public_profiles_by_ids', { user_ids: [msg.user_id] });
+            
+            if (profiles && profiles[0]) {
+              setSenderNicks(prev => {
+                const next = new Map(prev);
+                next.set(msg.user_id, profiles[0].nick || 'User');
+                return next;
+              });
+            }
+          }
+          
+          // Update the lastMessages map immediately for instant reordering
+          setEventLastMessages(prev => {
+            const next = new Map(prev);
+            next.set(msg.event_id, {
+              eventId: msg.event_id,
+              lastMessageAt: msg.created_at,
+              lastMessagePreview: msg.content.slice(0, 40) + (msg.content.length > 40 ? '...' : ''),
+              lastMessageSenderId: msg.user_id,
+            });
+            return next;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId, senderNicks]);
 
   // Build unified conversation list
   const conversations = useMemo((): ConversationItem[] => {

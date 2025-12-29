@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, isToday } from 'date-fns';
-import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn } from 'lucide-react';
+import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Info, BellOff, Bell } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useChatUnreadCounts } from '@/hooks/useChatUnreadCounts';
+import { useMutedChats } from '@/hooks/useMutedChats';
 import LobbyChatMessages from './LobbyChatMessages';
 import { ACTIVITIES, ACTIVITY_CATEGORIES, getCategoryForActivity, getActivityById, getActivitiesByCategory, ActivityCategory } from '@/constants/activities';
 
@@ -136,10 +137,26 @@ const QuestLobby = ({
   // Track active event chat for real-time read status
   const eventIds = useMemo(() => quest ? [quest.id] : [], [quest?.id]);
   const { setActiveEventChat } = useChatUnreadCounts(currentUserId, eventIds);
+  
+  // Muted chats
+  const { isEventMuted, muteEvent, unmuteEvent } = useMutedChats(currentUserId);
+  const isMuted = quest ? isEventMuted(quest.id) : false;
 
   const isGuest = !currentUserId;
   const isHost = quest?.host_id === currentUserId;
   const canAccessChat = (isHost || hasJoined) && !isGuest;
+  
+  // Handle mute toggle
+  const handleMuteToggle = async () => {
+    if (!quest) return;
+    if (isMuted) {
+      await unmuteEvent(quest.id);
+      toast({ title: 'Notifications unmuted' });
+    } else {
+      await muteEvent(quest.id);
+      toast({ title: 'Notifications muted', description: 'You won\'t receive notifications for this spot.' });
+    }
+  };
   
   // Handle tab changes - track active chat
   const handleTabChange = (tab: string) => {
@@ -470,9 +487,35 @@ const QuestLobby = ({
             </div>
           </div>
 
-          <SheetTitle className="font-fredoka text-2xl text-left">
-            {quest.title}
-          </SheetTitle>
+          <div className="flex items-center justify-between gap-2">
+            <SheetTitle className="font-fredoka text-2xl text-left flex-1">
+              {quest.title}
+            </SheetTitle>
+            
+            {/* Header action icons for joined members */}
+            {canAccessChat && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-9 h-9 text-muted-foreground hover:text-primary"
+                  onClick={() => setActiveTab('info')}
+                  title="Spot Details"
+                >
+                  <Info className="w-5 h-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`w-9 h-9 ${isMuted ? 'text-warning' : 'text-muted-foreground hover:text-primary'}`}
+                  onClick={handleMuteToggle}
+                  title={isMuted ? 'Unmute notifications' : 'Mute notifications'}
+                >
+                  {isMuted ? <BellOff className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
+                </Button>
+              </div>
+            )}
+          </div>
 
           <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
             <div className="flex items-center gap-1.5">

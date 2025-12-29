@@ -196,6 +196,45 @@ export type Database = {
           },
         ]
       }
+      muted_chats: {
+        Row: {
+          created_at: string
+          event_id: string | null
+          id: string
+          invitation_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          invitation_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          invitation_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "muted_chats_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "megaphones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "muted_chats_invitation_id_fkey"
+            columns: ["invitation_id"]
+            isOneToOne: false
+            referencedRelation: "invitations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_config: Json | null
