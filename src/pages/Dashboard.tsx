@@ -193,6 +193,7 @@ const Dashboard = () => {
           locationLat={isGuest ? guestLat : currentLocation.lat}
           locationLng={isGuest ? guestLng : currentLocation.lng}
           isGhostMode={isGuest || !isActive}
+          onGhostModeChange={(isGhost) => handleActiveChange(!isGhost)}
           isGuest={isGuest}
           onOpenChatWithUser={handleOpenChatWithUser}
           onOpenSpotChat={handleOpenSpotChat}
@@ -210,8 +211,6 @@ const Dashboard = () => {
           avatarUrl={profile?.avatar_url ?? null}
           avatarConfig={profile?.avatar_config as AvatarConfig | null}
           currentUserId={user.id}
-          isActive={isActive}
-          onActiveChange={handleActiveChange}
           onSignOut={handleSignOut}
           onMissionCreated={handleMissionCreated}
           onOpenMission={handleOpenMission}
