@@ -27,6 +27,7 @@ import {
   Sparkles,
   Heart
 } from "lucide-react";
+import { generateRandomAvatar } from "@/utils/randomAvatar";
 
 interface AvatarConfig {
   skinColor?: string;
@@ -43,12 +44,8 @@ const Onboarding = () => {
   const [nick, setNick] = useState("");
   const [bio, setBio] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>({
-    skinColor: "cyan",
-    shape: "circle",
-    eyes: "normal",
-    mouth: "smile",
-  });
+  // Generate a random avatar on component mount
+  const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(() => generateRandomAvatar());
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationName, setLocationName] = useState<string>("");
   const [spawnIntentCoords, setSpawnIntentCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -160,8 +157,8 @@ const Onboarding = () => {
       await refreshProfile();
       
       toast({
-        title: "Operative Initialized",
-        description: "Welcome to SquadMap, " + nick,
+        title: "Welcome to Mapka!",
+        description: "Your adventure begins now, " + nick,
       });
       
       navigate("/");
