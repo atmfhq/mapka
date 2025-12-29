@@ -68,6 +68,8 @@ interface QuestLobbyProps {
   onUpdate?: (quest: Quest) => void;
   onViewUserProfile?: (user: Profile) => void;
   onOpenSpotChat?: (eventId: string) => void;
+  onLeaveChatSuccess?: (eventId: string) => void;
+  onJoinChatSuccess?: (eventId: string) => void;
 }
 
 const getActivityByLabel = (label: string) => {
@@ -114,7 +116,9 @@ const QuestLobby = ({
   onLeave,
   onUpdate,
   onViewUserProfile,
-  onOpenSpotChat
+  onOpenSpotChat,
+  onLeaveChatSuccess,
+  onJoinChatSuccess
 }: QuestLobbyProps) => {
   const navigate = useNavigate();
   const [host, setHost] = useState<Profile | null>(null);
@@ -308,9 +312,10 @@ const QuestLobby = ({
     if (!quest) return;
     setLoading(true);
 
+    // Update joined_at when rejoining chat so they get fresh history
     const { error } = await supabase
       .from('event_participants')
-      .update({ chat_active: true })
+      .update({ chat_active: true, joined_at: new Date().toISOString() })
       .eq('event_id', quest.id)
       .eq('user_id', currentUserId);
 
@@ -328,6 +333,7 @@ const QuestLobby = ({
     toast({ title: "Joined chat" });
     setIsChatActive(true);
     await refreshParticipants();
+    onJoinChatSuccess?.(quest.id);
   };
 
   const handleLeaveChat = async () => {
@@ -354,6 +360,7 @@ const QuestLobby = ({
     toast({ title: "Left chat", description: "You're still attending the spot." });
     setIsChatActive(false);
     await refreshParticipants();
+    onLeaveChatSuccess?.(quest.id);
   };
 
   const handleDelete = async () => {

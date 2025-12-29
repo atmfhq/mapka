@@ -47,16 +47,55 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [userJoinedAt, setUserJoinedAt] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Fetch initial messages
+  // Fetch user's joined_at timestamp for this event
+  useEffect(() => {
+    const fetchJoinedAt = async () => {
+      // First check if user is a participant
+      const { data: participation } = await supabase
+        .from('event_participants')
+        .select('joined_at')
+        .eq('event_id', eventId)
+        .eq('user_id', currentUserId)
+        .maybeSingle();
+      
+      if (participation?.joined_at) {
+        setUserJoinedAt(participation.joined_at);
+        return;
+      }
+      
+      // If not a participant, check if user is the host (use megaphone created_at as join time)
+      const { data: megaphone } = await supabase
+        .from('megaphones')
+        .select('host_id, created_at')
+        .eq('id', eventId)
+        .eq('host_id', currentUserId)
+        .maybeSingle();
+      
+      if (megaphone?.created_at) {
+        setUserJoinedAt(megaphone.created_at);
+      }
+    };
+
+    fetchJoinedAt();
+  }, [eventId, currentUserId]);
+
+  // Fetch initial messages (filtered by joined_at)
   useEffect(() => {
     const fetchMessages = async () => {
-      const { data, error } = await supabase
+      // Don't fetch until we know the user's join timestamp
+      if (!userJoinedAt) return;
+
+      let query = supabase
         .from('event_chat_messages')
         .select('id, event_id, user_id, content, created_at')
         .eq('event_id', eventId)
+        .gte('created_at', userJoinedAt) // Only messages after user joined
         .order('created_at', { ascending: true });
+
+      const { data, error } = await query;
 
       if (error) {
         console.error('Failed to fetch messages:', error);
@@ -66,23 +105,30 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
       if (data) {
         // Fetch profiles using secure RPC function
         const userIds = [...new Set(data.map(m => m.user_id))];
-        const { data: profiles } = await supabase
-          .rpc('get_public_profiles_by_ids', { user_ids: userIds });
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
+            .rpc('get_public_profiles_by_ids', { user_ids: userIds });
 
-        const messagesWithProfiles = data.map(msg => ({
-          ...msg,
-          profile: profiles?.find(p => p.id === msg.user_id) as PublicProfile | undefined,
-        }));
+          const messagesWithProfiles = data.map(msg => ({
+            ...msg,
+            profile: profiles?.find(p => p.id === msg.user_id) as PublicProfile | undefined,
+          }));
 
-        setMessages(messagesWithProfiles);
+          setMessages(messagesWithProfiles);
+        } else {
+          setMessages([]);
+        }
       }
     };
 
     fetchMessages();
-  }, [eventId]);
+  }, [eventId, userJoinedAt]);
 
   // Subscribe to realtime updates
   useEffect(() => {
+    // Don't subscribe until we know the user's join timestamp
+    if (!userJoinedAt) return;
+
     const channel = supabase
       .channel(`event-chat-${eventId}`)
       .on(
@@ -95,6 +141,11 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
         },
         async (payload) => {
           const newMsg = payload.new as ChatMessage;
+          
+          // Only add message if it's after user joined
+          if (new Date(newMsg.created_at) < new Date(userJoinedAt)) {
+            return;
+          }
           
           // Fetch profile using secure RPC function
           const { data: profiles } = await supabase
@@ -110,7 +161,7 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [eventId]);
+  }, [eventId, userJoinedAt]);
 
   // Scroll anchor ref for reliable scrolling
   const scrollAnchorRef = useRef<HTMLDivElement>(null);

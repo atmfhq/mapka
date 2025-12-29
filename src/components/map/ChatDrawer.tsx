@@ -201,6 +201,61 @@ const ChatDrawer = ({
     fetchActiveMissions();
   }, [fetchActiveMissions]);
 
+  // Realtime subscription for chat_active changes - instant UI update on Leave/Join Chat
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const channel = supabase
+      .channel('chat-participation-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'event_participants',
+          filter: `user_id=eq.${currentUserId}`,
+        },
+        (payload) => {
+          const updated = payload.new as { event_id: string; chat_active: boolean };
+          
+          // Refetch active missions when chat_active changes
+          fetchActiveMissions();
+          
+          // If the currently open spot chat was left, close it
+          if (selectedSpot && selectedSpot.id === updated.event_id && !updated.chat_active) {
+            setActiveEventChat(null);
+            setSelectedSpot(null);
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'event_participants',
+          filter: `user_id=eq.${currentUserId}`,
+        },
+        (payload) => {
+          const deleted = payload.old as { event_id: string };
+          
+          // Refetch when user leaves a spot entirely
+          fetchActiveMissions();
+          
+          // Close the spot if it was open
+          if (selectedSpot && selectedSpot.id === deleted.event_id) {
+            setActiveEventChat(null);
+            setSelectedSpot(null);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId, selectedSpot, fetchActiveMissions, setActiveEventChat]);
+
   const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
   const invitationId = selectedUser ? getInvitationIdForUser(selectedUser) : null;
 
