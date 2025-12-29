@@ -2238,6 +2238,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           }
         }}
         onOpenSpotChat={onOpenSpotChat}
+        isUserInViewport={(lat, lng) => {
+          if (!map.current) return true;
+          const bounds = map.current.getBounds();
+          return bounds.contains([lng, lat]);
+        }}
       />
     </>
   );
