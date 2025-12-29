@@ -80,6 +80,7 @@ export type Database = {
       }
       event_participants: {
         Row: {
+          chat_active: boolean
           event_id: string
           id: string
           joined_at: string
@@ -88,6 +89,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          chat_active?: boolean
           event_id: string
           id?: string
           joined_at?: string
@@ -96,6 +98,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          chat_active?: boolean
           event_id?: string
           id?: string
           joined_at?: string
