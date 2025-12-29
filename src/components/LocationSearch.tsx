@@ -191,9 +191,9 @@ const LocationSearch = ({
         )}
       </div>
 
-      {/* Results dropdown */}
+      {/* Results dropdown - full width on mobile */}
       {showResults && results.length > 0 && (
-        <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+        <div className="fixed md:absolute left-0 right-0 md:left-auto md:right-auto md:w-full z-[100] mt-1 mx-2 md:mx-0 bg-card border border-border rounded-lg shadow-xl overflow-hidden">
           {results.map((result) => (
             <button
               key={result.id}
@@ -201,9 +201,7 @@ const LocationSearch = ({
               className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-muted/50 transition-colors border-b border-border last:border-b-0"
             >
               <MapPin className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-              <span className="text-sm font-nunito line-clamp-2">
-                {result.place_name}
-              </span>
+              <span className="text-sm font-nunito">{result.place_name}</span>
             </button>
           ))}
         </div>
