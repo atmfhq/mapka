@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, UserPlus, Search, X, Loader2, MapPin } from 'lucide-react';
+import { LogIn, Search, X, Loader2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -154,25 +154,16 @@ const GuestNavbar = ({ onFlyTo }: GuestNavbarProps) => {
           {/* Spacer */}
           <div className="flex-1 hidden lg:block" />
 
-          {/* Guest Controls - Floating Buttons */}
-          <div className="flex items-center gap-2 pointer-events-auto flex-shrink-0">
-            <Link to="/auth?mode=login">
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2 font-nunito h-10 bg-card/95 backdrop-blur-md border-2 border-border shadow-hard"
-              >
-                <LogIn className="w-4 h-4" />
-                <span className="hidden sm:inline">Sign In</span>
-              </Button>
-            </Link>
-            <Link to="/auth?mode=signup">
+          {/* Guest Controls - Single Join Button */}
+          <div className="flex items-center pointer-events-auto flex-shrink-0">
+            <Link to="/auth">
               <Button
                 size="sm"
                 className="gap-2 font-nunito h-10 shadow-hard"
               >
-                <UserPlus className="w-4 h-4" />
-                <span className="hidden sm:inline">Join</span>
+                <LogIn className="w-4 h-4" />
+                <span className="hidden sm:inline">Join / Login</span>
+                <span className="sm:hidden">Join</span>
               </Button>
             </Link>
           </div>
