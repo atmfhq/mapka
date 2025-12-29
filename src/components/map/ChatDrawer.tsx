@@ -75,6 +75,8 @@ const ChatDrawer = ({
     getTotalUnreadCount,
     clearUnreadForEvent,
     clearUnreadForDm,
+    setActiveEventChat,
+    setActiveDmChat,
     refetch: refetchUnreadCounts 
   } = useChatUnreadCounts(currentUserId, allEventIds);
 
@@ -85,6 +87,8 @@ const ChatDrawer = ({
     setInternalOpen(value);
     onOpenChange?.(value);
     if (!value) {
+      // Clear active chat tracking when drawer closes
+      setActiveDmChat(null);
       setSelectedUser(null);
       setMessages([]);
       // Silent refetch when drawer closes to ensure consistency
@@ -219,16 +223,16 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
     };
   }, [invitationId, fetchMessages]);
 
+  // Scroll anchor ref for reliable auto-scroll
+  const scrollAnchorRef = useRef<HTMLDivElement>(null);
+
   // Auto-scroll to bottom on new messages or when chat opens
   useEffect(() => {
-    if (scrollRef.current) {
-      // Use setTimeout to ensure DOM has updated
-      setTimeout(() => {
-        if (scrollRef.current) {
-          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-      }, 100);
-    }
+    // Small delay to ensure DOM has updated
+    const timer = setTimeout(() => {
+      scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
+    return () => clearTimeout(timer);
   }, [messages, selectedUser]);
 
   const handleSendMessage = async () => {
@@ -284,6 +288,8 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
     // Background sync: Mark chat as read (fire and forget)
     const userInvitationId = getInvitationIdForUser(userId);
     if (userInvitationId) {
+      // Set this DM as active so new messages don't increment unread count
+      setActiveDmChat(userInvitationId);
       markInvitationAsRead(userInvitationId);
       // Clear unread count immediately for responsive UI
       clearUnreadForDm(userInvitationId);
@@ -398,6 +404,8 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                   size="icon"
                   className="w-8 h-8"
                   onClick={() => {
+                    // Clear active DM when going back to list
+                    setActiveDmChat(null);
                     setSelectedUser(null);
                     setMessages([]);
                   }}
@@ -626,7 +634,7 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
         ) : (
           // Chat view
           <div className="flex flex-col h-[60vh] mt-4">
-            <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
+            <ScrollArea className="flex-1 pr-4">
               <div className="space-y-3">
                 {loadingMessages ? (
                   <div className="flex items-center justify-center py-8">
@@ -668,6 +676,8 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                     );
                   })
                 )}
+                {/* Scroll anchor for auto-scroll */}
+                <div ref={scrollAnchorRef} />
               </div>
             </ScrollArea>
 

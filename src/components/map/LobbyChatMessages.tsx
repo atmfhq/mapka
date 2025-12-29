@@ -112,11 +112,16 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
     };
   }, [eventId]);
 
-  // Auto-scroll to bottom
+  // Scroll anchor ref for reliable scrolling
+  const scrollAnchorRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom using scroll anchor
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    // Small delay to ensure DOM has updated
+    const timer = setTimeout(() => {
+      scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
+    return () => clearTimeout(timer);
   }, [messages]);
 
   const handleSend = async () => {
@@ -182,7 +187,7 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
     <div className="flex flex-col h-full min-h-0">
       {/* Messages */}
       <ScrollArea className="flex-1 min-h-0 pr-2">
-        <div ref={scrollRef} className="space-y-4 py-2">
+        <div className="space-y-4 py-2">
           {messages.length === 0 ? (
             <p className="text-center text-muted-foreground text-sm py-8">
               No messages yet. Start the conversation!
@@ -240,6 +245,8 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
               );
             })
           )}
+          {/* Scroll anchor for auto-scroll */}
+          <div ref={scrollAnchorRef} />
         </div>
       </ScrollArea>
 

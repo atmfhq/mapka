@@ -14,11 +14,24 @@ export const useChatUnreadCounts = (currentUserId: string | null, eventIds: stri
   const [dmUnreadCounts, setDmUnreadCounts] = useState<DirectMessageCounts>({});
   const [loading, setLoading] = useState(true);
   const eventIdsRef = useRef<string[]>(eventIds);
+  
+  // Track currently active/open chats to prevent red dot for open conversations
+  const activeEventChatRef = useRef<string | null>(null);
+  const activeDmChatRef = useRef<string | null>(null);
 
   // Keep ref in sync
   useEffect(() => {
     eventIdsRef.current = eventIds;
   }, [eventIds]);
+  
+  // Functions to set/clear active chats
+  const setActiveEventChat = useCallback((eventId: string | null) => {
+    activeEventChatRef.current = eventId;
+  }, []);
+  
+  const setActiveDmChat = useCallback((invitationId: string | null) => {
+    activeDmChatRef.current = invitationId;
+  }, []);
 
   const fetchUnreadCounts = useCallback(async () => {
     if (!currentUserId) {
@@ -139,8 +152,8 @@ export const useChatUnreadCounts = (currentUserId: string | null, eventIds: stri
           // If message is from someone else, increment count immediately
           if (payload.new.user_id !== currentUserId) {
             const eventId = payload.new.event_id;
-            // Only update if we're tracking this event
-            if (eventIdsRef.current.includes(eventId)) {
+            // Only update if we're tracking this event AND it's not currently open
+            if (eventIdsRef.current.includes(eventId) && activeEventChatRef.current !== eventId) {
               setUnreadCounts(prev => ({
                 ...prev,
                 [eventId]: (prev[eventId] || 0) + 1
@@ -173,10 +186,13 @@ export const useChatUnreadCounts = (currentUserId: string | null, eventIds: stri
           // If message is from someone else, increment count immediately
           if (payload.new.sender_id !== currentUserId) {
             const invitationId = payload.new.invitation_id;
-            setDmUnreadCounts(prev => ({
-              ...prev,
-              [invitationId]: (prev[invitationId] || 0) + 1
-            }));
+            // Only increment if this DM chat is NOT currently open
+            if (activeDmChatRef.current !== invitationId) {
+              setDmUnreadCounts(prev => ({
+                ...prev,
+                [invitationId]: (prev[invitationId] || 0) + 1
+              }));
+            }
           }
         }
       )
@@ -225,6 +241,8 @@ export const useChatUnreadCounts = (currentUserId: string | null, eventIds: stri
     getTotalUnreadCount,
     clearUnreadForEvent,
     clearUnreadForDm,
+    setActiveEventChat,
+    setActiveDmChat,
     loading,
     refetch: fetchUnreadCounts,
   };
