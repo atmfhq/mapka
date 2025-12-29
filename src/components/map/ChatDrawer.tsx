@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { MessageCircle, Send, ChevronLeft, Loader2 } from 'lucide-react';
+import { MessageCircle, Send, ChevronLeft, Loader2, Info, BellOff, Bell } from 'lucide-react';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { useMutedChats } from '@/hooks/useMutedChats';
 import { useUnifiedConversations, type ConversationItem } from '@/hooks/useUnifiedConversations';
 import ConversationRow from './ConversationRow';
 import ProfileModal from './ProfileModal';
+import LobbyChatMessages from './LobbyChatMessages';
 
 interface ChatMessage {
   id: string;
@@ -36,6 +37,7 @@ interface ChatDrawerProps {
   currentUserId: string;
   externalOpen?: boolean;
   externalUserId?: string | null;
+  externalEventId?: string | null;
   onOpenChange?: (open: boolean) => void;
   onOpenMission?: (missionId: string) => void;
 }
@@ -45,12 +47,14 @@ const MAX_MESSAGE_LENGTH = 2000;
 const ChatDrawer = ({ 
   currentUserId, 
   externalOpen, 
-  externalUserId, 
+  externalUserId,
+  externalEventId,
   onOpenChange,
   onOpenMission 
 }: ChatDrawerProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [selectedSpot, setSelectedSpot] = useState<ActiveMission | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -106,7 +110,9 @@ const ChatDrawer = ({
     onOpenChange?.(value);
     if (!value) {
       setActiveDmChat(null);
+      setActiveEventChat(null);
       setSelectedUser(null);
+      setSelectedSpot(null);
       setMessages([]);
       silentRefetch();
     }
@@ -116,8 +122,23 @@ const ChatDrawer = ({
   useEffect(() => {
     if (externalUserId && externalOpen) {
       setSelectedUser(externalUserId);
+      setSelectedSpot(null);
     }
   }, [externalUserId, externalOpen]);
+
+  // Handle external spot selection (from QuestLobby "Open Chat")
+  useEffect(() => {
+    if (externalEventId && externalOpen) {
+      const mission = activeMissions.find(m => m.id === externalEventId);
+      if (mission) {
+        setSelectedSpot(mission);
+        setSelectedUser(null);
+        setActiveEventChat(externalEventId);
+        markEventAsRead(externalEventId);
+        clearUnreadForEvent(externalEventId);
+      }
+    }
+  }, [externalEventId, externalOpen, activeMissions]);
 
   // Fetch active missions (public megaphones where user is a participant)
   const fetchActiveMissions = useCallback(async () => {
@@ -287,6 +308,7 @@ const ChatDrawer = ({
   const handleSelectConversation = (item: ConversationItem) => {
     if (item.type === 'dm' && item.userId) {
       setSelectedUser(item.userId);
+      setSelectedSpot(null);
       setMessages([]);
       
       if (item.invitationId) {
@@ -295,12 +317,14 @@ const ChatDrawer = ({
         clearUnreadForDm(item.invitationId);
       }
     } else if (item.type === 'spot' && item.eventId) {
-      markEventAsRead(item.eventId);
-      clearUnreadForEvent(item.eventId);
-      setTimeout(() => refetchUnreadCounts(), 500);
-      
-      handleOpenChange(false);
-      onOpenMission?.(item.eventId);
+      const mission = activeMissions.find(m => m.id === item.eventId);
+      if (mission) {
+        setSelectedSpot(mission);
+        setSelectedUser(null);
+        setActiveEventChat(item.eventId);
+        markEventAsRead(item.eventId);
+        clearUnreadForEvent(item.eventId);
+      }
     }
   };
 
@@ -419,6 +443,33 @@ const ChatDrawer = ({
                   <span className="font-semibold">{selectedUserData?.nick || 'Unknown'}</span>
                 </button>
               </div>
+            ) : selectedSpot ? (
+              <div className="flex items-center gap-2 flex-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-8 h-8"
+                  onClick={() => {
+                    setActiveEventChat(null);
+                    setSelectedSpot(null);
+                  }}
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </Button>
+                <span className="font-semibold flex-1">{selectedSpot.title}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="w-8 h-8"
+                  onClick={() => {
+                    handleOpenChange(false);
+                    onOpenMission?.(selectedSpot.id);
+                  }}
+                  title="Spot Details"
+                >
+                  <Info className="w-5 h-5" />
+                </Button>
+              </div>
             ) : (
               <>
                 <MessageCircle className="w-5 h-5 text-success" />
@@ -428,7 +479,7 @@ const ChatDrawer = ({
           </SheetTitle>
         </SheetHeader>
 
-        {!selectedUser ? (
+        {!selectedUser && !selectedSpot ? (
           <ScrollArea className="h-[60vh] mt-4">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
@@ -456,8 +507,14 @@ const ChatDrawer = ({
                   />
                 ))}
               </div>
-            )}
-          </ScrollArea>
+        ) : selectedSpot ? (
+          /* Spot Chat View */
+          <div className="flex flex-col h-[60vh] mt-4">
+            <LobbyChatMessages 
+              eventId={selectedSpot.id} 
+              currentUserId={currentUserId} 
+            />
+          </div>
         ) : (
           <div className="flex flex-col h-[60vh] mt-4">
             <ScrollArea className="flex-1 pr-4">
