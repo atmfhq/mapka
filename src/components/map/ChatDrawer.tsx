@@ -62,14 +62,21 @@ const ChatDrawer = ({
   
   const { connectedUsers, loading, refetch: refetchConnections, getInvitationIdForUser } = useConnectedUsers(currentUserId);
   const { pendingInvitations, pendingCount, refetch: refetchPending } = useInvitationRealtime(currentUserId);
-  const { unreadCount, markInvitationAsRead, markEventAsRead, silentRefetch } = useUnreadMessages(currentUserId);
+  const { markInvitationAsRead, markEventAsRead, silentRefetch } = useUnreadMessages(currentUserId);
 
   // Collect all event IDs for per-chat unread counts (only for public missions now)
   const allEventIds = useMemo(() => {
     return activeMissions.map(mission => mission.id);
   }, [activeMissions]);
 
-  const { getUnreadCount: getEventUnreadCount, refetch: refetchUnreadCounts } = useChatUnreadCounts(currentUserId, allEventIds);
+  const { 
+    getUnreadCount: getEventUnreadCount, 
+    getDmUnreadCount,
+    getTotalUnreadCount,
+    clearUnreadForEvent,
+    clearUnreadForDm,
+    refetch: refetchUnreadCounts 
+  } = useChatUnreadCounts(currentUserId, allEventIds);
 
   // Combine internal and external open states
   const isOpen = externalOpen || internalOpen;
@@ -212,12 +219,17 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
     };
   }, [invitationId, fetchMessages]);
 
-  // Auto-scroll to bottom on new messages
+  // Auto-scroll to bottom on new messages or when chat opens
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      // Use setTimeout to ensure DOM has updated
+      setTimeout(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+      }, 100);
     }
-  }, [messages]);
+  }, [messages, selectedUser]);
 
   const handleSendMessage = async () => {
     const trimmedMessage = newMessage.trim();
@@ -273,12 +285,16 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
     const userInvitationId = getInvitationIdForUser(userId);
     if (userInvitationId) {
       markInvitationAsRead(userInvitationId);
+      // Clear unread count immediately for responsive UI
+      clearUnreadForDm(userInvitationId);
     }
   };
 
   const handleOpenMission = (missionId: string) => {
     // Background sync: Mark mission as read (fire and forget)
     markEventAsRead(missionId);
+    // Clear unread count immediately for responsive UI
+    clearUnreadForEvent(missionId);
     // Refetch counts after marking as read
     setTimeout(() => refetchUnreadCounts(), 500);
     
@@ -348,8 +364,8 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
     refetchPending();
   };
 
-  // Badge shows pending invitations + unread messages
-  const totalBadgeCount = pendingCount + unreadCount;
+  // Badge shows pending invitations + unread messages (from all chats)
+  const totalBadgeCount = pendingCount + getTotalUnreadCount();
 
   return (
     <Sheet open={isOpen} onOpenChange={handleOpenChange}>
@@ -437,12 +453,14 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                         className="p-3 rounded-lg bg-warning/10 border border-warning/30 space-y-3"
                       >
                         <div className="flex items-center gap-3">
-                          <Avatar className="w-10 h-10 rounded-xl">
-                            <AvatarImage src={inv.sender?.avatar_url || undefined} className="rounded-xl" />
-                            <AvatarFallback className="bg-warning/20 text-warning rounded-xl">
-                              {inv.sender?.nick?.[0]?.toUpperCase() || '?'}
-                            </AvatarFallback>
-                          </Avatar>
+                          {/* Show actual avatar using AvatarDisplay */}
+                          <div className="w-10 h-10 flex-shrink-0">
+                            <AvatarDisplay 
+                              config={inv.sender?.avatar_config as any} 
+                              size={40} 
+                              showGlow={false} 
+                            />
+                          </div>
                           <div className="flex-1">
                             <p className="font-semibold text-sm">{inv.sender?.nick || 'Unknown'}</p>
                             <p className="text-xs text-warning">{inv.activity_type}</p>
@@ -499,27 +517,39 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                 ) : (
                   <ScrollArea className="w-full">
                     <div className="flex gap-3 pb-3">
-                      {connectedUsers.map((user) => (
-                        <button
-                          key={user.id}
-                          onClick={() => handleSelectUser(user.id)}
-                          className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-success/10 transition-colors min-w-[72px]"
-                        >
-                          <div className="relative">
-                            <div className="w-14 h-14">
-                              <AvatarDisplay
-                                config={user.avatar_config} 
-                                size={56} 
-                                showGlow={false} 
-                              />
+                      {connectedUsers.map((user) => {
+                        const userInvitationId = getInvitationIdForUser(user.id);
+                        const dmUnread = userInvitationId ? getDmUnreadCount(userInvitationId) : 0;
+                        
+                        return (
+                          <button
+                            key={user.id}
+                            onClick={() => handleSelectUser(user.id)}
+                            className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-success/10 transition-colors min-w-[72px]"
+                          >
+                            <div className="relative">
+                              <div className="w-14 h-14">
+                                <AvatarDisplay
+                                  config={user.avatar_config} 
+                                  size={56} 
+                                  showGlow={false} 
+                                />
+                              </div>
+                              {/* Unread indicator - red dot */}
+                              {dmUnread > 0 ? (
+                                <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center z-10">
+                                  {dmUnread > 9 ? '9+' : dmUnread}
+                                </div>
+                              ) : (
+                                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-success rounded-full border-2 border-background z-10" />
+                              )}
                             </div>
-                            <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-success rounded-full border-2 border-background z-10" />
-                          </div>
-                          <span className="text-xs font-medium text-foreground truncate max-w-[64px]">
-                            {user.nick || 'Unknown'}
-                          </span>
-                        </button>
-                      ))}
+                            <span className={`text-xs font-medium truncate max-w-[64px] ${dmUnread > 0 ? 'text-foreground font-semibold' : 'text-foreground'}`}>
+                              {user.nick || 'Unknown'}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                     <ScrollBar orientation="horizontal" />
                   </ScrollArea>

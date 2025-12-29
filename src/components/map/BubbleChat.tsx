@@ -133,7 +133,7 @@ const BubbleChat = ({ currentUserId, isGuest = false, onLocalBubble, onSendMessa
   return (
     <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
       <div 
-        className={`flex items-center gap-2 bg-card/90 backdrop-blur-md border border-border/50 rounded-full px-3 py-2 shadow-lg transition-opacity duration-200 ${
+        className={`flex items-center gap-2 bg-card/95 backdrop-blur-md border-2 border-border rounded-full px-4 py-2.5 shadow-hard transition-opacity duration-200 ${
           cooldown ? 'opacity-60' : 'opacity-100'
         }`}
       >
@@ -143,7 +143,7 @@ const BubbleChat = ({ currentUserId, isGuest = false, onLocalBubble, onSendMessa
           onChange={(e) => setMessage(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
           onKeyDown={handleKeyDown}
           placeholder={cooldown ? "Wait..." : "Say something..."}
-          className="w-48 sm:w-64 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm placeholder:text-muted-foreground/60"
+          className="w-48 sm:w-64 bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0 text-sm font-nunito placeholder:text-muted-foreground/60"
           maxLength={MAX_MESSAGE_LENGTH}
           disabled={cooldown}
           autoComplete="off"
@@ -156,7 +156,7 @@ const BubbleChat = ({ currentUserId, isGuest = false, onLocalBubble, onSendMessa
           variant="ghost"
           onClick={handleSend}
           disabled={cooldown || !message.trim()}
-          className="h-8 w-8 rounded-full bg-primary/20 hover:bg-primary/30 text-primary disabled:opacity-40"
+          className="h-9 w-9 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-40"
         >
           <Send className="w-4 h-4" />
         </Button>
