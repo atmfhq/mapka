@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Bell, MapPin, UserPlus, Radio, CheckCheck, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
@@ -20,13 +19,90 @@ interface NotificationsDropdownProps {
   onOpenMission?: (missionId: string) => void;
 }
 
+interface SwipeableNotificationProps {
+  id: string;
+  children: React.ReactNode;
+  onDismiss: () => void;
+  onClick: () => void;
+}
+
+const SWIPE_THRESHOLD = 80;
+
+const SwipeableNotification = ({ id, children, onDismiss, onClick }: SwipeableNotificationProps) => {
+  const [offsetX, setOffsetX] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const startXRef = useRef(0);
+  const currentXRef = useRef(0);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    startXRef.current = e.touches[0].clientX;
+    currentXRef.current = e.touches[0].clientX;
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging) return;
+    currentXRef.current = e.touches[0].clientX;
+    const diff = currentXRef.current - startXRef.current;
+    // Only allow swiping left (negative values)
+    if (diff < 0) {
+      setOffsetX(diff);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    if (offsetX < -SWIPE_THRESHOLD) {
+      // Animate out and dismiss
+      setIsRemoving(true);
+      setTimeout(() => {
+        onDismiss();
+      }, 200);
+    } else {
+      // Snap back
+      setOffsetX(0);
+    }
+  };
+
+  const handleClick = (e: React.MouseEvent) => {
+    // Only trigger click if not swiping
+    if (Math.abs(offsetX) < 10) {
+      onClick();
+    }
+  };
+
+  return (
+    <div 
+      className={`relative overflow-hidden transition-all duration-200 ${isRemoving ? 'h-0 opacity-0' : ''}`}
+    >
+      {/* Delete background */}
+      <div className="absolute inset-0 bg-destructive flex items-center justify-end px-4">
+        <Trash2 className="w-5 h-5 text-destructive-foreground" />
+      </div>
+      
+      {/* Swipeable content */}
+      <div
+        className={`relative bg-card ${isDragging ? '' : 'transition-transform duration-200'}`}
+        style={{ transform: `translateX(${offsetX}px)` }}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onClick={handleClick}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+
 const NotificationsDropdown = ({
   currentUserId,
   onFlyToSpot,
   onOpenMission,
 }: NotificationsDropdownProps) => {
   const [open, setOpen] = useState(false);
-  const { notifications, unreadCount, markAllAsRead, markAsRead, clearNotifications } = useNotifications(currentUserId);
+  const { notifications, unreadCount, markAllAsRead, markAsRead, clearNotifications, dismissNotification } = useNotifications(currentUserId);
   const { pendingInvitations, pendingCount } = useInvitationRealtime(currentUserId);
 
   // Total badge count = notifications + pending invitations
@@ -87,7 +163,7 @@ const NotificationsDropdown = ({
         sideOffset={8}
       >
         <DropdownMenuLabel className="flex items-center justify-between">
-          <span className="font-fredoka text-base flex items-center gap-2">
+          <span className="font-nunito text-base font-semibold flex items-center gap-2">
             <Bell className="w-4 h-4 text-warning" />
             Notifications
           </span>
@@ -119,11 +195,11 @@ const NotificationsDropdown = ({
             </div>
           ) : (
             <div className="py-1">
-              {/* Pending invitations first */}
+              {/* Pending invitations first (non-swipeable) */}
               {pendingInvitations.map((inv) => (
-                <DropdownMenuItem
+                <div
                   key={inv.id}
-                  className="flex items-start gap-3 p-3 cursor-pointer focus:bg-warning/10"
+                  className="flex items-start gap-3 p-3 cursor-pointer hover:bg-warning/10"
                 >
                   <div className="w-8 h-8 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
                     <Radio className="w-4 h-4 text-warning" />
@@ -138,39 +214,51 @@ const NotificationsDropdown = ({
                     </p>
                   </div>
                   <div className="w-2 h-2 rounded-full bg-warning flex-shrink-0 mt-1" />
-                </DropdownMenuItem>
+                </div>
               ))}
               
-              {/* Regular notifications */}
+              {/* Swipeable notifications */}
               {notifications.map((notif) => (
-                <DropdownMenuItem
+                <SwipeableNotification
                   key={notif.id}
-                  className={`flex items-start gap-3 p-3 cursor-pointer ${
-                    !notif.read ? 'bg-primary/5' : ''
-                  }`}
+                  id={notif.id}
+                  onDismiss={() => dismissNotification(notif.id)}
                   onClick={() => handleNotificationClick(notif)}
                 >
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    notif.type === 'new_spot' ? 'bg-primary/20' :
-                    notif.type === 'user_joined' ? 'bg-success/20' :
-                    'bg-muted'
-                  }`}>
-                    {getNotificationIcon(notif.type)}
+                  <div
+                    className={`flex items-start gap-3 p-3 cursor-pointer ${
+                      !notif.read ? 'bg-primary/5' : ''
+                    } hover:bg-muted/50`}
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                      notif.type === 'new_spot' ? 'bg-primary/20' :
+                      notif.type === 'user_joined' ? 'bg-success/20' :
+                      'bg-muted'
+                    }`}>
+                      {getNotificationIcon(notif.type)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{notif.title}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {notif.description}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground/70 mt-1">
+                        {formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true })}
+                      </p>
+                    </div>
+                    {!notif.read && (
+                      <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{notif.title}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {notif.description}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground/70 mt-1">
-                      {formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true })}
-                    </p>
-                  </div>
-                  {!notif.read && (
-                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />
-                  )}
-                </DropdownMenuItem>
+                </SwipeableNotification>
               ))}
+              
+              {/* Swipe hint for mobile */}
+              {notifications.length > 0 && (
+                <p className="text-[10px] text-muted-foreground/50 text-center py-2 md:hidden">
+                  Swipe left to dismiss
+                </p>
+              )}
             </div>
           )}
         </ScrollArea>
