@@ -240,9 +240,14 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
       <ScrollArea className="flex-1 min-h-0 pr-2">
         <div className="space-y-4 py-2">
           {messages.length === 0 ? (
-            <p className="text-center text-muted-foreground text-sm py-8">
-              No messages yet. Start the conversation!
-            </p>
+            <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+              <p className="text-muted-foreground text-sm leading-relaxed">
+                Messages sent before you joined are not visible.
+              </p>
+              <p className="text-muted-foreground/80 text-sm mt-1">
+                Say hello to the group!
+              </p>
+            </div>
           ) : (
             groupedMessages.map((group, groupIdx) => {
               const firstMsg = group.messages[0];
