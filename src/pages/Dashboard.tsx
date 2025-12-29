@@ -25,6 +25,7 @@ const Dashboard = () => {
   const [activeActivities, setActiveActivities] = useState<string[]>([]);
   const [dateFilter, setDateFilter] = useState<'today' | '3days' | '7days'>('7days');
   const [chatOpenUserId, setChatOpenUserId] = useState<string | null>(null);
+  const [chatOpenEventId, setChatOpenEventId] = useState<string | null>(null);
   const [isActive, setIsActive] = useState(true);
   const [currentLocation, setCurrentLocation] = useState<{
     lat: number | null;
@@ -99,10 +100,17 @@ const Dashboard = () => {
   const handleChatOpenChange = (open: boolean) => {
     if (!open) {
       setChatOpenUserId(null);
+      setChatOpenEventId(null);
     }
   };
 
   const handleCloseChat = () => {
+    setChatOpenUserId(null);
+    setChatOpenEventId(null);
+  };
+
+  const handleOpenSpotChat = (eventId: string) => {
+    setChatOpenEventId(eventId);
     setChatOpenUserId(null);
   };
 
@@ -187,6 +195,7 @@ const Dashboard = () => {
           isGhostMode={isGuest || !isActive}
           isGuest={isGuest}
           onOpenChatWithUser={handleOpenChatWithUser}
+          onOpenSpotChat={handleOpenSpotChat}
           onCloseChat={handleCloseChat}
           onLocationUpdated={handleMapLocationUpdated}
         />
@@ -207,6 +216,7 @@ const Dashboard = () => {
           onMissionCreated={handleMissionCreated}
           onOpenMission={handleOpenMission}
           chatOpenUserId={chatOpenUserId}
+          chatOpenEventId={chatOpenEventId}
           onChatOpenChange={handleChatOpenChange}
           onFlyTo={handleFlyTo}
           onLocationUpdated={handleLocationUpdated}

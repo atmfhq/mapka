@@ -73,6 +73,7 @@ interface TacticalMapProps {
   isGhostMode?: boolean;
   isGuest?: boolean;
   onOpenChatWithUser?: (userId: string) => void;
+  onOpenSpotChat?: (eventId: string) => void;
   onCloseChat?: () => void;
   onLocationUpdated?: (lat: number, lng: number) => void;
 }
@@ -215,6 +216,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   isGhostMode = false,
   isGuest = false,
   onOpenChatWithUser,
+  onOpenSpotChat,
   onCloseChat,
   onLocationUpdated
 }, ref) => {
@@ -2235,6 +2237,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             }, 300);
           }
         }}
+        onOpenSpotChat={onOpenSpotChat}
       />
     </>
   );

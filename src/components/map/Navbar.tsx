@@ -40,6 +40,7 @@ interface NavbarProps {
   onMissionCreated?: () => void;
   onOpenMission?: (missionId: string) => void;
   chatOpenUserId?: string | null;
+  chatOpenEventId?: string | null;
   onChatOpenChange?: (open: boolean) => void;
   onFlyTo: (lat: number, lng: number) => void;
   onLocationUpdated?: (lat: number, lng: number, name: string) => void;
@@ -56,6 +57,7 @@ const Navbar = ({
   onMissionCreated,
   onOpenMission,
   chatOpenUserId,
+  chatOpenEventId,
   onChatOpenChange,
   onFlyTo,
   onLocationUpdated,
@@ -232,8 +234,9 @@ const Navbar = ({
                 <ChatDrawer 
                   key={`chat-drawer-${currentUserId}`}
                   currentUserId={currentUserId}
-                  externalOpen={!!chatOpenUserId}
+                  externalOpen={!!chatOpenUserId || !!chatOpenEventId}
                   externalUserId={chatOpenUserId}
+                  externalEventId={chatOpenEventId}
                   onOpenChange={onChatOpenChange}
                   onOpenMission={onOpenMission}
                 />
