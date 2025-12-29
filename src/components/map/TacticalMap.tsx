@@ -2018,9 +2018,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         onSendMessage={sendChatMessage}
       />
 
-      {/* Custom Map Controls */}
+      {/* Custom Map Controls - Vertically centered on right edge */}
       {!isTokenMissing && (
-        <div className="absolute bottom-24 right-4 z-20 flex flex-col gap-2">
+        <div className="absolute top-1/2 -translate-y-1/2 right-4 z-20 flex flex-col gap-2">
           {/* Center on Base Button - hide for guests */}
           {!isGuest && (
             <Button
