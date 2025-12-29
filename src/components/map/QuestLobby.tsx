@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, isToday } from 'date-fns';
-import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Hourglass, User } from 'lucide-react';
+import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Hourglass, User, MessageCircle } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -66,6 +66,7 @@ interface QuestLobbyProps {
   onLeave?: (questId: string) => void;
   onUpdate?: (quest: Quest) => void;
   onViewUserProfile?: (user: Profile) => void;
+  onOpenSpotChat?: (eventId: string) => void;
 }
 
 const getActivityByLabel = (label: string) => {
@@ -111,7 +112,8 @@ const QuestLobby = ({
   onJoin,
   onLeave,
   onUpdate,
-  onViewUserProfile
+  onViewUserProfile,
+  onOpenSpotChat
 }: QuestLobbyProps) => {
   const navigate = useNavigate();
   const [host, setHost] = useState<Profile | null>(null);
@@ -768,7 +770,23 @@ const QuestLobby = ({
             </div>
 
             {/* Actions */}
-            <div className="mt-auto pt-4 border-t border-border/50">
+            <div className="mt-auto pt-4 border-t border-border/50 space-y-3">
+              {/* Open Chat button for joined users or host */}
+              {!isGuest && (isHost || hasJoined) && (
+                <Button 
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka min-h-[52px] text-base"
+                  onClick={() => {
+                    if (quest) {
+                      onOpenChange(false);
+                      onOpenSpotChat?.(quest.id);
+                    }
+                  }}
+                >
+                  <MessageCircle className="w-5 h-5 mr-2" />
+                  Open Chat
+                </Button>
+              )}
+
               {isGuest ? (
                 <Button 
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka min-h-[52px] text-base"
