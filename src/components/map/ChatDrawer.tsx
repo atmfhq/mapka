@@ -1,20 +1,20 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { MessageCircle, Send, ChevronLeft, Loader2, Users, Megaphone, Radio } from 'lucide-react';
+import { MessageCircle, Send, ChevronLeft, Loader2 } from 'lucide-react';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { useConnectedUsers } from '@/hooks/useConnectedUsers';
 import { useInvitationRealtime } from '@/hooks/useInvitationRealtime';
 import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 import { useChatUnreadCounts } from '@/hooks/useChatUnreadCounts';
+import { useUnifiedConversations, type ConversationItem } from '@/hooks/useUnifiedConversations';
+import ConversationRow from './ConversationRow';
 import ProfileModal from './ProfileModal';
 
 interface ChatMessage {
@@ -57,14 +57,14 @@ const ChatDrawer = ({
   const [activeMissions, setActiveMissions] = useState<ActiveMission[]>([]);
   const [loadingMissions, setLoadingMissions] = useState(true);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   
   const { connectedUsers, loading, refetch: refetchConnections, getInvitationIdForUser } = useConnectedUsers(currentUserId);
   const { pendingInvitations, pendingCount, refetch: refetchPending } = useInvitationRealtime(currentUserId);
   const { markInvitationAsRead, markEventAsRead, silentRefetch } = useUnreadMessages(currentUserId);
 
-  // Collect all event IDs for per-chat unread counts (only for public missions now)
+  // Collect all event IDs for per-chat unread counts
   const allEventIds = useMemo(() => {
     return activeMissions.map(mission => mission.id);
   }, [activeMissions]);
@@ -80,6 +80,22 @@ const ChatDrawer = ({
     refetch: refetchUnreadCounts 
   } = useChatUnreadCounts(currentUserId, allEventIds);
 
+  // Unified conversations list
+  const { conversations, loading: loadingConversations, refetch: refetchConversations } = useUnifiedConversations(
+    currentUserId,
+    pendingInvitations,
+    connectedUsers.map(u => ({
+      id: u.id,
+      nick: u.nick,
+      avatar_config: u.avatar_config,
+      avatar_url: u.avatar_url,
+      invitationId: u.invitationId,
+    })),
+    activeMissions,
+    getEventUnreadCount,
+    getDmUnreadCount
+  );
+
   // Combine internal and external open states
   const isOpen = externalOpen || internalOpen;
   
@@ -87,11 +103,9 @@ const ChatDrawer = ({
     setInternalOpen(value);
     onOpenChange?.(value);
     if (!value) {
-      // Clear active chat tracking when drawer closes
       setActiveDmChat(null);
       setSelectedUser(null);
       setMessages([]);
-      // Silent refetch when drawer closes to ensure consistency
       silentRefetch();
     }
   };
@@ -99,7 +113,6 @@ const ChatDrawer = ({
   // Handle external user selection (from map click)
   useEffect(() => {
     if (externalUserId && externalOpen) {
-      console.log('ChatDrawer: Opening for external user:', externalUserId);
       setSelectedUser(externalUserId);
     }
   }, [externalUserId, externalOpen]);
@@ -110,14 +123,12 @@ const ChatDrawer = ({
     
     setLoadingMissions(true);
     
-    // Get megaphones where user is host
     const { data: hostedMissions } = await supabase
       .from('megaphones')
       .select('id, title, category, host_id')
       .eq('host_id', currentUserId)
       .eq('is_private', false);
 
-    // Get megaphones where user is participant
     const { data: participations } = await supabase
       .from('event_participants')
       .select('event_id')
@@ -136,13 +147,11 @@ const ChatDrawer = ({
       participatedMissions = data || [];
     }
 
-    // Combine and dedupe
     const allMissions = [...(hostedMissions || []), ...participatedMissions];
     const uniqueMissions = allMissions.filter((m, i, arr) => 
       arr.findIndex(x => x.id === m.id) === i
     );
 
-    // Filter active (not expired)
     const now = Date.now();
     const { data: fullMegaphones } = await supabase
       .from('megaphones')
@@ -166,10 +175,10 @@ const ChatDrawer = ({
     fetchActiveMissions();
   }, [fetchActiveMissions]);
 
-const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
+  const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
   const invitationId = selectedUser ? getInvitationIdForUser(selectedUser) : null;
 
-  // Fetch messages for direct chat (based on invitation)
+  // Fetch messages for direct chat
   const fetchMessages = useCallback(async () => {
     if (!invitationId) return;
 
@@ -181,7 +190,6 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
       .order('created_at', { ascending: true });
 
     if (data) {
-      // Map sender_id to user_id for consistency with UI
       setMessages(data.map(msg => ({
         id: msg.id,
         content: msg.content,
@@ -223,12 +231,8 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
     };
   }, [invitationId, fetchMessages]);
 
-  // Scroll anchor ref for reliable auto-scroll
-  const scrollAnchorRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom on new messages or when chat opens
+  // Auto-scroll to bottom
   useEffect(() => {
-    // Small delay to ensure DOM has updated
     const timer = setTimeout(() => {
       scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, 50);
@@ -239,7 +243,6 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
     const trimmedMessage = newMessage.trim();
     if (!trimmedMessage || !invitationId) return;
     
-    // Client-side validation
     if (trimmedMessage.length > MAX_MESSAGE_LENGTH) {
       toast({
         title: 'Message too long',
@@ -258,14 +261,12 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
 
     setSending(false);
     if (error) {
-      // Check if it's a policy violation (connection terminated)
       if (error.message.includes('row-level security') || error.code === '42501') {
         toast({
           title: 'Connection Terminated',
           description: 'This connection has ended. Send a new signal to reconnect.',
           variant: 'destructive',
         });
-        // Go back to list view
         setSelectedUser(null);
         setMessages([]);
         refetchConnections();
@@ -281,35 +282,27 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
     }
   };
 
-  const handleSelectUser = (userId: string) => {
-    setSelectedUser(userId);
-    setMessages([]);
-    
-    // Background sync: Mark chat as read (fire and forget)
-    const userInvitationId = getInvitationIdForUser(userId);
-    if (userInvitationId) {
-      // Set this DM as active so new messages don't increment unread count
-      setActiveDmChat(userInvitationId);
-      markInvitationAsRead(userInvitationId);
-      // Clear unread count immediately for responsive UI
-      clearUnreadForDm(userInvitationId);
+  const handleSelectConversation = (item: ConversationItem) => {
+    if (item.type === 'dm' && item.userId) {
+      setSelectedUser(item.userId);
+      setMessages([]);
+      
+      if (item.invitationId) {
+        setActiveDmChat(item.invitationId);
+        markInvitationAsRead(item.invitationId);
+        clearUnreadForDm(item.invitationId);
+      }
+    } else if (item.type === 'spot' && item.eventId) {
+      markEventAsRead(item.eventId);
+      clearUnreadForEvent(item.eventId);
+      setTimeout(() => refetchUnreadCounts(), 500);
+      
+      handleOpenChange(false);
+      onOpenMission?.(item.eventId);
     }
   };
 
-  const handleOpenMission = (missionId: string) => {
-    // Background sync: Mark mission as read (fire and forget)
-    markEventAsRead(missionId);
-    // Clear unread count immediately for responsive UI
-    clearUnreadForEvent(missionId);
-    // Refetch counts after marking as read
-    setTimeout(() => refetchUnreadCounts(), 500);
-    
-    handleOpenChange(false);
-    onOpenMission?.(missionId);
-  };
-
   const handleAcceptInvitation = async (invitationId: string, senderId: string, activityType: string) => {
-    // Get current user's location from their profile
     const { data: profile } = await supabase
       .from('profiles')
       .select('location_lat, location_lng')
@@ -319,7 +312,7 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
     const lat = profile?.location_lat ?? 0;
     const lng = profile?.location_lng ?? 0;
 
-    const { data, error } = await supabase.rpc('accept_invitation', {
+    const { error } = await supabase.rpc('accept_invitation', {
       p_invitation_id: invitationId,
       p_title: `Signal: ${activityType}`,
       p_category: activityType.toLowerCase(),
@@ -341,14 +334,10 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
       description: 'You are now connected.',
     });
 
-    // Immediately update pending invitations UI
     refetchPending();
-    
-    // Small delay to ensure database transaction completes, then refetch connections
-    // This ensures the megaphone and participant records are created before we fetch
     setTimeout(() => {
-      console.log('ChatDrawer: Refetching connections after accept...');
       refetchConnections();
+      refetchConversations();
     }, 300);
   };
 
@@ -370,8 +359,8 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
     refetchPending();
   };
 
-  // Badge shows pending invitations + unread messages (from all chats)
   const totalBadgeCount = pendingCount + getTotalUnreadCount();
+  const isLoading = loading || loadingMissions || loadingConversations;
 
   return (
     <Sheet open={isOpen} onOpenChange={handleOpenChange}>
@@ -404,7 +393,6 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                   size="icon"
                   className="w-8 h-8"
                   onClick={() => {
-                    // Clear active DM when going back to list
                     setActiveDmChat(null);
                     setSelectedUser(null);
                     setMessages([]);
@@ -432,7 +420,7 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
             ) : (
               <>
                 <MessageCircle className="w-5 h-5 text-success" />
-                Message Hub
+                Messages
               </>
             )}
           </SheetTitle>
@@ -440,199 +428,35 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
 
         {!selectedUser ? (
           <ScrollArea className="h-[60vh] mt-4">
-            <div className="space-y-6">
-              {/* Section: Pending Signals (Incoming Invitations) */}
-              {pendingInvitations.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-3">
-                    <Radio className="w-4 h-4 text-warning animate-pulse" />
-                    <h3 className="font-fredoka text-sm font-semibold text-warning">
-                      New Invites
-                    </h3>
-                    <Badge variant="outline" className="text-xs bg-warning/20 text-warning border-warning/40 animate-pulse">
-                      {pendingInvitations.length}
-                    </Badge>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    {pendingInvitations.map((inv) => (
-                      <div
-                        key={inv.id}
-                        className="p-3 rounded-lg bg-warning/10 border border-warning/30 space-y-3"
-                      >
-                        <div className="flex items-center gap-3">
-                          {/* Show actual avatar using AvatarDisplay */}
-                          <div className="w-10 h-10 flex-shrink-0">
-                            <AvatarDisplay 
-                              config={inv.sender?.avatar_config as any} 
-                              size={40} 
-                              showGlow={false} 
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <p className="font-semibold text-sm">{inv.sender?.nick || 'Unknown'}</p>
-                            <p className="text-xs text-warning">{inv.activity_type}</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            className="flex-1 bg-success hover:bg-success/90 text-success-foreground"
-                            onClick={() => handleAcceptInvitation(inv.id, inv.sender_id, inv.activity_type)}
-                          >
-                            Accept
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="flex-1 border-destructive/50 text-destructive hover:bg-destructive/10"
-                            onClick={() => handleDeclineInvitation(inv.id)}
-                          >
-                            Decline
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Section A: Direct Signals (Private Chats) - Horizontal Avatar Row */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Users className="w-4 h-4 text-success" />
-                  <h3 className="font-fredoka text-sm font-semibold text-success">
-                    Friends
-                  </h3>
-                  {connectedUsers.length > 0 && (
-                    <Badge variant="outline" className="text-xs bg-success/20 text-success border-success/40">
-                      {connectedUsers.length}
-                    </Badge>
-                  )}
-                </div>
-                
-                {loading ? (
-                  <div className="flex items-center justify-center py-6">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                  </div>
-                ) : connectedUsers.length === 0 ? (
-                  <div className="text-center py-6 border border-dashed border-border/50 rounded-lg">
-                    <Users className="w-8 h-8 mx-auto text-muted-foreground/30 mb-2" />
-                    <p className="text-muted-foreground/60 text-xs">
-                      No active signals
-                    </p>
-                  </div>
-                ) : (
-                  <ScrollArea className="w-full">
-                    <div className="flex gap-3 pb-3">
-                      {connectedUsers.map((user) => {
-                        const userInvitationId = getInvitationIdForUser(user.id);
-                        const dmUnread = userInvitationId ? getDmUnreadCount(userInvitationId) : 0;
-                        
-                        return (
-                          <button
-                            key={user.id}
-                            onClick={() => handleSelectUser(user.id)}
-                            className="flex flex-col items-center gap-1.5 p-2 rounded-xl hover:bg-success/10 transition-colors min-w-[72px]"
-                          >
-                            <div className="relative">
-                              <div className="w-14 h-14">
-                                <AvatarDisplay
-                                  config={user.avatar_config} 
-                                  size={56} 
-                                  showGlow={false} 
-                                />
-                              </div>
-                              {/* Unread indicator - red dot */}
-                              {dmUnread > 0 ? (
-                                <div className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center z-10">
-                                  {dmUnread > 9 ? '9+' : dmUnread}
-                                </div>
-                              ) : (
-                                <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-success rounded-full border-2 border-background z-10" />
-                              )}
-                            </div>
-                            <span className={`text-xs font-medium truncate max-w-[64px] ${dmUnread > 0 ? 'text-foreground font-semibold' : 'text-foreground'}`}>
-                              {user.nick || 'Unknown'}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <ScrollBar orientation="horizontal" />
-                  </ScrollArea>
-                )}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-primary" />
               </div>
-
-              {/* Section B: Active Missions (Event Chats) */}
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Megaphone className="w-4 h-4 text-primary" />
-                  <h3 className="font-fredoka text-sm font-semibold text-primary">
-                    Active Quests
-                  </h3>
-                  {activeMissions.length > 0 && (
-                    <Badge variant="outline" className="text-xs bg-primary/20 text-primary border-primary/40">
-                      {activeMissions.length}
-                    </Badge>
-                  )}
-                </div>
-                
-                {loadingMissions ? (
-                  <div className="flex items-center justify-center py-6">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
-                  </div>
-                ) : activeMissions.length === 0 ? (
-                  <div className="text-center py-6 border border-dashed border-border/50 rounded-lg">
-                    <Megaphone className="w-8 h-8 mx-auto text-muted-foreground/30 mb-2" />
-                    <p className="text-muted-foreground/60 text-xs">
-                      No active missions
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {activeMissions.map((mission) => {
-                      const missionUnread = getEventUnreadCount(mission.id);
-                      
-                      return (
-                        <button
-                          key={mission.id}
-                          onClick={() => handleOpenMission(mission.id)}
-                          className="w-full p-3 rounded-lg bg-primary/10 border border-primary/30 hover:border-primary/60 transition-colors flex items-center gap-3"
-                        >
-                          <div className="relative w-10 h-10 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
-                            <Megaphone className="w-5 h-5 text-primary" />
-                            {missionUnread > 0 && (
-                              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
-                                {missionUnread > 9 ? '9+' : missionUnread}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex-1 text-left">
-                            <p className={`font-semibold text-sm ${missionUnread > 0 ? 'text-foreground' : ''}`}>
-                              {mission.title}
-                            </p>
-                            <p className="text-xs text-primary capitalize">{mission.category}</p>
-                          </div>
-                          {missionUnread > 0 ? (
-                            <Badge className="bg-destructive text-destructive-foreground border-destructive text-xs">
-                              {missionUnread} new
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline" className="bg-primary/20 text-primary border-primary/40 text-xs">
-                              Live
-                            </Badge>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+            ) : conversations.length === 0 ? (
+              <div className="text-center py-12 border border-dashed border-border/50 rounded-lg">
+                <MessageCircle className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
+                <p className="text-muted-foreground/60 text-sm">
+                  No conversations yet
+                </p>
+                <p className="text-muted-foreground/40 text-xs mt-1">
+                  Connect with users on the map to start chatting
+                </p>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-2 pr-2">
+                {conversations.map((item) => (
+                  <ConversationRow
+                    key={item.id}
+                    item={item}
+                    onSelect={handleSelectConversation}
+                    onAcceptInvite={handleAcceptInvitation}
+                    onDeclineInvite={handleDeclineInvitation}
+                  />
+                ))}
+              </div>
+            )}
           </ScrollArea>
         ) : (
-          // Chat view
           <div className="flex flex-col h-[60vh] mt-4">
             <ScrollArea className="flex-1 pr-4">
               <div className="space-y-3">
@@ -676,7 +500,6 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
                     );
                   })
                 )}
-                {/* Scroll anchor for auto-scroll */}
                 <div ref={scrollAnchorRef} />
               </div>
             </ScrollArea>
@@ -704,7 +527,6 @@ const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
         )}
       </SheetContent>
 
-      {/* Profile Modal for viewing user profile from chat */}
       {selectedUserData && (
         <ProfileModal
           open={profileModalOpen}
