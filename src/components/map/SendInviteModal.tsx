@@ -1,16 +1,16 @@
-import { useState, useEffect } from 'react';
-import { Send, Zap, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { Send, UserPlus, Loader2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { getActivityById, Activity, ACTIVITIES } from '@/constants/activities';
 
 interface AvatarConfig {
   skinColor?: string;
@@ -38,145 +38,125 @@ const SendInviteModal = ({
   targetUser,
   currentUserId,
 }: SendInviteModalProps) => {
-  const [selectedActivity, setSelectedActivity] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
-  const [matchingActivities, setMatchingActivities] = useState<Activity[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Find matching activities based on target user's tags
-  useEffect(() => {
-    if (!open) return;
-    
-    setLoading(true);
-    
-    const userTags = targetUser.tags || [];
-    
-    if (userTags.length === 0) {
-      // No tags - show all activities
-      setMatchingActivities(ACTIVITIES);
-    } else {
-      // Filter activities that match user's tags (case insensitive)
-      const lowerTags = userTags.map(t => t.toLowerCase());
-      const matched = ACTIVITIES.filter(activity => 
-        lowerTags.includes(activity.label.toLowerCase())
-      );
-      
-      // If no exact matches, show all
-      setMatchingActivities(matched.length > 0 ? matched : ACTIVITIES);
-    }
-    
-    setLoading(false);
-    setSelectedActivity(null);
-  }, [open, targetUser.tags]);
 
   const handleSend = async () => {
-    if (!selectedActivity) return;
     setSending(true);
 
-    const activityData = getActivityById(selectedActivity);
-
+    // Simple connection request - no category needed
     const { error } = await supabase.from('invitations').insert({
       sender_id: currentUserId,
       receiver_id: targetUser.id,
-      activity_type: activityData?.label || selectedActivity,
+      activity_type: 'connection', // Default value for direct connections
       status: 'pending',
     });
 
     setSending(false);
 
     if (error) {
-      toast({
-        title: "Failed to send invitation",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Check if it's a duplicate invitation
+      if (error.code === '23505' || error.message.includes('duplicate')) {
+        toast({
+          title: "Already Connected",
+          description: `You already have a pending or active connection with ${targetUser.nick || 'this user'}.`,
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Failed to send request",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
       return;
     }
 
     toast({
-      title: "Signal Sent!",
-      description: `Invitation sent to ${targetUser.nick || 'operative'}`,
+      title: "Connection Request Sent!",
+      description: `${targetUser.nick || 'User'} will be notified.`,
     });
     
-    setSelectedActivity(null);
     onOpenChange(false);
   };
 
-  const hasMatchingInterests = matchingActivities.length > 0 && (targetUser.tags?.length || 0) > 0;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-primary/30 max-w-sm max-h-[80vh] overflow-y-auto">
+      <DialogContent className="bg-card border-primary/30 max-w-sm">
         <DialogHeader>
           <DialogTitle className="font-fredoka text-lg flex items-center gap-2">
-            <Zap className="w-5 h-5 text-warning" />
-            Send Invite
+            <UserPlus className="w-5 h-5 text-primary" />
+            Connect with {targetUser.nick || 'User'}
           </DialogTitle>
+          <DialogDescription className="text-muted-foreground">
+            Send a connection request to start a conversation.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Target user */}
-          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
-            <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center border-2 border-primary/50">
+          {/* Target user profile */}
+          <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/30 border border-border/50">
+            <div className="w-14 h-14 rounded-xl overflow-hidden flex items-center justify-center border-2 border-primary/50">
               <AvatarDisplay 
                 config={targetUser.avatar_config} 
-                size={48} 
+                size={56} 
                 showGlow={false}
               />
             </div>
-            <div>
-              <p className="font-semibold">{targetUser.nick || 'Unknown'}</p>
-              <p className="text-xs text-muted-foreground">
-                {hasMatchingInterests 
-                  ? `${matchingActivities.length} matching interests found`
-                  : 'Select activity to invite'}
-              </p>
+            <div className="flex-1">
+              <p className="font-semibold text-lg">{targetUser.nick || 'Unknown'}</p>
+              {targetUser.tags && targetUser.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {targetUser.tags.slice(0, 3).map((tag, i) => (
+                    <span 
+                      key={i} 
+                      className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                  {targetUser.tags.length > 3 && (
+                    <span className="text-xs text-muted-foreground">
+                      +{targetUser.tags.length - 3} more
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Signal protocol indicator */}
-          {hasMatchingInterests && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-success/10 border border-success/30">
-              <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-              <span className="text-xs text-success font-nunito font-medium">
-                Matching interests found!
-              </span>
-            </div>
-          )}
+          {/* Simple explanation */}
+          <p className="text-sm text-muted-foreground text-center">
+            Once accepted, you'll be able to chat directly.
+          </p>
 
-          {/* Activity selection */}
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-2">
-              {matchingActivities.map((activity) => (
-                <button
-                  key={activity.id}
-                  onClick={() => setSelectedActivity(activity.id)}
-                  className={`p-3 rounded-lg border text-center transition-all ${
-                    selectedActivity === activity.id
-                      ? 'bg-primary/20 border-primary text-primary shadow-[0_0_10px_hsl(var(--primary)/0.3)]'
-                      : 'bg-muted/20 border-border/50 hover:border-primary/50'
-                  }`}
-                >
-                  <span className="text-xl block">{activity.icon}</span>
-                  <span className="text-xs font-medium mt-1 block truncate">{activity.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Send button */}
-          <Button
-            onClick={handleSend}
-            disabled={!selectedActivity || sending}
-            className="w-full bg-warning hover:bg-warning/90 text-warning-foreground font-fredoka"
-          >
-            <Send className="w-4 h-4 mr-2" />
-            {sending ? 'Sending...' : 'Send Invite'}
-          </Button>
+          {/* Action buttons */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="flex-1"
+              disabled={sending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSend}
+              disabled={sending}
+              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka"
+            >
+              {sending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4 mr-2" />
+                  Send Request
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

@@ -107,8 +107,8 @@ export const useInvitationRealtime = (currentUserId: string | null) => {
 
             // Show toast notification
             toast({
-              title: '📡 New Signal Received!',
-              description: `${senderProfile?.nick || 'Someone'} wants to connect for ${payload.new.activity_type}`,
+              title: '📡 Connection Request!',
+              description: `${senderProfile?.nick || 'Someone'} wants to connect with you.`,
             });
           }
         }

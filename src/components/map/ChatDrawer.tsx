@@ -386,27 +386,15 @@ const ChatDrawer = ({
     }
   };
 
-  const handleAcceptInvitation = async (invitationId: string, senderId: string, activityType: string) => {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('location_lat, location_lng')
-      .eq('id', currentUserId)
-      .single();
-
-    const lat = profile?.location_lat ?? 0;
-    const lng = profile?.location_lng ?? 0;
-
+  const handleAcceptInvitation = async (invitationId: string, senderId: string, _activityType: string) => {
+    // Simplified: just accept the invitation - no spot creation needed
     const { error } = await supabase.rpc('accept_invitation', {
       p_invitation_id: invitationId,
-      p_title: `Signal: ${activityType}`,
-      p_category: activityType.toLowerCase(),
-      p_lat: lat,
-      p_lng: lng,
     });
 
     if (error) {
       toast({
-        title: 'Failed to accept signal',
+        title: 'Failed to accept connection',
         description: error.message,
         variant: 'destructive',
       });
@@ -414,15 +402,14 @@ const ChatDrawer = ({
     }
 
     toast({
-      title: 'Signal Accepted!',
-      description: 'You are now connected.',
+      title: 'Connected!',
+      description: 'You can now start chatting.',
     });
 
     refetchPending();
-    setTimeout(() => {
-      refetchConnections();
-      refetchConversations();
-    }, 300);
+    // Refetch connections immediately for instant UI update
+    refetchConnections();
+    refetchConversations();
   };
 
   const handleDeclineInvitation = async (invitationId: string) => {

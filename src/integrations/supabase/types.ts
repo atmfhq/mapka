@@ -127,7 +127,7 @@ export type Database = {
           status: string
         }
         Insert: {
-          activity_type: string
+          activity_type?: string
           created_at?: string
           id?: string
           last_read_at?: string | null
@@ -315,16 +315,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      accept_invitation: {
-        Args: {
-          p_category: string
-          p_invitation_id: string
-          p_lat: number
-          p_lng: number
-          p_title: string
-        }
-        Returns: string
-      }
+      accept_invitation:
+        | { Args: { p_invitation_id: string }; Returns: undefined }
+        | {
+            Args: {
+              p_category: string
+              p_invitation_id: string
+              p_lat: number
+              p_lng: number
+              p_title: string
+            }
+            Returns: string
+          }
       can_message_in_event: {
         Args: { p_event_id: string; p_user_id: string }
         Returns: boolean

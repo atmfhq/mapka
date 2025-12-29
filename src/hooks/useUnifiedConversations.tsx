@@ -383,7 +383,7 @@ export const useUnifiedConversations = (
         id: `invite-${inv.id}`,
         type: 'pending_invite',
         title: inv.sender?.nick || 'Unknown',
-        subtitle: `Sent you an invite • ${inv.activity_type}`,
+        subtitle: 'Wants to connect with you',
         avatarConfig: inv.sender?.avatar_config as AvatarConfig | null,
         avatarUrl: inv.sender?.avatar_url,
         lastActivityAt: new Date(inv.created_at),
