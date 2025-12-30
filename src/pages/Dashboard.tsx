@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useActiveArea } from "@/hooks/useActiveArea";
 import { supabase } from "@/integrations/supabase/client";
-import TacticalMap, { TacticalMapHandle } from "@/components/map/TacticalMap";
+import TacticalMap, { TacticalMapHandle, ViewportBounds } from "@/components/map/TacticalMap";
 import Navbar from "@/components/map/Navbar";
 import GuestNavbar from "@/components/map/GuestNavbar";
 import MapFilterHUD from "@/components/map/MapFilterHUD";
@@ -33,6 +33,7 @@ const Dashboard = () => {
     name: string | null;
   }>({ lat: null, lng: null, name: null });
   const [guestLocation, setGuestLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
   const mapRef = useRef<TacticalMapHandle | null>(null);
 
   const isGuest = !user;
@@ -160,6 +161,10 @@ const Dashboard = () => {
     mapRef.current?.flyTo(lat, lng);
   };
 
+  const handleViewportChange = (bounds: ViewportBounds) => {
+    setViewportBounds(bounds);
+  };
+
   // Show loading for guests waiting for active area, or logged-in users waiting for profile
   if (loading || (isGuest && activeAreaLoading)) {
     return <LoadingScreen />;
@@ -199,6 +204,7 @@ const Dashboard = () => {
           onOpenSpotChat={handleOpenSpotChat}
           onCloseChat={handleCloseChat}
           onLocationUpdated={handleMapLocationUpdated}
+          onViewportChange={handleViewportChange}
         />
       </div>
 
@@ -219,6 +225,7 @@ const Dashboard = () => {
           onChatOpenChange={handleChatOpenChange}
           onFlyTo={handleFlyTo}
           onLocationUpdated={handleLocationUpdated}
+          viewportBounds={viewportBounds}
         />
       )}
 

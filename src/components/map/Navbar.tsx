@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import ChatDrawer from './ChatDrawer';
+import ConnectionsDrawer from './ConnectionsDrawer';
 import NotificationsDropdown from './NotificationsDropdown';
 import InstallPrompt from '@/components/InstallPrompt';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
@@ -27,6 +28,13 @@ interface SearchResult {
   center: [number, number];
 }
 
+interface ViewportBounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
 interface NavbarProps {
   nick: string;
   avatarUrl: string | null;
@@ -40,6 +48,7 @@ interface NavbarProps {
   onChatOpenChange?: (open: boolean) => void;
   onFlyTo: (lat: number, lng: number) => void;
   onLocationUpdated?: (lat: number, lng: number, name: string) => void;
+  viewportBounds?: ViewportBounds | null;
 }
 
 const Navbar = ({ 
@@ -55,6 +64,7 @@ const Navbar = ({
   onChatOpenChange,
   onFlyTo,
   onLocationUpdated,
+  viewportBounds,
 }: NavbarProps) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -236,6 +246,14 @@ const Navbar = ({
                 />
               </div>
 
+              {/* Connections */}
+              <div className="bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-hard">
+                <ConnectionsDrawer 
+                  currentUserId={currentUserId}
+                  viewportBounds={viewportBounds ?? null}
+                />
+              </div>
+
               {/* Notifications (Bell) */}
               <div className="bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-hard">
                 <NotificationsDropdown 
@@ -271,20 +289,10 @@ const Navbar = ({
                   </SheetHeader>
                   
                   <div className="py-4 space-y-3">
-                    <Link to="/connections" onClick={() => setSettingsOpen(false)}>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start gap-3 border-primary/30 text-primary hover:bg-primary/10 min-h-[48px]"
-                      >
-                        <Users className="w-5 h-5" />
-                        <span className="font-medium">Connections</span>
-                      </Button>
-                    </Link>
-                    
                     <Link to="/profile/edit" onClick={() => setSettingsOpen(false)}>
                       <Button
                         variant="outline"
-                        className="w-full justify-start gap-3 border-border text-foreground hover:bg-muted min-h-[48px]"
+                        className="w-full justify-start gap-3 border-primary/30 text-primary hover:bg-primary/10 min-h-[48px]"
                       >
                         <UserCog className="w-5 h-5" />
                         <span className="font-medium">Edit Profile</span>

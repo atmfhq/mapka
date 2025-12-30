@@ -59,6 +59,13 @@ interface Quest {
 
 export type DateFilter = 'today' | '3days' | '7days';
 
+export interface ViewportBounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
 interface TacticalMapProps {
   userLat: number;
   userLng: number;
@@ -77,6 +84,7 @@ interface TacticalMapProps {
   onOpenSpotChat?: (eventId: string) => void;
   onCloseChat?: () => void;
   onLocationUpdated?: (lat: number, lng: number) => void;
+  onViewportChange?: (bounds: ViewportBounds) => void;
 }
 
 export interface TacticalMapHandle {
@@ -220,7 +228,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   onOpenChatWithUser,
   onOpenSpotChat,
   onCloseChat,
-  onLocationUpdated
+  onLocationUpdated,
+  onViewportChange
 }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -908,7 +917,33 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       // Track when style is loaded so marker effects can run
       map.current.on('load', () => {
         setMapStyleLoaded(true);
+        // Emit initial viewport bounds
+        if (map.current && onViewportChange) {
+          const bounds = map.current.getBounds();
+          onViewportChange({
+            north: bounds.getNorth(),
+            south: bounds.getSouth(),
+            east: bounds.getEast(),
+            west: bounds.getWest(),
+          });
+        }
       });
+
+      // Track viewport changes for connections filtering
+      const emitViewportBounds = () => {
+        if (map.current && onViewportChange) {
+          const bounds = map.current.getBounds();
+          onViewportChange({
+            north: bounds.getNorth(),
+            south: bounds.getSouth(),
+            east: bounds.getEast(),
+            west: bounds.getWest(),
+          });
+        }
+      };
+
+      map.current.on('moveend', emitViewportBounds);
+      map.current.on('zoomend', emitViewportBounds);
 
       // No default controls - we use custom ones
 
