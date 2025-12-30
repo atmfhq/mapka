@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 import EditProfile from "./pages/EditProfile";
+import Connections from "./pages/Connections";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +54,16 @@ const App = () => (
                 <ProtectedRoute>
                   <OnboardingGuard>
                     <EditProfile />
+                  </OnboardingGuard>
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/connections"
+              element={
+                <ProtectedRoute>
+                  <OnboardingGuard>
+                    <Connections />
                   </OnboardingGuard>
                 </ProtectedRoute>
               }

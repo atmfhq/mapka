@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogOut, UserCog, MapPin, Search, X, Loader2 } from 'lucide-react';
+import { LogOut, UserCog, MapPin, Search, X, Loader2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -271,10 +271,20 @@ const Navbar = ({
                   </SheetHeader>
                   
                   <div className="py-4 space-y-3">
-                    <Link to="/profile/edit" onClick={() => setSettingsOpen(false)}>
+                    <Link to="/connections" onClick={() => setSettingsOpen(false)}>
                       <Button
                         variant="outline"
                         className="w-full justify-start gap-3 border-primary/30 text-primary hover:bg-primary/10 min-h-[48px]"
+                      >
+                        <Users className="w-5 h-5" />
+                        <span className="font-medium">Connections</span>
+                      </Button>
+                    </Link>
+                    
+                    <Link to="/profile/edit" onClick={() => setSettingsOpen(false)}>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-3 border-border text-foreground hover:bg-muted min-h-[48px]"
                       >
                         <UserCog className="w-5 h-5" />
                         <span className="font-medium">Edit Profile</span>
