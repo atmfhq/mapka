@@ -178,11 +178,12 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
           nick: selectedUser.nick,
           avatar_url: selectedUser.avatar_url,
           avatar_config: selectedUser.avatar_config,
-          tags: null,
-          bio: null,
+          tags: selectedUser.tags,
+          bio: selectedUser.bio,
         } : null}
         currentUserId={currentUserId}
         isConnected={true}
+        invitationId={selectedUser?.invitationId ?? undefined}
       />
     </>
   );
