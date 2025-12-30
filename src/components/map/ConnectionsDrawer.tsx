@@ -1,5 +1,4 @@
-import { useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useMemo, useState } from 'react';
 import { Users, Sparkles, MapPin, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
@@ -7,6 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useConnections, ConnectedUser } from '@/hooks/useConnections';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
+import ProfileModal from './ProfileModal';
 
 interface ViewportBounds {
   north: number;
@@ -19,11 +19,14 @@ interface ConnectionsDrawerProps {
   currentUserId: string;
   viewportBounds: ViewportBounds | null;
   unreadCount?: number;
+  onFlyTo?: (lat: number, lng: number) => void;
 }
 
-const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount }: ConnectionsDrawerProps) => {
+const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo }: ConnectionsDrawerProps) => {
   const { connections, loading, error } = useConnections(currentUserId);
-  const navigate = useNavigate();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<ConnectedUser | null>(null);
 
   // Split connections into nearby and others based on viewport
   const { nearby, others } = useMemo(() => {
@@ -56,104 +59,150 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount }: Conne
     return { nearby: nearbyUsers, others: otherUsers };
   }, [connections, viewportBounds]);
 
+  // Handle clicking a nearby user - fly to them and show profile
+  const handleNearbyClick = (user: ConnectedUser) => {
+    if (user.location_lat !== null && user.location_lng !== null && onFlyTo) {
+      onFlyTo(user.location_lat, user.location_lng);
+    }
+    setSelectedUser(user);
+    setProfileModalOpen(true);
+    setDrawerOpen(false); // Close drawer to show map
+  };
+
+  // Handle clicking an "others" user - just show profile, no map movement
+  const handleOthersClick = (user: ConnectedUser) => {
+    setSelectedUser(user);
+    setProfileModalOpen(true);
+    // Keep drawer open - user just wants to see profile
+  };
+
   return (
-    <Sheet>
-      <SheetTrigger asChild>
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className="relative min-w-[44px] min-h-[44px] text-muted-foreground hover:text-foreground"
-        >
-          <Users className="w-5 h-5" />
-          {unreadCount && unreadCount > 0 && (
-            <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
-              {unreadCount > 9 ? '9+' : unreadCount}
-            </span>
-          )}
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="right" className="w-full sm:max-w-md p-0">
-        <SheetHeader className="p-4 pb-2 border-b border-border">
-          <SheetTitle className="font-fredoka text-xl flex items-center gap-2">
-            <Users className="w-5 h-5 text-primary" />
-            Connections
-            <span className="text-sm font-nunito font-normal text-muted-foreground">
-              ({connections.length})
-            </span>
-          </SheetTitle>
-        </SheetHeader>
-
-        <ScrollArea className="h-[calc(100vh-80px)]">
-          <div className="p-4 space-y-6">
-            {loading ? (
-              <LoadingState />
-            ) : error ? (
-              <ErrorState error={error} />
-            ) : connections.length === 0 ? (
-              <EmptyState />
-            ) : (
-              <>
-                {/* Nearby Section */}
-                {nearby.length > 0 && (
-                  <section>
-                    <div className="flex items-center gap-2 mb-3">
-                      <MapPin className="w-4 h-4 text-primary" />
-                      <h2 className="font-fredoka text-sm font-semibold text-foreground">
-                        Nearby
-                      </h2>
-                      <span className="text-xs font-nunito text-muted-foreground">
-                        ({nearby.length})
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {nearby.map(user => (
-                        <ConnectionCard key={user.id} user={user} isNearby />
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                {/* Others Section */}
-                {others.length > 0 && (
-                  <section>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Globe className="w-4 h-4 text-muted-foreground" />
-                      <h2 className="font-fredoka text-sm font-semibold text-foreground">
-                        {nearby.length > 0 ? 'Others' : 'All Connections'}
-                      </h2>
-                      <span className="text-xs font-nunito text-muted-foreground">
-                        ({others.length})
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {others.map(user => (
-                        <ConnectionCard key={user.id} user={user} />
-                      ))}
-                    </div>
-                  </section>
-                )}
-              </>
+    <>
+      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <SheetTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="relative min-w-[44px] min-h-[44px] text-muted-foreground hover:text-foreground"
+          >
+            <Users className="w-5 h-5" />
+            {unreadCount && unreadCount > 0 && (
+              <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
             )}
-          </div>
-        </ScrollArea>
-      </SheetContent>
-    </Sheet>
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="right" className="w-full sm:max-w-md p-0">
+          <SheetHeader className="p-4 pb-2 border-b border-border">
+            <SheetTitle className="font-fredoka text-xl flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" />
+              Connections
+              <span className="text-sm font-nunito font-normal text-muted-foreground">
+                ({connections.length})
+              </span>
+            </SheetTitle>
+          </SheetHeader>
+
+          <ScrollArea className="h-[calc(100vh-80px)]">
+            <div className="p-4 space-y-6">
+              {loading ? (
+                <LoadingState />
+              ) : error ? (
+                <ErrorState error={error} />
+              ) : connections.length === 0 ? (
+                <EmptyState />
+              ) : (
+                <>
+                  {/* Nearby Section */}
+                  {nearby.length > 0 && (
+                    <section>
+                      <div className="flex items-center gap-2 mb-3">
+                        <MapPin className="w-4 h-4 text-primary" />
+                        <h2 className="font-fredoka text-sm font-semibold text-foreground">
+                          Nearby
+                        </h2>
+                        <span className="text-xs font-nunito text-muted-foreground">
+                          ({nearby.length})
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {nearby.map(user => (
+                          <ConnectionCard 
+                            key={user.id} 
+                            user={user} 
+                            isNearby 
+                            onClick={() => handleNearbyClick(user)}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Others Section */}
+                  {others.length > 0 && (
+                    <section>
+                      <div className="flex items-center gap-2 mb-3">
+                        <Globe className="w-4 h-4 text-muted-foreground" />
+                        <h2 className="font-fredoka text-sm font-semibold text-foreground">
+                          {nearby.length > 0 ? 'Others' : 'All Connections'}
+                        </h2>
+                        <span className="text-xs font-nunito text-muted-foreground">
+                          ({others.length})
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {others.map(user => (
+                          <ConnectionCard 
+                            key={user.id} 
+                            user={user} 
+                            onClick={() => handleOthersClick(user)}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
+              )}
+            </div>
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
+      {/* Profile Modal */}
+      <ProfileModal
+        open={profileModalOpen}
+        onOpenChange={setProfileModalOpen}
+        user={selectedUser ? {
+          id: selectedUser.id,
+          nick: selectedUser.nick,
+          avatar_url: selectedUser.avatar_url,
+          avatar_config: selectedUser.avatar_config,
+          tags: null,
+          bio: null,
+        } : null}
+        currentUserId={currentUserId}
+        isConnected={true}
+      />
+    </>
   );
 };
 
 interface ConnectionCardProps {
   user: ConnectedUser;
   isNearby?: boolean;
+  onClick?: () => void;
 }
 
-const ConnectionCard = ({ user, isNearby }: ConnectionCardProps) => {
+const ConnectionCard = ({ user, isNearby, onClick }: ConnectionCardProps) => {
   return (
-    <div 
+    <button
+      onClick={onClick}
       className={`
-        flex items-center gap-3 p-3 rounded-xl border-2 transition-colors
+        w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left
         ${isNearby 
-          ? 'bg-primary/5 border-primary/30 shadow-sm' 
-          : 'bg-card border-border hover:border-muted-foreground/30'
+          ? 'bg-primary/5 border-primary/30 shadow-sm hover:border-primary/50 hover:bg-primary/10' 
+          : 'bg-card border-border hover:border-muted-foreground/30 hover:bg-muted/30'
         }
       `}
     >
@@ -168,10 +217,13 @@ const ConnectionCard = ({ user, isNearby }: ConnectionCardProps) => {
           {user.nick || 'Anonymous'}
         </p>
         {isNearby && (
-          <p className="font-nunito text-xs text-primary">In your area</p>
+          <p className="font-nunito text-xs text-primary">Tap to locate on map</p>
         )}
       </div>
-    </div>
+      {isNearby && (
+        <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
+      )}
+    </button>
   );
 };
 
