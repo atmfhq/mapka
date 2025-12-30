@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { format } from 'date-fns';
-import { Bell, MapPin, Calendar, Users, Crown } from 'lucide-react';
+import { Bell, MapPin, Calendar, Users, Crown, Heart } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { getActivityById } from '@/constants/activities';
-
+import { useMultipleEventLikes } from '@/hooks/useEventLikes';
 interface PublicProfile {
   id: string;
   nick: string;
@@ -44,6 +44,10 @@ const AlertsDrawer = ({ currentUserId, onOpenMission, onFlyToQuest }: AlertsDraw
   const [events, setEvents] = useState<PublicEvent[]>([]);
   const [myQuests, setMyQuests] = useState<PublicEvent[]>([]);
   const [newEventCount, setNewEventCount] = useState(0);
+
+  // Get all event IDs for batch likes fetching
+  const allEventIds = [...events.map(e => e.id), ...myQuests.map(q => q.id)];
+  const { getLikeState, toggleLike: toggleEventLike } = useMultipleEventLikes(allEventIds, currentUserId);
 
   const fetchEvents = useCallback(async () => {
     const { data, error } = await supabase
@@ -152,6 +156,12 @@ const AlertsDrawer = ({ currentUserId, onOpenMission, onFlyToQuest }: AlertsDraw
   const renderEventCard = (event: PublicEvent, isMyQuest = false) => {
     const activityData = getActivityById(event.category);
     const isUpcoming = new Date(event.start_time).getTime() > Date.now();
+    const { count: likeCount, isLiked } = getLikeState(event.id);
+
+    const handleLikeClick = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      toggleEventLike(event.id);
+    };
     
     return (
       <button
@@ -191,6 +201,23 @@ const AlertsDrawer = ({ currentUserId, onOpenMission, onFlyToQuest }: AlertsDraw
                 Hosted by {event.host.nick || 'Unknown'}
               </p>
             )}
+          </div>
+          {/* Like button */}
+          <div
+            role="button"
+            onClick={handleLikeClick}
+            className="flex flex-col items-center gap-0.5 p-2 rounded-lg hover:bg-muted/40 transition-colors"
+          >
+            <Heart
+              className={`w-5 h-5 transition-colors ${
+                isLiked 
+                  ? 'fill-destructive text-destructive' 
+                  : 'text-muted-foreground hover:text-destructive'
+              }`}
+            />
+            <span className={`text-xs font-medium ${isLiked ? 'text-destructive' : 'text-muted-foreground'}`}>
+              {likeCount}
+            </span>
           </div>
         </div>
       </button>
