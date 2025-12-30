@@ -5,8 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
+import MessageReactions from '@/components/map/MessageReactions';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { useMessageReactions } from '@/hooks/useMessageReactions';
 
 interface AvatarConfig {
   skinColor?: string;
@@ -49,6 +51,10 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
   const [sending, setSending] = useState(false);
   const [userJoinedAt, setUserJoinedAt] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Message reactions
+  const messageIds = messages.map(m => m.id);
+  const { getReactions, toggleReaction } = useMessageReactions(messageIds, currentUserId);
 
   // Fetch user's joined_at timestamp for this event
   useEffect(() => {
@@ -278,22 +284,29 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
                     )}
                     
                     {group.messages.map((msg, msgIdx) => (
-                      <div
-                        key={msg.id}
-                        className={`rounded-2xl px-3 py-2 ${
-                          isOwn
-                            ? 'bg-primary text-primary-foreground rounded-br-md'
-                            : 'bg-muted rounded-bl-md'
-                        } ${msgIdx > 0 ? (isOwn ? 'rounded-tr-md' : 'rounded-tl-md') : ''}`}
-                      >
-                        <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
-                        <p
-                          className={`text-[10px] mt-1 ${
-                            isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground'
-                          }`}
+                      <div key={msg.id} className="flex flex-col gap-1">
+                        <div
+                          className={`rounded-2xl px-3 py-2 ${
+                            isOwn
+                              ? 'bg-primary text-primary-foreground rounded-br-md'
+                              : 'bg-muted rounded-bl-md'
+                          } ${msgIdx > 0 ? (isOwn ? 'rounded-tr-md' : 'rounded-tl-md') : ''}`}
                         >
-                          {format(new Date(msg.created_at), 'h:mm a')}
-                        </p>
+                          <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                          <p
+                            className={`text-[10px] mt-1 ${
+                              isOwn ? 'text-primary-foreground/60' : 'text-muted-foreground'
+                            }`}
+                          >
+                            {format(new Date(msg.created_at), 'h:mm a')}
+                          </p>
+                        </div>
+                        {/* Reactions */}
+                        <MessageReactions
+                          reactions={getReactions(msg.id)}
+                          onToggleReaction={(emoji) => toggleReaction(msg.id, emoji)}
+                          isOwn={isOwn}
+                        />
                       </div>
                     ))}
                   </div>
