@@ -59,10 +59,14 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount }: Conne
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-10 w-10">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="relative min-w-[44px] min-h-[44px] text-muted-foreground hover:text-foreground"
+        >
           <Users className="w-5 h-5" />
           {unreadCount && unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-primary-foreground text-xs font-bold rounded-full flex items-center justify-center">
+            <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
