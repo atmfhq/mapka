@@ -15,9 +15,11 @@ import { useUnreadMessages } from '@/hooks/useUnreadMessages';
 import { useChatUnreadCounts } from '@/hooks/useChatUnreadCounts';
 import { useMutedChats } from '@/hooks/useMutedChats';
 import { useUnifiedConversations, type ConversationItem } from '@/hooks/useUnifiedConversations';
+import { useDmMessageReactions } from '@/hooks/useDmMessageReactions';
 import ConversationRow from './ConversationRow';
 import ProfileModal from './ProfileModal';
 import LobbyChatMessages from './LobbyChatMessages';
+import MessageReactions from './MessageReactions';
 
 interface ChatMessage {
   id: string;
@@ -258,6 +260,10 @@ const ChatDrawer = ({
 
   const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
   const invitationId = selectedUser ? getInvitationIdForUser(selectedUser) : null;
+
+  // DM message reactions
+  const dmMessageIds = useMemo(() => messages.map(m => m.id), [messages]);
+  const { getReactions: getDmReactions, toggleReaction: toggleDmReaction } = useDmMessageReactions(dmMessageIds, currentUserId);
 
   // Fetch messages for direct chat
   const fetchMessages = useCallback(async () => {
@@ -582,10 +588,11 @@ const ChatDrawer = ({
                 ) : (
                   messages.map((msg) => {
                     const isOwn = msg.user_id === currentUserId;
+                    const reactions = getDmReactions(msg.id);
                     return (
                       <div
                         key={msg.id}
-                        className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                        className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}
                       >
                         <div
                           className={`max-w-[80%] rounded-lg px-3 py-2 ${
@@ -603,6 +610,11 @@ const ChatDrawer = ({
                             {format(new Date(msg.created_at), 'h:mm a')}
                           </p>
                         </div>
+                        <MessageReactions
+                          reactions={reactions}
+                          onToggleReaction={(emoji) => toggleDmReaction(msg.id, emoji)}
+                          isOwn={isOwn}
+                        />
                       </div>
                     );
                   })
