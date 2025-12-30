@@ -251,6 +251,7 @@ const Navbar = ({
                 <ConnectionsDrawer 
                   currentUserId={currentUserId}
                   viewportBounds={viewportBounds ?? null}
+                  onFlyTo={onFlyTo}
                 />
               </div>
 
