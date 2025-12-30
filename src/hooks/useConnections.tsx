@@ -8,11 +8,13 @@ interface AvatarConfig {
   mouth?: string;
 }
 
-interface ConnectedUser {
+export interface ConnectedUser {
   id: string;
   nick: string | null;
   avatar_url: string | null;
   avatar_config: AvatarConfig | null;
+  location_lat: number | null;
+  location_lng: number | null;
 }
 
 export const useConnections = (currentUserId: string | null) => {
@@ -40,16 +42,37 @@ export const useConnections = (currentUserId: string | null) => {
 
         if (connError) throw connError;
 
-        if (!connectionRows || connectionRows.length === 0) {
+        // Also get accepted invitations (DM connections)
+        const { data: invitationRows, error: invError } = await supabase
+          .from('invitations')
+          .select('sender_id, receiver_id')
+          .eq('status', 'accepted')
+          .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
+
+        if (invError) throw invError;
+
+        // Collect unique user IDs from both sources
+        const userIdSet = new Set<string>();
+
+        // From connections table
+        (connectionRows || []).forEach(conn => {
+          const otherId = conn.user_a_id === currentUserId ? conn.user_b_id : conn.user_a_id;
+          userIdSet.add(otherId);
+        });
+
+        // From accepted invitations
+        (invitationRows || []).forEach(inv => {
+          const otherId = inv.sender_id === currentUserId ? inv.receiver_id : inv.sender_id;
+          userIdSet.add(otherId);
+        });
+
+        const otherUserIds = Array.from(userIdSet);
+
+        if (otherUserIds.length === 0) {
           setConnections([]);
           setLoading(false);
           return;
         }
-
-        // Extract the other user's ID from each connection
-        const otherUserIds = connectionRows.map(conn => 
-          conn.user_a_id === currentUserId ? conn.user_b_id : conn.user_a_id
-        );
 
         // Fetch profiles for connected users
         const { data: profiles, error: profilesError } = await supabase
@@ -62,6 +85,8 @@ export const useConnections = (currentUserId: string | null) => {
           nick: p.nick,
           avatar_url: p.avatar_url,
           avatar_config: p.avatar_config as AvatarConfig | null,
+          location_lat: p.location_lat,
+          location_lng: p.location_lng,
         }));
 
         setConnections(connectedUsers);
@@ -75,8 +100,8 @@ export const useConnections = (currentUserId: string | null) => {
 
     fetchConnections();
 
-    // Subscribe to realtime changes on connections table
-    const channel = supabase
+    // Subscribe to realtime changes on connections and invitations
+    const connectionsChannel = supabase
       .channel(`connections-${currentUserId}`)
       .on(
         'postgres_changes',
@@ -85,17 +110,23 @@ export const useConnections = (currentUserId: string | null) => {
           schema: 'public',
           table: 'connections',
         },
-        () => {
-          // Refetch when connections change
-          fetchConnections();
-        }
+        () => fetchConnections()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'invitations',
+        },
+        () => fetchConnections()
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(connectionsChannel);
     };
   }, [currentUserId]);
 
-  return { connections, loading, error };
+  return { connections, loading, error, refetch: () => {} };
 };
