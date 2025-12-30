@@ -15,6 +15,9 @@ export interface ConnectedUser {
   avatar_config: AvatarConfig | null;
   location_lat: number | null;
   location_lng: number | null;
+  tags: string[] | null;
+  bio: string | null;
+  invitationId: string | null;
 }
 
 export const useConnections = (currentUserId: string | null) => {
@@ -42,14 +45,21 @@ export const useConnections = (currentUserId: string | null) => {
 
         if (connError) throw connError;
 
-        // Also get accepted invitations (DM connections)
+        // Also get accepted invitations (DM connections) - include id for invitationId
         const { data: invitationRows, error: invError } = await supabase
           .from('invitations')
-          .select('sender_id, receiver_id')
+          .select('id, sender_id, receiver_id')
           .eq('status', 'accepted')
           .or(`sender_id.eq.${currentUserId},receiver_id.eq.${currentUserId}`);
 
         if (invError) throw invError;
+
+        // Build a map of user ID -> invitation ID
+        const invitationIdMap = new Map<string, string>();
+        (invitationRows || []).forEach(inv => {
+          const otherId = inv.sender_id === currentUserId ? inv.receiver_id : inv.sender_id;
+          invitationIdMap.set(otherId, inv.id);
+        });
 
         // Collect unique user IDs from both sources
         const userIdSet = new Set<string>();
@@ -74,7 +84,7 @@ export const useConnections = (currentUserId: string | null) => {
           return;
         }
 
-        // Fetch profiles for connected users
+        // Fetch profiles for connected users (includes tags and bio)
         const { data: profiles, error: profilesError } = await supabase
           .rpc('get_public_profiles_by_ids', { user_ids: otherUserIds });
 
@@ -87,6 +97,9 @@ export const useConnections = (currentUserId: string | null) => {
           avatar_config: p.avatar_config as AvatarConfig | null,
           location_lat: p.location_lat,
           location_lng: p.location_lng,
+          tags: p.tags || null,
+          bio: p.bio || null,
+          invitationId: invitationIdMap.get(p.id) || null,
         }));
 
         setConnections(connectedUsers);
