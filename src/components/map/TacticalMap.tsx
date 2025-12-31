@@ -21,8 +21,9 @@ import { useConnectedUsers } from '@/hooks/useConnectedUsers';
 import { useProfilesRealtime, broadcastCurrentUserUpdate } from '@/hooks/useProfilesRealtime';
 import { useMegaphonesRealtime } from '@/hooks/useMegaphonesRealtime';
 import { useParticipantsRealtime } from '@/hooks/useParticipantsRealtime';
-import { useShoutsRealtime } from '@/hooks/useShoutsRealtime';
+import { useShoutsRealtime, Shout } from '@/hooks/useShoutsRealtime';
 import { useShoutCounts } from '@/hooks/useShoutCounts';
+import { useProximityAlerts, useFollowingIds } from '@/hooks/useProximityAlerts';
 import ShoutMarker from './ShoutMarker';
 import { Button } from '@/components/ui/button';
 import { Crosshair, Plus, Minus, Compass, Users, UsersRound, Eye, Ghost } from 'lucide-react';
@@ -284,8 +285,38 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   // Get connected users (skip for guests)
   const { connectedUserIds, getInvitationIdForUser, refetch: refetchConnections } = useConnectedUsers(currentUserId ?? '');
 
+  // Get list of users we're following (for proximity alerts)
+  const followingIds = useFollowingIds(currentUserId);
+  
+  // Proximity alerts hook
+  const { processNewItems } = useProximityAlerts(currentUserId, followingIds);
+
+  // Ref to track previous shout IDs for proximity detection
+  const previousShoutIdsRef = useRef<Set<string>>(new Set());
+
+  // Callback for when new shouts appear in range
+  const handleNewShoutsInRange = useCallback((newShouts: Shout[], allShouts: Shout[]) => {
+    if (!currentUserId || followingIds.length === 0) return;
+    
+    const items = newShouts.map(s => ({
+      id: s.id,
+      user_id: s.user_id,
+      type: 'shout' as const
+    }));
+    
+    processNewItems(items, previousShoutIdsRef.current);
+    
+    // Update previous IDs ref
+    previousShoutIdsRef.current = new Set(allShouts.map(s => s.id));
+  }, [currentUserId, followingIds, processNewItems]);
+
   // Get shouts for the map (with hidden shouts filtered for current user)
-  const { shouts, refetch: refetchShouts, hideShout } = useShoutsRealtime(locationLat ?? userLat, locationLng ?? userLng, currentUserId ?? undefined);
+  const { shouts, refetch: refetchShouts, hideShout } = useShoutsRealtime(
+    locationLat ?? userLat, 
+    locationLng ?? userLng, 
+    currentUserId ?? undefined,
+    { onNewItemsInRange: handleNewShoutsInRange }
+  );
 
   // Get counts (likes/comments) for all shouts
   const shoutIds = useMemo(() => shouts.map(s => s.id), [shouts]);
