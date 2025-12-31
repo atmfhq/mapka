@@ -14,7 +14,7 @@ export const useShoutsRealtime = (centerLat: number, centerLng: number) => {
   const [shouts, setShouts] = useState<Shout[]>([]);
 
   const fetchShouts = useCallback(async () => {
-    // Fetch shouts that are less than 30 minutes old (RLS handles this)
+    // Fetch shouts that are less than 24 hours old (RLS handles this)
     const { data, error } = await supabase
       .from('shouts')
       .select('*')
@@ -67,12 +67,12 @@ export const useShoutsRealtime = (centerLat: number, centerLng: number) => {
     };
   }, [fetchShouts]);
 
-  // Filter out expired shouts client-side (30 minute lifetime)
+  // Filter out expired shouts client-side (24 hour lifetime)
   const activeShouts = shouts.filter((shout) => {
     const createdAt = new Date(shout.created_at).getTime();
     const now = Date.now();
-    const thirtyMinutes = 30 * 60 * 1000;
-    return now - createdAt < thirtyMinutes;
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    return now - createdAt < twentyFourHours;
   });
 
   return { shouts: activeShouts, refetch: fetchShouts };
