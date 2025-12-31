@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,7 +31,7 @@ import {
   Sparkles,
   AlertTriangle,
   LogOut,
-  Download
+  User
 } from "lucide-react";
 import { getShortUserId } from "@/utils/userIdDisplay";
 import InstallPrompt from "@/components/InstallPrompt";
@@ -180,168 +181,170 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
 
   if (!open) return null;
 
-  return (
-    <>
-      {/* Backdrop */}
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ isolation: 'isolate' }}>
+      {/* Backdrop - Standard dark overlay matching other modals */}
       <div 
-        className="fixed inset-0 z-50 bg-black/80 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+        className="absolute inset-0 bg-black/80"
         onClick={() => onOpenChange(false)}
       />
       
-      {/* Modal */}
-      <div className="fixed left-[50%] top-[50%] z-50 w-full max-w-lg translate-x-[-50%] translate-y-[-50%] p-4">
-        <div className="bg-background border-2 border-border rounded-2xl shadow-hard overflow-hidden max-h-[85vh] flex flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border/50">
-            <div className="flex items-center gap-3">
-              <AvatarDisplay config={avatarConfig} size={48} showGlow={false} />
-              <div>
-                <h2 className="font-fredoka text-lg font-semibold">{nick || "My Profile"}</h2>
-                <p className="text-sm text-muted-foreground font-nunito">Edit your profile</p>
-              </div>
+      {/* Modal - Standard card style */}
+      <div className="relative bg-background border-2 border-border rounded-2xl shadow-hard w-full max-w-md max-h-[85vh] flex flex-col animate-in zoom-in-95 fade-in duration-200 z-10">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center">
+              <User className="w-5 h-5 text-primary" />
             </div>
-            <button
-              onClick={() => onOpenChange(false)}
-              className="rounded-full p-2 hover:bg-muted/50 transition-colors"
-            >
-              <X className="w-5 h-5 text-muted-foreground" />
-            </button>
+            <div>
+              <h3 className="font-nunito font-bold text-foreground">{nick || "My Profile"}</h3>
+              <p className="text-xs text-muted-foreground">Edit your profile</p>
+            </div>
           </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onOpenChange(false)}
+            className="rounded-lg hover:bg-muted"
+          >
+            <X className="w-5 h-5 text-muted-foreground" />
+          </Button>
+        </div>
 
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-              <TabsList className="grid grid-cols-3 w-full bg-muted/50 mb-4">
-                <TabsTrigger value="identity" className="gap-1.5 text-xs">
-                  <Shield className="w-4 h-4" />
-                  <span className="hidden sm:inline">Identity</span>
-                </TabsTrigger>
-                <TabsTrigger value="interests" className="gap-1.5 text-xs">
-                  <Heart className="w-4 h-4" />
-                  <span className="hidden sm:inline">Interests</span>
-                </TabsTrigger>
-                <TabsTrigger value="appearance" className="gap-1.5 text-xs">
-                  <Sparkles className="w-4 h-4" />
-                  <span className="hidden sm:inline">Avatar</span>
-                </TabsTrigger>
-              </TabsList>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid grid-cols-3 w-full bg-muted/50 mb-4">
+              <TabsTrigger value="identity" className="gap-1.5 text-xs">
+                <Shield className="w-4 h-4" />
+                <span className="hidden sm:inline">Identity</span>
+              </TabsTrigger>
+              <TabsTrigger value="interests" className="gap-1.5 text-xs">
+                <Heart className="w-4 h-4" />
+                <span className="hidden sm:inline">Interests</span>
+              </TabsTrigger>
+              <TabsTrigger value="appearance" className="gap-1.5 text-xs">
+                <Sparkles className="w-4 h-4" />
+                <span className="hidden sm:inline">Avatar</span>
+              </TabsTrigger>
+            </TabsList>
 
-              {/* Identity Tab */}
-              <TabsContent value="identity" className="space-y-4 animate-fade-in-up">
-                {/* User ID Display */}
-                {user && (
-                  <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl border border-border/50">
-                    <span className="font-nunito text-sm text-muted-foreground">Your ID:</span>
-                    <span className="font-mono text-sm font-bold text-primary">{getShortUserId(user.id)}</span>
-                  </div>
-                )}
-
-                {/* Nickname */}
-                <div className="space-y-2">
-                  <Label htmlFor="nick" className="font-nunito text-sm font-medium text-foreground">
-                    Nickname *
-                  </Label>
-                  <Input
-                    id="nick"
-                    value={nick}
-                    onChange={(e) => setNick(e.target.value)}
-                    placeholder="Enter your name"
-                    maxLength={30}
-                    className="bg-muted/50 border-2 border-border focus:border-primary rounded-xl font-nunito"
-                  />
+            {/* Identity Tab */}
+            <TabsContent value="identity" className="space-y-4 animate-fade-in">
+              {/* User ID Display */}
+              {user && (
+                <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-xl border border-border/50">
+                  <span className="font-nunito text-sm text-muted-foreground">Your ID:</span>
+                  <span className="font-mono text-sm font-bold text-primary">{getShortUserId(user.id)}</span>
                 </div>
-
-                {/* Bio */}
-                <div className="space-y-2">
-                  <Label htmlFor="bio" className="font-nunito text-sm font-medium text-foreground">
-                    Bio ({bio.length}/150)
-                  </Label>
-                  <Textarea
-                    id="bio"
-                    value={bio}
-                    onChange={(e) => setBio(e.target.value.slice(0, 150))}
-                    placeholder="Tell us about yourself..."
-                    rows={3}
-                    className="bg-muted/50 border-2 border-border focus:border-primary rounded-xl font-nunito resize-none"
-                  />
-                </div>
-
-                {/* Actions */}
-                <div className="space-y-2 pt-2">
-                  <InstallPrompt />
-                  
-                  <Button
-                    onClick={handleSignOutClick}
-                    variant="outline"
-                    className="w-full justify-start gap-3 border-destructive/30 text-destructive hover:bg-destructive/10"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span className="font-medium">Sign Out</span>
-                  </Button>
-                </div>
-
-                {/* Delete Account */}
-                <div className="text-center pt-2 border-t border-border/30">
-                  <button
-                    onClick={() => {
-                      setDeleteConfirmText("");
-                      setDeleteConfirmOpen(true);
-                    }}
-                    className="text-xs text-muted-foreground hover:text-destructive transition-colors underline-offset-2 hover:underline"
-                    disabled={deletingAccount}
-                  >
-                    {deletingAccount ? "Deleting..." : "Delete my account"}
-                  </button>
-                </div>
-              </TabsContent>
-
-              {/* Interests Tab */}
-              <TabsContent value="interests" className="animate-fade-in-up max-h-[40vh] overflow-y-auto">
-                <InterestSelector 
-                  selected={selectedTags}
-                  onChange={setSelectedTags}
-                />
-              </TabsContent>
-
-              {/* Appearance Tab */}
-              <TabsContent value="appearance" className="animate-fade-in-up max-h-[40vh] overflow-y-auto">
-                <AvatarBuilder 
-                  initialConfig={avatarConfig}
-                  onChange={setAvatarConfig}
-                />
-              </TabsContent>
-            </Tabs>
-          </div>
-
-          {/* Footer */}
-          <div className="flex justify-end gap-2 p-4 border-t border-border/50">
-            <Button variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button
-              variant="default"
-              onClick={handleSubmit}
-              disabled={loading}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Save Changes
-                </>
               )}
-            </Button>
-          </div>
+
+              {/* Nickname */}
+              <div className="space-y-2">
+                <Label htmlFor="nick" className="font-nunito text-sm font-medium text-foreground">
+                  Nickname *
+                </Label>
+                <Input
+                  id="nick"
+                  value={nick}
+                  onChange={(e) => setNick(e.target.value)}
+                  placeholder="Enter your name"
+                  maxLength={30}
+                  className="bg-muted/50 border-2 border-border focus:border-primary rounded-xl font-nunito"
+                />
+              </div>
+
+              {/* Bio */}
+              <div className="space-y-2">
+                <Label htmlFor="bio" className="font-nunito text-sm font-medium text-foreground">
+                  Bio ({bio.length}/150)
+                </Label>
+                <Textarea
+                  id="bio"
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value.slice(0, 150))}
+                  placeholder="Tell us about yourself..."
+                  rows={3}
+                  className="bg-muted/50 border-2 border-border focus:border-primary rounded-xl font-nunito resize-none"
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="space-y-2 pt-2">
+                <InstallPrompt />
+                
+                <Button
+                  onClick={handleSignOutClick}
+                  variant="outline"
+                  className="w-full justify-start gap-3 border-destructive/30 text-destructive hover:bg-destructive/10"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="font-medium">Sign Out</span>
+                </Button>
+              </div>
+
+              {/* Delete Account */}
+              <div className="text-center pt-2 border-t border-border/30">
+                <button
+                  onClick={() => {
+                    setDeleteConfirmText("");
+                    setDeleteConfirmOpen(true);
+                  }}
+                  className="text-xs text-muted-foreground hover:text-destructive transition-colors underline-offset-2 hover:underline"
+                  disabled={deletingAccount}
+                >
+                  {deletingAccount ? "Deleting..." : "Delete my account"}
+                </button>
+              </div>
+            </TabsContent>
+
+            {/* Interests Tab */}
+            <TabsContent value="interests" className="animate-fade-in max-h-[40vh] overflow-y-auto">
+              <InterestSelector 
+                selected={selectedTags}
+                onChange={setSelectedTags}
+              />
+            </TabsContent>
+
+            {/* Appearance Tab */}
+            <TabsContent value="appearance" className="animate-fade-in max-h-[40vh] overflow-y-auto">
+              <AvatarBuilder 
+                initialConfig={avatarConfig}
+                onChange={setAvatarConfig}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* Footer */}
+        <div className="flex justify-end gap-2 p-4 border-t border-border shrink-0">
+          <Button variant="ghost" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="default"
+            onClick={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Save Changes
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent className="bg-card border-destructive/30">
+        <AlertDialogContent className="bg-background border-2 border-destructive/30">
           <AlertDialogHeader>
             <AlertDialogTitle className="font-fredoka flex items-center gap-2">
               <AlertTriangle className="w-5 h-5 text-destructive" />
@@ -391,8 +394,10 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </>
+    </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default EditProfileModal;
