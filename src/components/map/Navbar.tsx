@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { MapPin, Search, X, Loader2 } from 'lucide-react';
+import { MapPin, Plane, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import ChatDrawer from './ChatDrawer';
@@ -184,13 +184,13 @@ const Navbar = ({
                 {isLoading || isTeleporting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <Search className="w-4 h-4" />
+                  <Plane className="w-4 h-4" />
                 )}
                 </div>
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Search location..."
+                  placeholder="Go to location"
                   className="border-0 focus-visible:ring-0 font-nunito text-sm bg-transparent h-10"
                   onFocus={() => results.length > 0 && setShowResults(true)}
                 />
