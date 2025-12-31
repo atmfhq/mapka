@@ -1594,8 +1594,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       const el = document.createElement('div');
       el.className = `quest-marker ${isMyQuest ? 'my-quest' : ''} ${isLiveNow ? 'live-now' : ''}`;
       el.style.zIndex = '20';
-      el.style.width = '56px';
-      el.style.height = '56px';
+      el.style.display = 'flex';
+      el.style.flexDirection = 'column';
+      el.style.alignItems = 'center';
 
       const container = document.createElement('div');
       container.className = 'quest-container marker-pop-in';
@@ -1616,6 +1617,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       container.appendChild(iconDiv);
 
       el.appendChild(container);
+
+      // Add title label below the icon
+      const titleLabel = document.createElement('div');
+      titleLabel.className = 'quest-title-label';
+      titleLabel.textContent = quest.title.length > 18 ? quest.title.substring(0, 18) + '...' : quest.title;
+      el.appendChild(titleLabel);
 
       el.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -2039,6 +2046,24 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         }
         .quest-marker:active .quest-icon {
           transform: scale(1.04);
+        }
+        /* Quest title label */
+        .quest-title-label {
+          margin-top: 4px;
+          padding: 2px 8px;
+          background: hsl(var(--card) / 0.95);
+          border: 1px solid hsl(var(--border));
+          border-radius: 9999px;
+          font-size: 10px;
+          font-weight: 600;
+          color: hsl(var(--foreground));
+          white-space: nowrap;
+          max-width: 100px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          text-align: center;
+          box-shadow: 0 1px 3px hsl(var(--foreground) / 0.1);
+          backdrop-filter: blur(4px);
         }
         /* Mapbox Popup custom styles for user profile */
         .user-profile-popup {
