@@ -71,13 +71,13 @@ export const EmojiPicker = ({ value, onChange, className }: EmojiPickerProps) =>
         </div>
       )}
 
-      {/* Category pills */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+      {/* Category pills - horizontal scroll */}
+      <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
         <button
           type="button"
           onClick={() => setSelectedCategory(null)}
           className={cn(
-            "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
+            "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0",
             !selectedCategory 
               ? "bg-primary text-primary-foreground" 
               : "bg-muted/50 text-muted-foreground hover:bg-muted"
@@ -91,7 +91,7 @@ export const EmojiPicker = ({ value, onChange, className }: EmojiPickerProps) =>
             type="button"
             onClick={() => setSelectedCategory(category.name)}
             className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
+              "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0",
               selectedCategory === category.name
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted/50 text-muted-foreground hover:bg-muted"
