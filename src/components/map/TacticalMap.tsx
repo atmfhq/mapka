@@ -26,6 +26,7 @@ import { useShoutCounts } from '@/hooks/useShoutCounts';
 import { useProximityAlerts, useFollowingIds } from '@/hooks/useProximityAlerts';
 import { useDebouncedLocation } from '@/hooks/useDebouncedLocation';
 import ShoutMarker from './ShoutMarker';
+import MapLoadingSkeleton from './MapLoadingSkeleton';
 import { Button } from '@/components/ui/button';
 import { Crosshair, Plus, Minus, Compass, Users, UsersRound, Eye, Ghost } from 'lucide-react';
 
@@ -2064,13 +2065,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         isVisible={isGuest} 
       />
 
-      {/* Subtle loading indicator - top right corner */}
-      {isDataLoading && (
-        <div className="absolute top-4 right-4 z-30 flex items-center gap-2 px-3 py-2 bg-card/90 backdrop-blur-md border border-border rounded-lg shadow-hard animate-fade-in">
-          <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-          <span className="font-nunito text-xs text-muted-foreground">Scanning area...</span>
-        </div>
-      )}
+      {/* Loading skeleton overlay */}
+      <MapLoadingSkeleton isVisible={isDataLoading} />
 
       {/* Bubble Chat Input - only for logged-in users */}
       <BubbleChat
