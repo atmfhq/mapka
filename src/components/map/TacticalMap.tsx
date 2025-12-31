@@ -11,6 +11,7 @@ import GuestPromptModal from './GuestPromptModal';
 import GuestSpawnTooltip from './GuestSpawnTooltip';
 import MapContextMenu from './MapContextMenu';
 import ShoutModal from './ShoutModal';
+import ShoutDetailsDrawer from './ShoutDetailsDrawer';
 import FloatingParticles from './FloatingParticles';
 import BubbleChat, { ActiveBubble } from './BubbleChat';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
@@ -274,6 +275,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const bubbleOverlayRef = useRef<HTMLDivElement>(null); // Overlay container for all bubbles
   const [shoutModalOpen, setShoutModalOpen] = useState(false); // Shout modal state
   const [shoutCoords, setShoutCoords] = useState<{ lat: number; lng: number } | null>(null); // Shout coordinates
+  const [selectedShout, setSelectedShout] = useState<{ id: string; user_id: string; content: string; lat: number; lng: number; created_at: string } | null>(null); // Selected shout for details drawer
+  const [shoutDetailsOpen, setShoutDetailsOpen] = useState(false); // Shout details drawer state
   
   const navigate = useNavigate();
 
@@ -1663,11 +1666,25 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       const el = document.createElement('div');
       el.className = 'shout-marker-container';
       
+      // Create a click handler for this shout
+      const handleShoutClick = () => {
+        setSelectedShout({
+          id: shout.id,
+          user_id: shout.user_id,
+          content: shout.content,
+          lat: shout.lat,
+          lng: shout.lng,
+          created_at: shout.created_at,
+        });
+        setShoutDetailsOpen(true);
+      };
+      
       const root = createRoot(el);
       root.render(
         <ShoutMarker
           content={shout.content}
           createdAt={shout.created_at}
+          onClick={handleShoutClick}
         />
       );
 
@@ -2329,6 +2346,17 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           onShoutCreated={refetchShouts}
         />
       )}
+
+      {/* Shout Details Drawer - for viewing shout with comments/likes */}
+      <ShoutDetailsDrawer
+        isOpen={shoutDetailsOpen}
+        onClose={() => {
+          setShoutDetailsOpen(false);
+          setSelectedShout(null);
+        }}
+        shout={selectedShout}
+        currentUserId={currentUserId}
+      />
 
       {/* Guest Prompt Modal - for any user */}
       <GuestPromptModal

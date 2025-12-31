@@ -430,6 +430,67 @@ export type Database = {
         }
         Relationships: []
       }
+      shout_comment_likes: {
+        Row: {
+          comment_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          comment_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          comment_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shout_comment_likes_comment_id_fkey"
+            columns: ["comment_id"]
+            isOneToOne: false
+            referencedRelation: "shout_comments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shout_comments: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          shout_id: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          shout_id: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          shout_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shout_comments_shout_id_fkey"
+            columns: ["shout_id"]
+            isOneToOne: false
+            referencedRelation: "shouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shouts: {
         Row: {
           content: string
