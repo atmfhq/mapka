@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Zap, MessageCircle, UserX, LogIn, UserPlus, UserCheck, Users } from 'lucide-react';
+import { X, Zap, MessageCircle, UserX, LogIn, UserPlus, UserCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SendInviteModal from './SendInviteModal';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
@@ -48,7 +48,7 @@ const UserPopupContent = ({
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
-  const { isFollowing, loading: followLoading, stats, follow, unfollow } = useFollows(currentUserId, user.id);
+  const { isFollowing, loading: followLoading, follow, unfollow } = useFollows(currentUserId, user.id);
 
   const isGuest = !currentUserId;
   const isOwnProfile = currentUserId ? user.id === currentUserId : false;
@@ -135,13 +135,6 @@ const UserPopupContent = ({
             <span className="font-mono text-[10px] text-muted-foreground/70">
               {getShortUserId(user.id)}
             </span>
-            {/* Follower count */}
-            <div className="flex items-center gap-1 mt-0.5">
-              <Users className="w-3 h-3 text-muted-foreground" />
-              <span className="text-[10px] text-muted-foreground font-medium">
-                {stats.followersCount} {stats.followersCount === 1 ? 'follower' : 'followers'}
-              </span>
-            </div>
             {user.bio && (
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                 {user.bio}
