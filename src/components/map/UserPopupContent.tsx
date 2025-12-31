@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Zap, MessageCircle, UserX, LogIn, UserPlus, UserCheck } from 'lucide-react';
+import { X, Zap, MessageCircle, UserX, LogIn, UserPlus, UserCheck, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SendInviteModal from './SendInviteModal';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
@@ -32,6 +32,8 @@ interface UserPopupContentProps {
   onDisconnect?: () => void;
   onCloseChat?: () => void;
   onNavigate?: (path: string) => void;
+  showOnMapEnabled?: boolean;
+  onShowOnMap?: () => void;
 }
 
 const UserPopupContent = ({ 
@@ -43,7 +45,9 @@ const UserPopupContent = ({
   onOpenChat, 
   onDisconnect, 
   onCloseChat,
-  onNavigate
+  onNavigate,
+  showOnMapEnabled,
+  onShowOnMap
 }: UserPopupContentProps) => {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -169,19 +173,45 @@ const UserPopupContent = ({
         {/* Action buttons */}
         {!isOwnProfile && (
           isGuest ? (
-            <Button
-              onClick={() => {
-                onClose();
-                onNavigate?.('/auth');
-              }}
-              className="w-full mt-4 bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka text-xs"
-              size="sm"
-            >
-              <LogIn className="w-4 h-4 mr-2" />
-              Login to Connect
-            </Button>
+            <div className="space-y-2 mt-4">
+              {showOnMapEnabled && onShowOnMap && (
+                <Button
+                  onClick={onShowOnMap}
+                  variant="outline"
+                  className="w-full font-fredoka text-xs border-primary/30 text-primary hover:bg-primary/10"
+                  size="sm"
+                >
+                  <MapPin className="w-4 h-4 mr-2" />
+                  Show on Map
+                </Button>
+              )}
+              <Button
+                onClick={() => {
+                  onClose();
+                  onNavigate?.('/auth');
+                }}
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka text-xs"
+                size="sm"
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                Login to Connect
+              </Button>
+            </div>
           ) : (
             <div className="space-y-2 mt-4">
+              {/* Show on Map button - only when user is in viewport */}
+              {showOnMapEnabled && onShowOnMap && (
+                <Button
+                  onClick={onShowOnMap}
+                  variant="outline"
+                  className="w-full font-fredoka text-xs border-primary/30 text-primary hover:bg-primary/10"
+                  size="sm"
+                >
+                  <MapPin className="w-4 h-4 mr-2" />
+                  Show on Map
+                </Button>
+              )}
+
               {/* Follow/Unfollow button */}
               <Button
                 onClick={handleFollowToggle}

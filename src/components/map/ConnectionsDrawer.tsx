@@ -96,10 +96,14 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
             avatar_config: selectedUser.avatar_config,
             tags: selectedUser.tags,
             bio: selectedUser.bio,
+            location_lat: selectedUser.location_lat,
+            location_lng: selectedUser.location_lng,
           } : null}
           currentUserId={currentUserId}
           isConnected={true}
           invitationId={selectedUser?.invitationId ?? undefined}
+          viewportBounds={viewportBounds}
+          onFlyTo={onFlyTo}
         />
       </>
     );
@@ -270,10 +274,14 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
           avatar_config: selectedUser.avatar_config,
           tags: selectedUser.tags,
           bio: selectedUser.bio,
+          location_lat: selectedUser.location_lat,
+          location_lng: selectedUser.location_lng,
         } : null}
         currentUserId={currentUserId}
         isConnected={true}
         invitationId={selectedUser?.invitationId ?? undefined}
+        viewportBounds={viewportBounds}
+        onFlyTo={onFlyTo}
       />
     </div>
   );
