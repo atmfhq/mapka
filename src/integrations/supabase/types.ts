@@ -430,6 +430,33 @@ export type Database = {
         }
         Relationships: []
       }
+      shouts: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          lat: number
+          lng: number
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          lat: number
+          lng: number
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          lat?: number
+          lng?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       spot_bans: {
         Row: {
           banned_by: string
