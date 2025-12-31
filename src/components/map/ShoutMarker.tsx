@@ -1,4 +1,4 @@
-import { MessageSquare, Heart, MessageCircle } from 'lucide-react';
+import { MessageSquare, Heart, MessageCircle, X } from 'lucide-react';
 
 interface ShoutMarkerProps {
   content: string;
@@ -6,9 +6,11 @@ interface ShoutMarkerProps {
   likesCount?: number;
   commentsCount?: number;
   onClick?: () => void;
+  onHide?: () => void;
+  canHide?: boolean;
 }
 
-const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, onClick }: ShoutMarkerProps) => {
+const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, onClick, onHide, canHide = false }: ShoutMarkerProps) => {
   // Calculate opacity based on age (fades slightly as shout ages over 24 hours)
   const createdTime = new Date(createdAt).getTime();
   const now = Date.now();
@@ -17,6 +19,11 @@ const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, on
   const remaining = Math.max(0, twentyFourHours - elapsed);
   const progress = remaining / twentyFourHours;
   const opacity = Math.max(0.7, 0.7 + (progress * 0.3));
+
+  const handleHideClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onHide?.();
+  };
 
   return (
     <div 
@@ -28,6 +35,16 @@ const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, on
       <div className="relative flex flex-col items-center">
         {/* Main bubble */}
         <div className="relative bg-card/95 backdrop-blur-sm border-2 border-accent/60 rounded-xl px-3 py-2 shadow-lg max-w-[180px] transform transition-all duration-200 group-hover:scale-105 group-hover:shadow-xl">
+          {/* Hide button */}
+          {canHide && (
+            <button
+              onClick={handleHideClick}
+              className="absolute -top-2 -right-2 w-5 h-5 bg-muted hover:bg-destructive rounded-full flex items-center justify-center transition-colors shadow-md opacity-0 group-hover:opacity-100 z-10"
+              title="Hide this shout"
+            >
+              <X className="w-3 h-3 text-muted-foreground hover:text-destructive-foreground" />
+            </button>
+          )}
           {/* Icon + Content */}
           <div className="flex items-start gap-2">
             <MessageSquare className="w-4 h-4 text-accent shrink-0 mt-0.5" />

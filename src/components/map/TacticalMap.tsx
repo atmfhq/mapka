@@ -284,8 +284,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   // Get connected users (skip for guests)
   const { connectedUserIds, getInvitationIdForUser, refetch: refetchConnections } = useConnectedUsers(currentUserId ?? '');
 
-  // Get shouts for the map
-  const { shouts, refetch: refetchShouts } = useShoutsRealtime(locationLat ?? userLat, locationLng ?? userLng);
+  // Get shouts for the map (with hidden shouts filtered for current user)
+  const { shouts, refetch: refetchShouts, hideShout } = useShoutsRealtime(locationLat ?? userLat, locationLng ?? userLng, currentUserId ?? undefined);
 
   // Get counts (likes/comments) for all shouts
   const shoutIds = useMemo(() => shouts.map(s => s.id), [shouts]);
@@ -1674,6 +1674,25 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         });
         setShoutDetailsOpen(true);
       };
+
+      // Create a hide handler for this shout
+      const handleHideShout = async () => {
+        const success = await hideShout(shout.id);
+        if (success) {
+          // Remove the marker immediately from the map
+          const existing = shoutMarkersMapRef.current.get(shout.id);
+          if (existing) {
+            existing.marker.remove();
+            queueMicrotask(() => {
+              try { existing.root.unmount(); } catch (e) { /* ignore */ }
+            });
+            shoutMarkersMapRef.current.delete(shout.id);
+          }
+        }
+      };
+
+      // Can hide if logged in and not the shout owner
+      const canHide = !!currentUserId && shout.user_id !== currentUserId;
       
       if (shoutMarkersMapRef.current.has(shout.id)) {
         // Already exists - update position and re-render with new counts
@@ -1686,6 +1705,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             likesCount={counts.likesCount}
             commentsCount={counts.commentsCount}
             onClick={handleShoutClick}
+            onHide={handleHideShout}
+            canHide={canHide}
           />
         );
         return;
@@ -1703,6 +1724,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           likesCount={counts.likesCount}
           commentsCount={counts.commentsCount}
           onClick={handleShoutClick}
+          onHide={handleHideShout}
+          canHide={canHide}
         />
       );
 
@@ -1713,7 +1736,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       shoutMarkersMapRef.current.set(shout.id, { marker, root });
     });
     
-  }, [shouts, mapStyleLoaded, getShoutCounts]);
+  }, [shouts, mapStyleLoaded, getShoutCounts, hideShout, currentUserId]);
 
   // Cleanup markers/React roots on unmount only (prevents re-blooming on data refresh)
   useEffect(() => {
