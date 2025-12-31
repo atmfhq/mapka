@@ -2081,10 +2081,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
                   });
                 }
               }}
-              className="w-11 h-11 bg-card/90 backdrop-blur-md border-border/50 hover:bg-muted"
+              className="w-11 h-11 bg-card/90 backdrop-blur-md border-border/50 hover:bg-muted group"
               title="Center on My Location"
             >
-              <img src="/pin-logo.svg" alt="Center" className="w-6 h-6" style={{ filter: 'brightness(0)' }} />
+              <img src="/pin-logo.svg" alt="Center" className="w-6 h-6 opacity-60 group-hover:opacity-100 transition-opacity" style={{ filter: 'brightness(0)' }} />
             </Button>
           )}
 
@@ -2095,14 +2095,17 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
                 variant="outline"
                 size="icon"
                 className={cn(
-                  "w-11 h-11 backdrop-blur-md border-border/50 transition-all relative",
+                  "w-11 h-11 backdrop-blur-md border-border/50 transition-all relative group",
                   selectedDate 
                     ? 'bg-muted/80 hover:bg-muted' 
                     : 'bg-card/90 hover:bg-muted'
                 )}
                 title={selectedDate ? `Filtering: ${format(selectedDate, 'MMM d')}` : 'Filter by Date'}
               >
-                <CalendarDays className="w-5 h-5 text-black" strokeWidth={2} />
+                <CalendarDays className={cn(
+                  "w-5 h-5 transition-colors",
+                  selectedDate ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
+                )} />
                 {selectedDate && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full text-[10px] font-bold text-primary-foreground flex items-center justify-center">
                     {format(selectedDate, 'd')}
@@ -2144,7 +2147,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             size="icon"
             onClick={() => setShowUsers(prev => !prev)}
             className={cn(
-              "w-11 h-11 backdrop-blur-md border-border/50 transition-all",
+              "w-11 h-11 backdrop-blur-md border-border/50 transition-all group",
               showUsers 
                 ? 'bg-card/90 hover:bg-muted' 
                 : 'bg-muted/60 hover:bg-muted/80'
@@ -2152,9 +2155,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             title={showUsers ? 'Hide Users' : 'Show Users'}
           >
             {showUsers ? (
-              <Users className="w-5 h-5 text-black" strokeWidth={2} />
+              <Users className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
             ) : (
-              <UsersRound className="w-5 h-5 text-black opacity-40" strokeWidth={2} />
+              <UsersRound className="w-5 h-5 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
             )}
           </Button>
 
@@ -2164,7 +2167,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             size="icon"
             onClick={() => setShowShouts(prev => !prev)}
             className={cn(
-              "w-11 h-11 backdrop-blur-md border-border/50 transition-all",
+              "w-11 h-11 backdrop-blur-md border-border/50 transition-all group",
               showShouts 
                 ? 'bg-card/90 hover:bg-muted' 
                 : 'bg-muted/60 hover:bg-muted/80'
@@ -2172,9 +2175,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             title={showShouts ? 'Hide Shouts' : 'Show Shouts'}
           >
             {showShouts ? (
-              <Megaphone className="w-5 h-5 text-black" strokeWidth={2} />
+              <Megaphone className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
             ) : (
-              <MessageSquareOff className="w-5 h-5 text-black opacity-40" strokeWidth={2} />
+              <MessageSquareOff className="w-5 h-5 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
             )}
           </Button>
 
@@ -2185,7 +2188,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
               size="icon"
               onClick={() => onGhostModeChange(!isGhostMode)}
               className={cn(
-                "w-11 h-11 backdrop-blur-md border-border/50 transition-all",
+                "w-11 h-11 backdrop-blur-md border-border/50 transition-all group",
                 isGhostMode
                   ? 'bg-muted/80 hover:bg-muted'
                   : 'bg-card/90 hover:bg-muted'
@@ -2193,9 +2196,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
               title={isGhostMode ? 'You are hidden (Ghost Mode)' : 'You are visible to others'}
             >
               {isGhostMode ? (
-                <Ghost className="w-5 h-5 text-black opacity-40" strokeWidth={2} />
+                <Ghost className="w-5 h-5 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
               ) : (
-                <Eye className="w-5 h-5 text-black" strokeWidth={2} />
+                <Eye className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
               )}
             </Button>
           )}
@@ -2226,12 +2229,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
               }
             }}
             className={cn(
-              "w-11 h-11 bg-card/90 backdrop-blur-md border-border/50 hover:bg-muted transition-transform",
+              "w-11 h-11 bg-card/90 backdrop-blur-md border-border/50 hover:bg-muted transition-transform group",
               isTacticalView ? 'rotate-0' : 'rotate-45'
             )}
             title={isTacticalView ? 'Switch to Flat View' : 'Switch to Tactical View'}
           >
-            <Compass className="w-5 h-5 text-black" strokeWidth={2} />
+            <Compass className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
           </Button>
         </div>
       )}
