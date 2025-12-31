@@ -31,6 +31,7 @@ interface Quest {
   lng: number;
   host_id: string;
   is_private?: boolean;
+  share_code?: string;
 }
 
 interface AvatarConfig {
@@ -1044,7 +1045,7 @@ const QuestLobby = ({
                 className="w-full border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground min-h-[44px]"
                 onClick={async () => {
                   if (!quest) return;
-                  const shareUrl = `${window.location.origin}/?eventId=${quest.id}`;
+                  const shareUrl = `${window.location.origin}/?c=${quest.share_code || quest.id}`;
                   
                   // Try native share first (mobile)
                   if (navigator.share) {

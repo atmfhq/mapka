@@ -66,12 +66,13 @@ const Dashboard = () => {
     }
   }, [loading, user, profile, navigate]);
 
-  // Handle deep link for eventId parameter - teleport user to spot location
+  // Handle deep link for eventId or share code (c) parameter - teleport user to spot location
   useEffect(() => {
     const eventId = searchParams.get('eventId');
+    const shareCode = searchParams.get('c');
     
-    // Skip if no eventId, already handled, or map not ready
-    if (!eventId || deepLinkHandledRef.current || !mapRef.current) return;
+    // Skip if no deep link params, already handled, or map not ready
+    if ((!eventId && !shareCode) || deepLinkHandledRef.current || !mapRef.current) return;
     
     // For logged-in users, wait for profile to be loaded
     if (user && !profile) return;
@@ -80,12 +81,18 @@ const Dashboard = () => {
     
     const handleDeepLink = async () => {
       try {
-        // Fetch the spot data
-        const { data, error } = await supabase
+        // Fetch the spot data - by share_code or id
+        let query = supabase
           .from('megaphones')
-          .select('id, lat, lng, title')
-          .eq('id', eventId)
-          .maybeSingle();
+          .select('id, lat, lng, title');
+        
+        if (shareCode) {
+          query = query.eq('share_code', shareCode);
+        } else if (eventId) {
+          query = query.eq('id', eventId);
+        }
+        
+        const { data, error } = await query.maybeSingle();
         
         if (error || !data) {
           toast({
@@ -139,7 +146,7 @@ const Dashboard = () => {
         // Open the spot details modal
         mapRef.current?.openMissionById(data.id);
         
-        // Clear the eventId param after handling
+        // Clear the deep link params after handling
         setSearchParams({}, { replace: true });
       } catch (err) {
         console.error('Error handling deep link:', err);

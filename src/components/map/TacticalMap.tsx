@@ -55,6 +55,7 @@ interface Quest {
   lng: number;
   host_id: string;
   is_private?: boolean;
+  share_code?: string;
 }
 
 export type DateFilter = 'today' | '3days' | '7days';
