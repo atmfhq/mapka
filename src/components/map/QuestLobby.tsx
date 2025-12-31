@@ -959,15 +959,6 @@ const QuestLobby = ({
                       Delete
                     </Button>
                   </div>
-                  {/* Manage Banned Users button */}
-                  <Button 
-                    variant="outline"
-                    className="w-full border-muted-foreground/30 text-muted-foreground hover:bg-muted/50 min-h-[44px]"
-                    onClick={() => setShowBannedUsers(true)}
-                  >
-                    <Ban className="w-4 h-4 mr-2" />
-                    Manage Banned ({bannedUsers.length})
-                  </Button>
                 </>
               ) : hasJoined ? (
                 /* Participant actions: Chat (Join/Open/Leave), Leave Spot */
