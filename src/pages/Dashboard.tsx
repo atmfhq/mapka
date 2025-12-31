@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useActiveArea } from "@/hooks/useActiveArea";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,6 +21,7 @@ const Dashboard = () => {
   const { user, profile, loading, signOut, refreshProfile } = useAuth();
   const { lat: activeAreaLat, lng: activeAreaLng, loading: activeAreaLoading } = useActiveArea();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [activeActivities, setActiveActivities] = useState<string[]>([]);
   const [dateFilter, setDateFilter] = useState<'today' | '3days' | '7days'>('7days');
@@ -35,6 +36,7 @@ const Dashboard = () => {
   const [guestLocation, setGuestLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
   const mapRef = useRef<TacticalMapHandle | null>(null);
+  const deepLinkHandledRef = useRef(false);
 
   const isGuest = !user;
 
@@ -63,6 +65,57 @@ const Dashboard = () => {
       navigate("/onboarding");
     }
   }, [loading, user, profile, navigate]);
+
+  // Handle deep link for eventId parameter
+  useEffect(() => {
+    const eventId = searchParams.get('eventId');
+    
+    // Skip if no eventId, already handled, or map not ready
+    if (!eventId || deepLinkHandledRef.current || !mapRef.current) return;
+    
+    deepLinkHandledRef.current = true;
+    
+    const handleDeepLink = async () => {
+      try {
+        // Fetch the spot data
+        const { data, error } = await supabase
+          .from('megaphones')
+          .select('id, lat, lng, title')
+          .eq('id', eventId)
+          .maybeSingle();
+        
+        if (error || !data) {
+          toast({
+            title: 'Spot not found',
+            description: 'The spot you were looking for no longer exists.',
+            variant: 'destructive',
+          });
+          // Clear the eventId param
+          setSearchParams({}, { replace: true });
+          return;
+        }
+        
+        // Fly camera to spot location (without moving user avatar)
+        mapRef.current?.flyTo(data.lat, data.lng);
+        
+        // Open the spot details modal
+        mapRef.current?.openMissionById(data.id);
+        
+        // Clear the eventId param after handling
+        setSearchParams({}, { replace: true });
+      } catch (err) {
+        console.error('Error handling deep link:', err);
+        toast({
+          title: 'Spot not found',
+          description: 'Unable to load the spot details.',
+          variant: 'destructive',
+        });
+        setSearchParams({}, { replace: true });
+      }
+    };
+    
+    handleDeepLink();
+  }, [searchParams, setSearchParams, toast]);
 
   const handleSignOut = async () => {
     await signOut();
