@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Heart, MessageCircle, X } from 'lucide-react';
 
 interface ShoutMarkerProps {
@@ -12,7 +13,7 @@ interface ShoutMarkerProps {
   isGuest?: boolean;
 }
 
-const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, onClick, onHide, canHide = false, isOwn = false, isGuest = false }: ShoutMarkerProps) => {
+const ShoutMarker = memo(({ content, createdAt, likesCount = 0, commentsCount = 0, onClick, onHide, canHide = false, isOwn = false, isGuest = false }: ShoutMarkerProps) => {
   // Calculate opacity based on age (fades slightly as shout ages over 24 hours)
   const createdTime = new Date(createdAt).getTime();
   const now = Date.now();
@@ -79,6 +80,8 @@ const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, on
       </div>
     </div>
   );
-};
+});
+
+ShoutMarker.displayName = 'ShoutMarker';
 
 export default ShoutMarker;

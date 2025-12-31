@@ -24,6 +24,7 @@ import { useParticipantsRealtime } from '@/hooks/useParticipantsRealtime';
 import { useShoutsRealtime, Shout } from '@/hooks/useShoutsRealtime';
 import { useShoutCounts } from '@/hooks/useShoutCounts';
 import { useProximityAlerts, useFollowingIds } from '@/hooks/useProximityAlerts';
+import { useDebouncedLocation } from '@/hooks/useDebouncedLocation';
 import ShoutMarker from './ShoutMarker';
 import { Button } from '@/components/ui/button';
 import { Crosshair, Plus, Minus, Compass, Users, UsersRound, Eye, Ghost } from 'lucide-react';
@@ -289,6 +290,15 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   // Proximity alerts hook
   const { processNewItems } = useProximityAlerts(currentUserId, followingIds);
 
+  // PERFORMANCE: Debounce location changes to reduce API calls
+  // Only refetch data when user moves >100m AND stops moving for 500ms
+  const debouncedLocation = useDebouncedLocation(
+    locationLat ?? userLat,
+    locationLng ?? userLng,
+    500,  // 500ms debounce delay
+    100   // 100m minimum distance threshold
+  );
+
   // Ref to track previous shout IDs for proximity detection
   const previousShoutIdsRef = useRef<Set<string>>(new Set());
 
@@ -309,9 +319,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   }, [currentUserId, followingIds, processNewItems]);
 
   // Get shouts for the map (with hidden shouts filtered for current user)
+  // Uses DEBOUNCED location to prevent excessive fetches during map pan
   const { shouts, refetch: refetchShouts, hideShout } = useShoutsRealtime(
-    locationLat ?? userLat, 
-    locationLng ?? userLng, 
+    debouncedLocation.lat, 
+    debouncedLocation.lng, 
     currentUserId ?? undefined,
     { onNewItemsInRange: handleNewShoutsInRange }
   );
@@ -442,17 +453,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     });
   }, [quests, activeActivities, dateFilter]);
 
-  // Fetch nearby profiles using spatial RPC - refetch when location changes
+  // Fetch nearby profiles using spatial RPC - uses DEBOUNCED location for performance
   const fetchProfiles = useCallback(async () => {
-    // Use the current user's location as the center point
-    const centerLat = locationLat ?? userLat;
-    const centerLng = locationLng ?? userLng;
-    
     setIsDataLoading(true);
     
     const { data, error } = await supabase.rpc('get_nearby_profiles', {
-      p_lat: centerLat,
-      p_lng: centerLng,
+      p_lat: debouncedLocation.lat,
+      p_lng: debouncedLocation.lng,
       p_radius_meters: 5000 // 5km radius
     });
     
@@ -469,7 +476,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     }
     
     setIsDataLoading(false);
-  }, [locationLat, locationLng, userLat, userLng]);
+  }, [debouncedLocation.lat, debouncedLocation.lng]);
 
   useEffect(() => {
     fetchProfiles();
@@ -777,14 +784,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     }, [currentUserId]),
   });
 
+  // Fetch quests using DEBOUNCED location for performance
   const fetchQuests = useCallback(async () => {
-    // Use the current user's location as the center point
-    const centerLat = locationLat ?? userLat;
-    const centerLng = locationLng ?? userLng;
-    
     const { data, error } = await supabase.rpc('get_nearby_megaphones', {
-      p_lat: centerLat,
-      p_lng: centerLng,
+      p_lat: debouncedLocation.lat,
+      p_lng: debouncedLocation.lng,
       p_radius_meters: 5000 // 5km radius
     });
     
@@ -793,7 +797,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     } else if (error) {
       console.error('Error fetching nearby quests:', error);
     }
-  }, [locationLat, locationLng, userLat, userLng]);
+  }, [debouncedLocation.lat, debouncedLocation.lng]);
 
   // Fetch quests the current user has joined (skip for guests)
   const fetchJoinedQuestIds = useCallback(async () => {
@@ -857,74 +861,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     flyTo,
   }), [fetchQuests, openMissionById, flyTo]);
 
-  // Refetch quests when location changes
+  // Refetch quests when debounced location changes
   useEffect(() => {
     fetchQuests();
   }, [fetchQuests]);
 
-  // Realtime subscription for quests (INSERT, UPDATE, DELETE)
-  useEffect(() => {
-    console.log('Setting up quests realtime subscription...');
-    
-    const channel = supabase
-      .channel('quests-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'megaphones',
-        },
-        (payload) => {
-          console.log('🔔 Realtime: New quest inserted:', payload.new);
-          const newQuest = payload.new as Quest;
-          // Only add public quests
-          if (!newQuest.is_private) {
-            setQuests(prev => {
-              // Avoid duplicates
-              if (prev.some(q => q.id === newQuest.id)) return prev;
-              return [...prev, newQuest];
-            });
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'megaphones',
-        },
-        (payload) => {
-          console.log('🔔 Realtime: Quest updated:', payload.new);
-          const updatedQuest = payload.new as Quest;
-          setQuests(prev => 
-            prev.map(q => q.id === updatedQuest.id ? updatedQuest : q)
-          );
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'megaphones',
-        },
-        (payload) => {
-          console.log('🔔 Realtime: Quest deleted:', payload.old);
-          const deletedId = (payload.old as { id: string }).id;
-          setQuests(prev => prev.filter(q => q.id !== deletedId));
-        }
-      )
-      .subscribe((status) => {
-        console.log('Quests realtime subscription status:', status);
-      });
-
-    return () => {
-      console.log('Cleaning up quests realtime subscription');
-      supabase.removeChannel(channel);
-    };
-  }, []);
+  // NOTE: Realtime quest updates are handled by useMegaphonesRealtime hook (lines 712-736)
+  // Removed duplicate postgres_changes subscription for megaphones table
 
   // NOTE: We intentionally do NOT subscribe to `postgres_changes` on `profiles`.
   // With strict profile RLS (users can only SELECT their own row), those realtime payloads are
