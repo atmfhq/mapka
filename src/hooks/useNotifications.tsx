@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 interface Notification {
@@ -27,6 +27,45 @@ interface PublicProfile {
 // Storage keys for persistence
 const DISMISSED_KEY = 'dismissed_notifications';
 const READ_KEY = 'read_notifications';
+
+// Geo-fence radius for follower notifications (in km)
+const GEO_FENCE_RADIUS_KM = 50;
+
+// Haversine formula to calculate distance between two coordinates in km
+const calculateDistanceKm = (
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number => {
+  const R = 6371; // Earth's radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+// Check if content is within geo-fence of user
+const isWithinGeoFence = (
+  userLat: number | null,
+  userLng: number | null,
+  contentLat: number | null,
+  contentLng: number | null
+): boolean => {
+  // If user has no location, allow all notifications (can't filter)
+  if (userLat === null || userLng === null) return true;
+  // If content has no location, skip it
+  if (contentLat === null || contentLng === null) return false;
+  
+  const distance = calculateDistanceKm(userLat, userLng, contentLat, contentLng);
+  return distance <= GEO_FENCE_RADIUS_KM;
+};
 
 // Get dismissed notification IDs from localStorage
 const getDismissedIds = (userId: string): Set<string> => {
@@ -74,6 +113,9 @@ export const useNotifications = (currentUserId: string | null) => {
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [userCreatedAt, setUserCreatedAt] = useState<string | null>(null);
   const [followingIds, setFollowingIds] = useState<string[]>([]);
+  
+  // Store user's location for geo-filtering
+  const userLocationRef = useRef<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
 
   // Load persisted dismissed/read state on mount
   useEffect(() => {
@@ -142,6 +184,12 @@ export const useNotifications = (currentUserId: string | null) => {
       const accountCreatedAt = profile?.created_at || new Date().toISOString();
       setUserCreatedAt(accountCreatedAt);
 
+      // Store user's location for geo-filtering
+      userLocationRef.current = {
+        lat: profile?.location_lat ?? null,
+        lng: profile?.location_lng ?? null,
+      };
+
       const notifs: Notification[] = [];
       const currentDismissedIds = getDismissedIds(currentUserId);
       const currentReadIds = getReadIds(currentUserId);
@@ -178,6 +226,16 @@ export const useNotifications = (currentUserId: string | null) => {
           const host = profiles?.find(p => p.id === spot.host_id);
           
           if (isFollowed) {
+            // Apply geo-fence filter for followed content
+            if (!isWithinGeoFence(
+              userLocationRef.current.lat,
+              userLocationRef.current.lng,
+              spot.lat,
+              spot.lng
+            )) {
+              return; // Skip - content is outside geo-fence
+            }
+            
             // Followed user's spot - priority notification
             notifs.push({
               id: notifId,
@@ -230,6 +288,16 @@ export const useNotifications = (currentUserId: string | null) => {
             const notifId = `followed-shout-${shout.id}`;
             
             if (currentDismissedIds.has(notifId)) return;
+            
+            // Apply geo-fence filter for followed shouts
+            if (!isWithinGeoFence(
+              userLocationRef.current.lat,
+              userLocationRef.current.lng,
+              shout.lat,
+              shout.lng
+            )) {
+              return; // Skip - shout is outside geo-fence
+            }
             
             const author = shoutProfiles?.find(p => p.id === shout.user_id);
             const contentSnippet = shout.content.length > 50 
@@ -345,6 +413,17 @@ export const useNotifications = (currentUserId: string | null) => {
           if (payload.new.is_private || payload.new.host_id === currentUserId) return;
 
           const isFollowed = followingIds.includes(payload.new.host_id);
+          
+          // Apply geo-fence filter for followed content
+          if (isFollowed && !isWithinGeoFence(
+            userLocationRef.current.lat,
+            userLocationRef.current.lng,
+            payload.new.lat,
+            payload.new.lng
+          )) {
+            return; // Skip - content is outside geo-fence
+          }
+          
           const notifId = isFollowed ? `followed-spot-${payload.new.id}` : `spot-${payload.new.id}`;
           
           // Skip if already dismissed
@@ -409,6 +488,16 @@ export const useNotifications = (currentUserId: string | null) => {
         async (payload) => {
           // Only notify for shouts from followed users
           if (!followingIds.includes(payload.new.user_id)) return;
+          
+          // Apply geo-fence filter for followed shouts
+          if (!isWithinGeoFence(
+            userLocationRef.current.lat,
+            userLocationRef.current.lng,
+            payload.new.lat,
+            payload.new.lng
+          )) {
+            return; // Skip - shout is outside geo-fence
+          }
 
           const notifId = `followed-shout-${payload.new.id}`;
           
