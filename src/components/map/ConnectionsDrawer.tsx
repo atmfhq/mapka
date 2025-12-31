@@ -32,17 +32,35 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
   const [isOpen, setIsOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<ConnectedUser | null>(null);
-  const [activeTab, setActiveTab] = useState('connections');
+  const [activeTab, setActiveTab] = useState<string>('connections');
   const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
+  const [openedFromConnections, setOpenedFromConnections] = useState(false);
 
   const handleClose = () => {
     setIsOpen(false);
   };
 
-  // Handle clicking any user - open profile modal
+  // Handle clicking any user - close drawer, open profile modal
   const handleUserClick = (user: ConnectedUser | FollowerUser) => {
     setSelectedUser(user as ConnectedUser);
+    setIsOpen(false); // Close drawer first
+    setOpenedFromConnections(true); // Mark that we came from connections
     setProfileModalOpen(true);
+  };
+
+  // Handle back navigation from profile to connections
+  const handleBackToConnections = () => {
+    setProfileModalOpen(false);
+    setOpenedFromConnections(false);
+    setIsOpen(true); // Reopen the drawer on the same tab
+  };
+
+  // Handle profile modal close (without going back)
+  const handleProfileClose = (open: boolean) => {
+    if (!open) {
+      setProfileModalOpen(false);
+      setOpenedFromConnections(false);
+    }
   };
 
   const handleUnfollow = async (userId: string, userName: string | null) => {
@@ -88,7 +106,7 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
         {/* Profile Modal - keep it available even when drawer is closed */}
         <ProfileModal
           open={profileModalOpen}
-          onOpenChange={setProfileModalOpen}
+          onOpenChange={handleProfileClose}
           user={selectedUser ? {
             id: selectedUser.id,
             nick: selectedUser.nick,
@@ -104,6 +122,8 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
           invitationId={selectedUser?.invitationId ?? undefined}
           viewportBounds={viewportBounds}
           onFlyTo={onFlyTo}
+          showBackButton={openedFromConnections}
+          onBack={handleBackToConnections}
         />
       </>
     );
@@ -263,26 +283,7 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
         </Tabs>
       </div>
 
-      {/* Profile Modal */}
-      <ProfileModal
-        open={profileModalOpen}
-        onOpenChange={setProfileModalOpen}
-        user={selectedUser ? {
-          id: selectedUser.id,
-          nick: selectedUser.nick,
-          avatar_url: selectedUser.avatar_url,
-          avatar_config: selectedUser.avatar_config,
-          tags: selectedUser.tags,
-          bio: selectedUser.bio,
-          location_lat: selectedUser.location_lat,
-          location_lng: selectedUser.location_lng,
-        } : null}
-        currentUserId={currentUserId}
-        isConnected={true}
-        invitationId={selectedUser?.invitationId ?? undefined}
-        viewportBounds={viewportBounds}
-        onFlyTo={onFlyTo}
-      />
+      {/* Profile Modal - should not appear when drawer is open */}
     </div>
   );
 
