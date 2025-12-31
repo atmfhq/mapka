@@ -21,8 +21,20 @@ const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string
   outdoor: { bg: 'bg-[hsl(145,70%,45%)]/20', border: 'border-[hsl(145,70%,45%)]/40', text: 'text-[hsl(145,70%,45%)]' },
 };
 
-// Get activity icon from category (label/id)
+// Check if a string is an emoji
+const isEmoji = (str: string): boolean => {
+  if (!str) return false;
+  const emojiRegex = /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/u;
+  return emojiRegex.test(str);
+};
+
+// Get activity icon from category - use emoji directly if available
 const getSpotIcon = (category: string): string => {
+  // If the category is an emoji, return it directly
+  if (isEmoji(category)) {
+    return category;
+  }
+  
   // First try to find exact activity match
   const activity = ACTIVITIES.find(
     a => a.label.toLowerCase() === category.toLowerCase() || a.id.toLowerCase() === category.toLowerCase()
@@ -38,6 +50,10 @@ const getSpotIcon = (category: string): string => {
 
 // Get category color styles from category
 const getCategoryStyles = (category: string): { bg: string; border: string; text: string } => {
+  // For emoji-based categories, use primary color scheme
+  if (isEmoji(category)) {
+    return { bg: 'bg-primary/20', border: 'border-primary/40', text: 'text-primary' };
+  }
   const categoryKey = getCategoryForActivity(category) || category.toLowerCase();
   return CATEGORY_COLORS[categoryKey] || { bg: 'bg-primary/20', border: 'border-primary/40', text: 'text-primary' };
 };
@@ -112,8 +128,8 @@ const ConversationRow = ({
               {timeAgo}
             </span>
           )}
-          {/* Type badge for spots - inline with timestamp */}
-          {isSpot && categoryStyles && (
+          {/* Type badge for spots - show emoji for emoji categories, otherwise show text */}
+          {isSpot && categoryStyles && !isEmoji(item.category || '') && (
             <Badge variant="outline" className={`${categoryStyles.bg} ${categoryStyles.text} ${categoryStyles.border} text-[10px] capitalize flex-shrink-0 px-1.5 py-0`}>
               {item.category}
             </Badge>

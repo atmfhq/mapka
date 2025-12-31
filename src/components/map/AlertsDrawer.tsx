@@ -9,6 +9,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { getActivityById } from '@/constants/activities';
 import { useMultipleEventLikes } from '@/hooks/useEventLikes';
+
+// Check if a string is an emoji
+const isEmoji = (str: string): boolean => {
+  if (!str) return false;
+  const emojiRegex = /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/u;
+  return emojiRegex.test(str);
+};
+
+// Get icon for event - use emoji directly if available, otherwise lookup from activities
+const getEventIcon = (category: string): string => {
+  if (isEmoji(category)) {
+    return category;
+  }
+  const activityData = getActivityById(category);
+  return activityData?.icon || '📍';
+};
 interface PublicProfile {
   id: string;
   nick: string;
@@ -154,7 +170,7 @@ const AlertsDrawer = ({ currentUserId, onOpenMission, onFlyToQuest }: AlertsDraw
   };
 
   const renderEventCard = (event: PublicEvent, isMyQuest = false) => {
-    const activityData = getActivityById(event.category);
+    const eventIcon = getEventIcon(event.category);
     const isUpcoming = new Date(event.start_time).getTime() > Date.now();
     const { count: likeCount, isLiked } = getLikeState(event.id);
 
@@ -175,7 +191,7 @@ const AlertsDrawer = ({ currentUserId, onOpenMission, onFlyToQuest }: AlertsDraw
               ? 'bg-primary/30 border-2 border-primary' 
               : 'bg-primary/20 border border-primary/40'
           }`}>
-            {activityData?.icon || '📍'}
+            {eventIcon}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
