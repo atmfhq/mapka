@@ -49,59 +49,20 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
-  const [userJoinedAt, setUserJoinedAt] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Message reactions
   const messageIds = messages.map(m => m.id);
   const { getReactions, toggleReaction } = useMessageReactions(messageIds, currentUserId);
 
-  // Fetch user's joined_at timestamp for this event
-  useEffect(() => {
-    const fetchJoinedAt = async () => {
-      // First check if user is a participant
-      const { data: participation } = await supabase
-        .from('event_participants')
-        .select('joined_at')
-        .eq('event_id', eventId)
-        .eq('user_id', currentUserId)
-        .maybeSingle();
-      
-      if (participation?.joined_at) {
-        setUserJoinedAt(participation.joined_at);
-        return;
-      }
-      
-      // If not a participant, check if user is the host (use megaphone created_at as join time)
-      const { data: megaphone } = await supabase
-        .from('megaphones')
-        .select('host_id, created_at')
-        .eq('id', eventId)
-        .eq('host_id', currentUserId)
-        .maybeSingle();
-      
-      if (megaphone?.created_at) {
-        setUserJoinedAt(megaphone.created_at);
-      }
-    };
-
-    fetchJoinedAt();
-  }, [eventId, currentUserId]);
-
-  // Fetch initial messages (filtered by joined_at)
+  // Fetch all messages for the event (full history)
   useEffect(() => {
     const fetchMessages = async () => {
-      // Don't fetch until we know the user's join timestamp
-      if (!userJoinedAt) return;
-
-      let query = supabase
+      const { data, error } = await supabase
         .from('event_chat_messages')
         .select('id, event_id, user_id, content, created_at')
         .eq('event_id', eventId)
-        .gte('created_at', userJoinedAt) // Only messages after user joined
         .order('created_at', { ascending: true });
-
-      const { data, error } = await query;
 
       if (error) {
         console.error('Failed to fetch messages:', error);
@@ -128,13 +89,10 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
     };
 
     fetchMessages();
-  }, [eventId, userJoinedAt]);
+  }, [eventId]);
 
   // Subscribe to realtime updates
   useEffect(() => {
-    // Don't subscribe until we know the user's join timestamp
-    if (!userJoinedAt) return;
-
     const channel = supabase
       .channel(`event-chat-${eventId}`)
       .on(
@@ -147,11 +105,6 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
         },
         async (payload) => {
           const newMsg = payload.new as ChatMessage;
-          
-          // Only add message if it's after user joined
-          if (new Date(newMsg.created_at) < new Date(userJoinedAt)) {
-            return;
-          }
           
           // Fetch profile using secure RPC function
           const { data: profiles } = await supabase
@@ -167,7 +120,7 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [eventId, userJoinedAt]);
+  }, [eventId]);
 
   // Scroll anchor ref for reliable scrolling
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
@@ -248,10 +201,10 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
               <p className="text-muted-foreground text-sm leading-relaxed">
-                Messages sent before you joined are not visible.
+                No messages yet.
               </p>
               <p className="text-muted-foreground/80 text-sm mt-1">
-                Say hello to the group!
+                Be the first to say hello!
               </p>
             </div>
           ) : (
