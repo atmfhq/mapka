@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useConnections, ConnectedUser } from '@/hooks/useConnections';
-import { useFollowingList } from '@/hooks/useFollows';
+import { useFollowingList, useFollowersList, FollowerUser } from '@/hooks/useFollows';
 import { useToast } from '@/hooks/use-toast';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import ProfileModal from './ProfileModal';
@@ -27,6 +27,7 @@ interface ConnectionsDrawerProps {
 const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo }: ConnectionsDrawerProps) => {
   const { connections, loading, error, refetch } = useConnections(currentUserId);
   const { following, loading: followingLoading, unfollowUser } = useFollowingList(currentUserId);
+  const { followers, loading: followersLoading } = useFollowersList(currentUserId);
   const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
@@ -164,7 +165,7 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
             <div>
               <h3 className="font-nunito font-bold text-foreground">Network</h3>
               <p className="text-xs text-muted-foreground">
-                {connections.length} connection{connections.length !== 1 ? 's' : ''} · {following.length} following
+                {connections.length} connection{connections.length !== 1 ? 's' : ''} · {following.length} following · {followers.length} follower{followers.length !== 1 ? 's' : ''}
               </p>
             </div>
           </div>
@@ -183,12 +184,15 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-          <TabsList className="w-full grid grid-cols-2 mx-4 mt-3 mb-0" style={{ width: 'calc(100% - 2rem)' }}>
+          <TabsList className="w-full grid grid-cols-3 mx-4 mt-3 mb-0" style={{ width: 'calc(100% - 2rem)' }}>
             <TabsTrigger value="connections" className="font-nunito text-sm">
               Connections
             </TabsTrigger>
             <TabsTrigger value="following" className="font-nunito text-sm">
               Following
+            </TabsTrigger>
+            <TabsTrigger value="followers" className="font-nunito text-sm">
+              Followers
             </TabsTrigger>
           </TabsList>
 
@@ -299,6 +303,33 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
                       onUnfollow={() => handleUnfollow(user.id, user.nick)}
                       isUnfollowing={unfollowingId === user.id}
                     />
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* Followers Tab */}
+          <TabsContent value="followers" className="flex-1 overflow-hidden mt-0">
+            <ScrollArea className="h-full">
+              <div className="p-4 space-y-2">
+                {followersLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : followers.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                      <Users className="w-8 h-8 text-primary" />
+                    </div>
+                    <h2 className="font-nunito text-lg font-bold mb-1">No Followers Yet</h2>
+                    <p className="font-nunito text-sm text-muted-foreground max-w-xs">
+                      When users follow you, they'll appear here!
+                    </p>
+                  </div>
+                ) : (
+                  followers.map(user => (
+                    <FollowerCard key={user.id} user={user} />
                   ))
                 )}
               </div>
@@ -419,6 +450,26 @@ const FollowingCard = ({ user, onUnfollow, isUnfollowing }: FollowingCardProps) 
         )}
         Unfollow
       </Button>
+    </div>
+  );
+};
+
+interface FollowerCardProps {
+  user: FollowerUser;
+}
+
+const FollowerCard = ({ user }: FollowerCardProps) => {
+  return (
+    <div className="w-full flex items-center gap-3 p-3 rounded-xl border-2 border-border bg-card">
+      <AvatarDisplay config={user.avatar_config} size={40} showGlow={false} />
+      <div className="flex-1 min-w-0">
+        <p className="font-nunito text-sm font-medium truncate">
+          {user.nick || 'Anonymous'}
+        </p>
+        {user.bio && (
+          <p className="font-nunito text-xs text-muted-foreground truncate">{user.bio}</p>
+        )}
+      </div>
     </div>
   );
 };

@@ -293,3 +293,97 @@ export const useFollowingList = (currentUserId: string | null) => {
 
   return { following, loading, refetch: fetchFollowing, unfollowUser };
 };
+
+// Hook to get list of users who follow the current user
+export interface FollowerUser {
+  id: string;
+  nick: string | null;
+  avatar_url: string | null;
+  avatar_config: {
+    skinColor?: string;
+    shape?: string;
+    eyes?: string;
+    mouth?: string;
+  } | null;
+  bio: string | null;
+}
+
+export const useFollowersList = (currentUserId: string | null) => {
+  const [followers, setFollowers] = useState<FollowerUser[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchFollowers = useCallback(async () => {
+    if (!currentUserId) {
+      setFollowers([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    // Get the list of user IDs who follow the current user
+    const { data: followsData, error: followsError } = await supabase
+      .from('follows')
+      .select('follower_id')
+      .eq('following_id', currentUserId);
+
+    if (followsError || !followsData || followsData.length === 0) {
+      setFollowers([]);
+      setLoading(false);
+      return;
+    }
+
+    const followerIds = followsData.map(f => f.follower_id);
+
+    // Fetch profiles for those users
+    const { data: profiles, error: profilesError } = await supabase
+      .rpc('get_public_profiles_by_ids', { user_ids: followerIds });
+
+    if (profilesError) {
+      console.error('Failed to fetch followers profiles:', profilesError);
+      setFollowers([]);
+      setLoading(false);
+      return;
+    }
+
+    const followerUsers: FollowerUser[] = (profiles || []).map((p: any) => ({
+      id: p.id,
+      nick: p.nick,
+      avatar_url: p.avatar_url,
+      avatar_config: p.avatar_config,
+      bio: p.bio,
+    }));
+
+    setFollowers(followerUsers);
+    setLoading(false);
+  }, [currentUserId]);
+
+  useEffect(() => {
+    fetchFollowers();
+  }, [fetchFollowers]);
+
+  // Realtime subscription for follows changes
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const channel = supabase
+      .channel(`followers-list-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'follows',
+          filter: `following_id=eq.${currentUserId}`,
+        },
+        () => fetchFollowers()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId, fetchFollowers]);
+
+  return { followers, loading, refetch: fetchFollowers };
+};
