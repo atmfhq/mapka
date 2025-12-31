@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { X, Zap, MessageCircle, UserX, LogIn } from 'lucide-react';
+import { X, Zap, MessageCircle, UserX, LogIn, UserPlus, UserCheck, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SendInviteModal from './SendInviteModal';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { getShortUserId } from '@/utils/userIdDisplay';
+import { useFollows } from '@/hooks/useFollows';
 
 interface AvatarConfig {
   skinColor?: string;
@@ -30,7 +31,7 @@ interface UserPopupContentProps {
   onOpenChat?: (userId: string) => void;
   onDisconnect?: () => void;
   onCloseChat?: () => void;
-  onNavigate?: (path: string) => void; // Callback for navigation (avoids useNavigate outside Router)
+  onNavigate?: (path: string) => void;
 }
 
 const UserPopupContent = ({ 
@@ -47,6 +48,8 @@ const UserPopupContent = ({
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
 
+  const { isFollowing, loading: followLoading, stats, follow, unfollow } = useFollows(currentUserId, user.id);
+
   const isGuest = !currentUserId;
   const isOwnProfile = currentUserId ? user.id === currentUserId : false;
 
@@ -54,8 +57,6 @@ const UserPopupContent = ({
     if (!invitationId) return;
     
     setDisconnecting(true);
-    
-    // Immediately close any open chat drawer
     onCloseChat?.();
     
     const { error } = await supabase
@@ -75,6 +76,20 @@ const UserPopupContent = ({
       toast({ title: 'Connection terminated. You can send a new signal to reconnect.' });
       onDisconnect?.();
       onClose();
+    }
+  };
+
+  const handleFollowToggle = async () => {
+    if (isFollowing) {
+      const success = await unfollow(user.id);
+      if (success) {
+        toast({ title: `Unfollowed ${user.nick || 'user'}` });
+      }
+    } else {
+      const success = await follow(user.id);
+      if (success) {
+        toast({ title: `Following ${user.nick || 'user'}` });
+      }
     }
   };
 
@@ -120,6 +135,13 @@ const UserPopupContent = ({
             <span className="font-mono text-[10px] text-muted-foreground/70">
               {getShortUserId(user.id)}
             </span>
+            {/* Follower count */}
+            <div className="flex items-center gap-1 mt-0.5">
+              <Users className="w-3 h-3 text-muted-foreground" />
+              <span className="text-[10px] text-muted-foreground font-medium">
+                {stats.followersCount} {stats.followersCount === 1 ? 'follower' : 'followers'}
+              </span>
+            </div>
             {user.bio && (
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                 {user.bio}
@@ -165,39 +187,68 @@ const UserPopupContent = ({
               <LogIn className="w-4 h-4 mr-2" />
               Login to Connect
             </Button>
-          ) : isConnected ? (
-            <div className="space-y-2 mt-4">
-              <Button
-                onClick={() => {
-                  onOpenChat?.(user.id);
-                  onClose();
-                }}
-                className="w-full bg-success hover:bg-success/90 text-success-foreground font-fredoka text-xs"
-                size="sm"
-              >
-                <MessageCircle className="w-4 h-4 mr-2" />
-                Open Chat
-              </Button>
-              <Button
-                onClick={handleDisconnect}
-                disabled={disconnecting}
-                variant="outline"
-                className="w-full border-destructive/50 text-destructive hover:bg-destructive/10 font-fredoka text-xs"
-                size="sm"
-              >
-                <UserX className="w-4 h-4 mr-2" />
-                {disconnecting ? 'Disconnecting...' : 'Disconnect'}
-              </Button>
-            </div>
           ) : (
-            <Button
-              onClick={() => setInviteModalOpen(true)}
-              className="w-full mt-4 bg-warning hover:bg-warning/90 text-warning-foreground font-fredoka text-xs"
-              size="sm"
-            >
-              <Zap className="w-4 h-4 mr-2" />
-              Send Invite
-            </Button>
+            <div className="space-y-2 mt-4">
+              {/* Follow/Unfollow button */}
+              <Button
+                onClick={handleFollowToggle}
+                disabled={followLoading}
+                variant={isFollowing ? 'outline' : 'secondary'}
+                className={`w-full font-fredoka text-xs ${
+                  isFollowing 
+                    ? 'border-muted-foreground/30' 
+                    : 'bg-secondary hover:bg-secondary/90'
+                }`}
+                size="sm"
+              >
+                {isFollowing ? (
+                  <>
+                    <UserCheck className="w-4 h-4 mr-2" />
+                    Following
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Follow
+                  </>
+                )}
+              </Button>
+
+              {isConnected ? (
+                <>
+                  <Button
+                    onClick={() => {
+                      onOpenChat?.(user.id);
+                      onClose();
+                    }}
+                    className="w-full bg-success hover:bg-success/90 text-success-foreground font-fredoka text-xs"
+                    size="sm"
+                  >
+                    <MessageCircle className="w-4 h-4 mr-2" />
+                    Open Chat
+                  </Button>
+                  <Button
+                    onClick={handleDisconnect}
+                    disabled={disconnecting}
+                    variant="outline"
+                    className="w-full border-destructive/50 text-destructive hover:bg-destructive/10 font-fredoka text-xs"
+                    size="sm"
+                  >
+                    <UserX className="w-4 h-4 mr-2" />
+                    {disconnecting ? 'Disconnecting...' : 'Disconnect'}
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={() => setInviteModalOpen(true)}
+                  className="w-full bg-warning hover:bg-warning/90 text-warning-foreground font-fredoka text-xs"
+                  size="sm"
+                >
+                  <Zap className="w-4 h-4 mr-2" />
+                  Send Invite
+                </Button>
+              )}
+            </div>
           )
         )}
       </div>
