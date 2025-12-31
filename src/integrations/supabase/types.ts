@@ -595,6 +595,16 @@ export type Database = {
         Args: { radius_meters?: number; target_lat: number; target_lng: number }
         Returns: boolean
       }
+      resolve_megaphone_link: {
+        Args: { p_id?: string; p_share_code?: string }
+        Returns: {
+          id: string
+          lat: number
+          lng: number
+          share_code: string
+          title: string
+        }[]
+      }
       sanitize_text_input: { Args: { input_text: string }; Returns: string }
     }
     Enums: {
