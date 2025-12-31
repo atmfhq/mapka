@@ -112,7 +112,7 @@ export const EmojiPicker = ({ value, onChange, className }: EmojiPickerProps) =>
                   {category.name}
                 </p>
               )}
-              <div className="grid grid-cols-8 gap-1">
+              <div className="grid grid-cols-5 gap-1">
                 {category.emojis.map((emoji, idx) => (
                   <button
                     key={`${category.name}-${idx}`}
