@@ -4,7 +4,7 @@ import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { createRoot, Root } from 'react-dom/client';
 import { supabase } from '@/integrations/supabase/client';
-import UserPopupContent from './UserPopupContent';
+import ProfileModal from './ProfileModal';
 import DeployQuestModal from './DeployQuestModal';
 import QuestLobby from './QuestLobby';
 import GuestPromptModal from './GuestPromptModal';
@@ -252,9 +252,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [joinedQuestIds, setJoinedQuestIds] = useState<Set<string>>(new Set());
   const [isDataLoading, setIsDataLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
-  const [selectedUserCoords, setSelectedUserCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const userPopupRef = useRef<mapboxgl.Popup | null>(null);
-  const userPopupRootRef = useRef<Root | null>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   
   const [deployModalOpen, setDeployModalOpen] = useState(false);
   const [guestPromptOpen, setGuestPromptOpen] = useState(false);
@@ -1015,7 +1013,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         setContextMenuCoords({ lat: e.lngLat.lat, lng: e.lngLat.lng });
         setContextMenuScreenPos({ x: e.point.x, y: e.point.y });
         setSelectedUser(null);
-        setSelectedUserCoords(null);
+        setProfileModalOpen(false);
       });
     } catch (error) {
       console.error('Failed to initialize map:', error);
@@ -1263,7 +1261,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             });
           }
           setSelectedUser(profile);
-          setSelectedUserCoords({ lat: jitteredLat, lng: jitteredLng });
+          setProfileModalOpen(true);
         });
 
         const marker = new mapboxgl.Marker({ element: el })
@@ -1814,110 +1812,14 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           try { myRoot.unmount(); } catch (e) { /* ignore */ }
         });
       }
-
-      // Popup root
-      const popupToRemove = userPopupRef.current;
-      const popupRoot = userPopupRootRef.current;
-      userPopupRef.current = null;
-      userPopupRootRef.current = null;
-      queueMicrotask(() => {
-        popupToRemove?.remove();
-        popupRoot?.unmount();
-      });
     };
   }, []);
 
-  // Helper function to close the user popup
-  const closeUserPopup = useCallback(() => {
-
-    if (userPopupRef.current) {
-      userPopupRef.current.remove();
-      userPopupRef.current = null;
-    }
-    if (userPopupRootRef.current) {
-      userPopupRootRef.current.unmount();
-      userPopupRootRef.current = null;
-    }
+  // Helper function to close the user profile modal
+  const closeUserProfile = useCallback(() => {
     setSelectedUser(null);
-    setSelectedUserCoords(null);
+    setProfileModalOpen(false);
   }, []);
-
-  // Manage Mapbox Popup for user profile - anchored to geo coordinates
-  useEffect(() => {
-    if (!map.current || !selectedUser || !selectedUserCoords) {
-      // Clean up if no user selected
-      if (userPopupRef.current) {
-        userPopupRef.current.remove();
-        userPopupRef.current = null;
-      }
-      if (userPopupRootRef.current) {
-        userPopupRootRef.current.unmount();
-        userPopupRootRef.current = null;
-      }
-      return;
-    }
-
-    // Clean up previous popup
-    if (userPopupRef.current) {
-      userPopupRef.current.remove();
-    }
-    if (userPopupRootRef.current) {
-      userPopupRootRef.current.unmount();
-    }
-
-    // Create container for React content
-    const container = document.createElement('div');
-    container.className = 'user-popup-container';
-
-    // Render React content into container
-    const root = createRoot(container);
-    userPopupRootRef.current = root;
-    
-    const isConnected = connectedUserIds.has(selectedUser.id);
-    const invitationId = getInvitationIdForUser(selectedUser.id);
-
-    root.render(
-      <UserPopupContent
-        user={selectedUser}
-        currentUserId={currentUserId}
-        isConnected={isConnected}
-        invitationId={invitationId}
-        onClose={closeUserPopup}
-        onOpenChat={onOpenChatWithUser}
-        onDisconnect={refetchConnections}
-        onCloseChat={onCloseChat}
-        onNavigate={navigate}
-      />
-    );
-
-    // Create Mapbox Popup anchored to geo coordinates
-    const popup = new mapboxgl.Popup({
-      closeButton: false,
-      closeOnClick: false,
-      anchor: 'bottom',
-      offset: [0, -20], // Offset above the avatar
-      className: 'user-profile-popup',
-      maxWidth: 'none',
-    })
-      .setLngLat([selectedUserCoords.lng, selectedUserCoords.lat])
-      .setDOMContent(container)
-      .addTo(map.current);
-
-    userPopupRef.current = popup;
-
-    return () => {
-      // Defer cleanup to avoid unmounting during render
-      const popupToRemove = userPopupRef.current;
-      const rootToUnmount = userPopupRootRef.current;
-      userPopupRef.current = null;
-      userPopupRootRef.current = null;
-      
-      queueMicrotask(() => {
-        popupToRemove?.remove();
-        rootToUnmount?.unmount();
-      });
-    };
-  }, [selectedUser, selectedUserCoords, currentUserId, connectedUserIds, getInvitationIdForUser, onOpenChatWithUser, refetchConnections, onCloseChat, closeUserPopup]);
 
   const isTokenMissing = !MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN_HERE';
 
@@ -2098,32 +2000,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           text-align: center;
           box-shadow: 0 1px 3px hsl(var(--foreground) / 0.1);
           backdrop-filter: blur(4px);
-        }
-        /* Mapbox Popup custom styles for user profile */
-        .user-profile-popup {
-          z-index: 50 !important;
-        }
-        .user-profile-popup .mapboxgl-popup-content {
-          background: transparent !important;
-          box-shadow: none !important;
-          padding: 0 !important;
-          border-radius: 0 !important;
-        }
-        .user-profile-popup .mapboxgl-popup-tip {
-          display: none !important;
-        }
-        .user-popup-container {
-          animation: popup-enter 0.2s ease-out;
-        }
-        @keyframes popup-enter {
-          from {
-            opacity: 0;
-            transform: scale(0.95) translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
         }
         /* Speech bubble overlay item - positioned absolutely in the overlay */
         .speech-bubble-overlay-item {
@@ -2503,7 +2379,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
                 location_lng: user.location_lng,
                 is_active: true,
               });
-              setSelectedUserCoords({ lat: userLat, lng: userLng });
+              setProfileModalOpen(true);
             }, 300);
           }
         }}
@@ -2512,6 +2388,25 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           const bounds = map.current.getBounds();
           return bounds.contains([lng, lat]);
         }}
+      />
+
+      {/* User Profile Modal - unified modal for map and connections */}
+      <ProfileModal
+        open={profileModalOpen}
+        onOpenChange={(open) => {
+          setProfileModalOpen(open);
+          if (!open) setSelectedUser(null);
+        }}
+        user={selectedUser}
+        currentUserId={currentUserId}
+        isConnected={selectedUser ? connectedUserIds.has(selectedUser.id) : false}
+        invitationId={selectedUser ? getInvitationIdForUser(selectedUser.id) : undefined}
+        viewportBounds={null}
+        onOpenChat={onOpenChatWithUser}
+        onDisconnect={refetchConnections}
+        onCloseChat={onCloseChat}
+        onNavigate={navigate}
+        onFlyTo={flyTo}
       />
     </>
   );
