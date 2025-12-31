@@ -6,7 +6,6 @@ import { supabase } from "@/integrations/supabase/client";
 import TacticalMap, { TacticalMapHandle, ViewportBounds } from "@/components/map/TacticalMap";
 import Navbar from "@/components/map/Navbar";
 import GuestNavbar from "@/components/map/GuestNavbar";
-import MapFilterHUD from "@/components/map/MapFilterHUD";
 import LoadingScreen from "@/components/LoadingScreen";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,7 +22,6 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
-  const [activeActivities, setActiveActivities] = useState<string[]>([]);
   const [dateFilter, setDateFilter] = useState<'today' | '3days' | '7days'>('7days');
   const [chatOpenUserId, setChatOpenUserId] = useState<string | null>(null);
   const [chatOpenEventId, setChatOpenEventId] = useState<string | null>(null);
@@ -162,18 +160,6 @@ const Dashboard = () => {
     navigate("/");
   };
 
-  const handleActivityToggle = (activity: string) => {
-    setActiveActivities(prev => 
-      prev.includes(activity)
-        ? prev.filter(a => a !== activity)
-        : [...prev, activity]
-    );
-  };
-
-  const handleClearFilters = () => {
-    setActiveActivities([]);
-  };
-
   const handleMissionCreated = () => {
     mapRef.current?.fetchQuests();
   };
@@ -285,7 +271,6 @@ const Dashboard = () => {
           baseLat={mapLat}
           baseLng={mapLng}
           currentUserId={user?.id ?? null}
-          activeActivities={activeActivities}
           dateFilter={dateFilter}
           currentUserAvatarConfig={profile?.avatar_config as AvatarConfig | null}
           locationLat={isGuest ? guestLat : currentLocation.lat}
@@ -321,15 +306,6 @@ const Dashboard = () => {
           viewportBounds={viewportBounds}
         />
       )}
-
-      {/* Map Filter HUD - z-40 below navbar */}
-      <MapFilterHUD
-        activeActivities={activeActivities}
-        onActivityToggle={handleActivityToggle}
-        onClearFilters={handleClearFilters}
-        dateFilter={dateFilter}
-        onDateFilterChange={setDateFilter}
-      />
 
       {/* Status indicator - z-30 floating bottom left with safe area - Only show for guests */}
       {isGuest && (
