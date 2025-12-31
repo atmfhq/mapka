@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Zap, MessageCircle, UserX, LogIn, UserPlus, UserCheck, MapPin, ArrowLeft } from 'lucide-react';
+import { Zap, MessageCircle, UserX, LogIn, UserPlus, UserCheck, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SendInviteModal from './SendInviteModal';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
@@ -34,8 +34,6 @@ interface UserPopupContentProps {
   onNavigate?: (path: string) => void;
   showOnMapEnabled?: boolean;
   onShowOnMap?: () => void;
-  showBackButton?: boolean;
-  onBack?: () => void;
 }
 
 const UserPopupContent = ({ 
@@ -49,9 +47,7 @@ const UserPopupContent = ({
   onCloseChat,
   onNavigate,
   showOnMapEnabled,
-  onShowOnMap,
-  showBackButton,
-  onBack
+  onShowOnMap
 }: UserPopupContentProps) => {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -103,97 +99,69 @@ const UserPopupContent = ({
 
   return (
     <>
-      <div className={`relative bg-card/95 backdrop-blur-md border rounded-lg p-4 min-w-[220px] max-w-[300px] ${
-        isConnected 
-          ? 'border-success/50 shadow-[0_0_20px_hsl(var(--success)/0.3)]' 
-          : 'border-primary/30 shadow-[0_0_20px_hsl(var(--primary)/0.3)]'
-      }`}>
-        {/* Back button (when opened from connections) or Close button */}
-        {showBackButton && onBack ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="absolute top-2 left-2 w-6 h-6"
-            onClick={onBack}
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
-        ) : null}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-2 right-2 w-6 h-6"
-          onClick={onClose}
-        >
-          <X className="w-4 h-4" />
-        </Button>
-
-        {/* Connected badge */}
-        {isConnected && (
-          <div className="absolute -top-2 left-4 px-2 py-0.5 rounded-full bg-success text-success-foreground text-[10px] font-bold">
-            CONNECTED
-          </div>
-        )}
-
-        {/* Content */}
-        <div className="flex items-start gap-3">
-          <div className="w-14 h-14 rounded-xl overflow-visible flex items-center justify-center flex-shrink-0 relative z-10">
-            <AvatarDisplay 
-              config={user.avatar_config} 
-              size={56} 
-              showGlow={false}
-            />
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className={`font-fredoka font-bold truncate ${
-              isConnected ? 'text-success' : 'text-primary'
-            }`}>
-              {user.nick || 'User'}
-            </h3>
-            <span className="font-mono text-[10px] text-muted-foreground/70">
-              {getShortUserId(user.id)}
-            </span>
-            {user.bio && (
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                {user.bio}
-              </p>
-            )}
-          </div>
+      {/* User Info Section */}
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0">
+          <AvatarDisplay 
+            config={user.avatar_config} 
+            size={64} 
+            showGlow={false}
+          />
         </div>
-
-        {/* Tags */}
-        {user.tags && user.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mt-3">
-            {user.tags.slice(0, 4).map((tag, index) => (
-              <span
-                key={index}
-                className={`px-2 py-0.5 rounded border font-nunito text-[10px] ${
-                  isConnected 
-                    ? 'bg-success/20 border-success/30 text-success'
-                    : 'bg-primary/20 border-primary/30 text-primary'
-                }`}
-              >
-                {tag}
-              </span>
-            ))}
-            {user.tags.length > 4 && (
-              <span className="px-2 py-0.5 font-nunito text-[10px] text-muted-foreground">
-                +{user.tags.length - 4}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className={`font-nunito font-bold text-lg truncate ${
+              isConnected ? 'text-success' : 'text-foreground'
+            }`}>
+              {user.nick || 'Anonymous'}
+            </h3>
+            {isConnected && (
+              <span className="px-2 py-0.5 rounded-full bg-success/20 text-success text-[10px] font-bold uppercase flex-shrink-0">
+                Connected
               </span>
             )}
           </div>
-        )}
+          <span className="font-mono text-xs text-muted-foreground">
+            {getShortUserId(user.id)}
+          </span>
+          {user.bio && (
+            <p className="text-sm text-muted-foreground mt-2 line-clamp-3">
+              {user.bio}
+            </p>
+          )}
+        </div>
+      </div>
 
-        {/* Action buttons */}
-        {!isOwnProfile && (
-          isGuest ? (
-            <div className="space-y-2 mt-4">
+      {/* Tags */}
+      {user.tags && user.tags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-4">
+          {user.tags.slice(0, 6).map((tag, index) => (
+            <span
+              key={index}
+              className="px-2.5 py-1 rounded-full border font-nunito text-xs bg-muted/50 border-border text-muted-foreground"
+            >
+              {tag}
+            </span>
+          ))}
+          {user.tags.length > 6 && (
+            <span className="px-2.5 py-1 font-nunito text-xs text-muted-foreground">
+              +{user.tags.length - 6}
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Action buttons */}
+      {!isOwnProfile && (
+        <div className="space-y-2 mt-6">
+          {isGuest ? (
+            <>
               {showOnMapEnabled && onShowOnMap && (
                 <Button
                   onClick={onShowOnMap}
                   variant="outline"
-                  className="w-full font-fredoka text-xs border-primary/30 text-primary hover:bg-primary/10"
-                  size="sm"
+                  className="w-full font-nunito"
+                  size="default"
                 >
                   <MapPin className="w-4 h-4 mr-2" />
                   Show on Map
@@ -204,22 +172,22 @@ const UserPopupContent = ({
                   onClose();
                   onNavigate?.('/auth');
                 }}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka text-xs"
-                size="sm"
+                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-nunito"
+                size="default"
               >
                 <LogIn className="w-4 h-4 mr-2" />
                 Login to Connect
               </Button>
-            </div>
+            </>
           ) : (
-            <div className="space-y-2 mt-4">
+            <>
               {/* Show on Map button - only when user is in viewport */}
               {showOnMapEnabled && onShowOnMap && (
                 <Button
                   onClick={onShowOnMap}
                   variant="outline"
-                  className="w-full font-fredoka text-xs border-primary/30 text-primary hover:bg-primary/10"
-                  size="sm"
+                  className="w-full font-nunito"
+                  size="default"
                 >
                   <MapPin className="w-4 h-4 mr-2" />
                   Show on Map
@@ -231,12 +199,8 @@ const UserPopupContent = ({
                 onClick={handleFollowToggle}
                 disabled={followLoading}
                 variant={isFollowing ? 'outline' : 'secondary'}
-                className={`w-full font-fredoka text-xs ${
-                  isFollowing 
-                    ? 'border-muted-foreground/30' 
-                    : 'bg-secondary hover:bg-secondary/90'
-                }`}
-                size="sm"
+                className="w-full font-nunito"
+                size="default"
               >
                 {isFollowing ? (
                   <>
@@ -258,8 +222,8 @@ const UserPopupContent = ({
                       onOpenChat?.(user.id);
                       onClose();
                     }}
-                    className="w-full bg-success hover:bg-success/90 text-success-foreground font-fredoka text-xs"
-                    size="sm"
+                    className="w-full bg-success hover:bg-success/90 text-success-foreground font-nunito"
+                    size="default"
                   >
                     <MessageCircle className="w-4 h-4 mr-2" />
                     Open Chat
@@ -268,8 +232,8 @@ const UserPopupContent = ({
                     onClick={handleDisconnect}
                     disabled={disconnecting}
                     variant="outline"
-                    className="w-full border-destructive/50 text-destructive hover:bg-destructive/10 font-fredoka text-xs"
-                    size="sm"
+                    className="w-full border-destructive/50 text-destructive hover:bg-destructive/10 font-nunito"
+                    size="default"
                   >
                     <UserX className="w-4 h-4 mr-2" />
                     {disconnecting ? 'Disconnecting...' : 'Disconnect'}
@@ -278,17 +242,17 @@ const UserPopupContent = ({
               ) : (
                 <Button
                   onClick={() => setInviteModalOpen(true)}
-                  className="w-full bg-warning hover:bg-warning/90 text-warning-foreground font-fredoka text-xs"
-                  size="sm"
+                  className="w-full bg-warning hover:bg-warning/90 text-warning-foreground font-nunito"
+                  size="default"
                 >
                   <Zap className="w-4 h-4 mr-2" />
                   Send Invite
                 </Button>
               )}
-            </div>
-          )
-        )}
-      </div>
+            </>
+          )}
+        </div>
+      )}
 
       {currentUserId && (
         <SendInviteModal

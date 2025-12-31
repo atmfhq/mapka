@@ -1,4 +1,6 @@
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { createPortal } from 'react-dom';
+import { X, ArrowLeft, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import UserPopupContent from './UserPopupContent';
 
 interface AvatarConfig {
@@ -57,7 +59,7 @@ const ProfileModal = ({
   showBackButton,
   onBack,
 }: ProfileModalProps) => {
-  if (!user) return null;
+  if (!open || !user) return null;
 
   // Check if user is within viewport bounds
   const isUserInViewport = () => {
@@ -79,27 +81,82 @@ const ProfileModal = ({
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="p-0 border-none bg-transparent shadow-none max-w-fit">
-        <UserPopupContent
-          user={user}
-          currentUserId={currentUserId}
-          isConnected={isConnected}
-          invitationId={invitationId}
-          onClose={() => onOpenChange(false)}
-          onOpenChat={onOpenChat}
-          onDisconnect={onDisconnect}
-          onCloseChat={onCloseChat}
-          onNavigate={onNavigate}
-          showOnMapEnabled={isUserInViewport()}
-          onShowOnMap={handleShowOnMap}
-          showBackButton={showBackButton}
-          onBack={onBack}
-        />
-      </DialogContent>
-    </Dialog>
+  const handleClose = () => {
+    onOpenChange(false);
+  };
+
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center" style={{ isolation: 'isolate' }}>
+      {/* Backdrop - matching Connections/Shout modals exactly */}
+      <div
+        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+        onClick={handleClose}
+      />
+
+      {/* Modal - Standard card style matching other modals */}
+      <div className="relative bg-card border-2 border-border rounded-t-2xl sm:rounded-2xl shadow-hard w-full sm:max-w-sm max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300 z-10">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-3">
+            {/* Back button */}
+            {showBackButton && onBack && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onBack}
+                className="rounded-lg hover:bg-muted -ml-1"
+              >
+                <ArrowLeft className="w-5 h-5 text-muted-foreground" />
+              </Button>
+            )}
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+              isConnected 
+                ? 'bg-success/20 border border-success/40' 
+                : 'bg-primary/20 border border-primary/40'
+            }`}>
+              <User className={`w-5 h-5 ${isConnected ? 'text-success' : 'text-primary'}`} />
+            </div>
+            <div>
+              <h3 className="font-nunito font-bold text-foreground">Profile</h3>
+              <p className="text-xs text-muted-foreground">
+                {isConnected ? 'Connected' : 'View profile'}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClose();
+            }}
+            className="rounded-lg hover:bg-muted"
+          >
+            <X className="w-5 h-5 text-muted-foreground" />
+          </Button>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 overflow-auto">
+          <UserPopupContent
+            user={user}
+            currentUserId={currentUserId}
+            isConnected={isConnected}
+            invitationId={invitationId}
+            onClose={handleClose}
+            onOpenChat={onOpenChat}
+            onDisconnect={onDisconnect}
+            onCloseChat={onCloseChat}
+            onNavigate={onNavigate}
+            showOnMapEnabled={isUserInViewport()}
+            onShowOnMap={handleShowOnMap}
+          />
+        </div>
+      </div>
+    </div>
   );
+
+  return createPortal(modalContent, document.body);
 };
 
 export default ProfileModal;
