@@ -66,12 +66,15 @@ const Dashboard = () => {
     }
   }, [loading, user, profile, navigate]);
 
-  // Handle deep link for eventId parameter
+  // Handle deep link for eventId parameter - teleport user to spot location
   useEffect(() => {
     const eventId = searchParams.get('eventId');
     
     // Skip if no eventId, already handled, or map not ready
     if (!eventId || deepLinkHandledRef.current || !mapRef.current) return;
+    
+    // For logged-in users, wait for profile to be loaded
+    if (user && !profile) return;
     
     deepLinkHandledRef.current = true;
     
@@ -90,12 +93,47 @@ const Dashboard = () => {
             description: 'The spot you were looking for no longer exists.',
             variant: 'destructive',
           });
-          // Clear the eventId param
           setSearchParams({}, { replace: true });
           return;
         }
         
-        // Fly camera to spot location (without moving user avatar)
+        // For logged-in users: teleport to the spot location
+        if (user) {
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              location_lat: data.lat,
+              location_lng: data.lng,
+            })
+            .eq('id', user.id);
+          
+          if (updateError) {
+            console.error('Error teleporting user:', updateError);
+            toast({
+              title: 'Failed to teleport',
+              description: 'Unable to move to the event location.',
+              variant: 'destructive',
+            });
+            setSearchParams({}, { replace: true });
+            return;
+          }
+          
+          // Update local state with new location
+          setCurrentLocation({ lat: data.lat, lng: data.lng, name: null });
+          
+          // Refresh profile to sync state
+          await refreshProfile();
+          
+          // Show arrival toast
+          toast({
+            title: 'You have arrived at the event location.',
+          });
+        } else {
+          // For guests: just update guest location state
+          setGuestLocation({ lat: data.lat, lng: data.lng });
+        }
+        
+        // Fly camera to the new location
         mapRef.current?.flyTo(data.lat, data.lng);
         
         // Open the spot details modal
@@ -115,7 +153,7 @@ const Dashboard = () => {
     };
     
     handleDeepLink();
-  }, [searchParams, setSearchParams, toast]);
+  }, [searchParams, setSearchParams, toast, user, profile, refreshProfile]);
 
   const handleSignOut = async () => {
     await signOut();
