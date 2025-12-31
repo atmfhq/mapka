@@ -30,8 +30,7 @@ import {
   Heart,
   Sparkles,
   AlertTriangle,
-  LogOut,
-  User
+  LogOut
 } from "lucide-react";
 import { getShortUserId } from "@/utils/userIdDisplay";
 import InstallPrompt from "@/components/InstallPrompt";
@@ -194,9 +193,7 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center">
-              <User className="w-5 h-5 text-primary" />
-            </div>
+            <AvatarDisplay config={avatarConfig} size={40} showGlow={false} />
             <div>
               <h3 className="font-nunito font-bold text-foreground">{nick || "My Profile"}</h3>
               <p className="text-xs text-muted-foreground">Edit your profile</p>
