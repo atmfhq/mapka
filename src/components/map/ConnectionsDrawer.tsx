@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Users, Sparkles, MapPin, Globe, X, Loader2, UserMinus } from 'lucide-react';
+import { Users, Sparkles, X, Loader2, UserMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -35,54 +35,13 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
   const [activeTab, setActiveTab] = useState('connections');
   const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
 
-  // Split connections into nearby and others based on viewport
-  const { nearby, others } = useMemo(() => {
-    if (!viewportBounds || connections.length === 0) {
-      return { nearby: [], others: connections };
-    }
-
-    const nearbyUsers: ConnectedUser[] = [];
-    const otherUsers: ConnectedUser[] = [];
-
-    connections.forEach(user => {
-      if (user.location_lat !== null && user.location_lng !== null) {
-        const isInViewport = 
-          user.location_lat >= viewportBounds.south &&
-          user.location_lat <= viewportBounds.north &&
-          user.location_lng >= viewportBounds.west &&
-          user.location_lng <= viewportBounds.east;
-
-        if (isInViewport) {
-          nearbyUsers.push(user);
-        } else {
-          otherUsers.push(user);
-        }
-      } else {
-        // Users without location go to others
-        otherUsers.push(user);
-      }
-    });
-
-    return { nearby: nearbyUsers, others: otherUsers };
-  }, [connections, viewportBounds]);
-
   const handleClose = () => {
     setIsOpen(false);
   };
 
-  // Handle clicking a nearby user - fly to them and show profile
-  const handleNearbyClick = (user: ConnectedUser) => {
-    if (user.location_lat !== null && user.location_lng !== null && onFlyTo) {
-      onFlyTo(user.location_lat, user.location_lng);
-    }
-    setSelectedUser(user);
-    setProfileModalOpen(true);
-    setIsOpen(false); // Close modal to show map
-  };
-
-  // Handle clicking an "others" user - just show profile
-  const handleOthersClick = (user: ConnectedUser) => {
-    setSelectedUser(user);
+  // Handle clicking any user - open profile modal
+  const handleUserClick = (user: ConnectedUser | FollowerUser) => {
+    setSelectedUser(user as ConnectedUser);
     setProfileModalOpen(true);
   };
 
@@ -199,7 +158,7 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
           {/* Connections Tab */}
           <TabsContent value="connections" className="flex-1 overflow-hidden mt-0">
             <ScrollArea className="h-full">
-              <div className="p-4 space-y-6">
+              <div className="p-4 space-y-2">
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -222,56 +181,13 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
                     </p>
                   </div>
                 ) : (
-                  <>
-                    {/* Nearby Section */}
-                    {nearby.length > 0 && (
-                      <section>
-                        <div className="flex items-center gap-2 mb-3">
-                          <MapPin className="w-4 h-4 text-primary" />
-                          <h2 className="font-nunito text-sm font-semibold text-foreground">
-                            Nearby
-                          </h2>
-                          <span className="text-xs font-nunito text-muted-foreground">
-                            ({nearby.length})
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          {nearby.map(user => (
-                            <ConnectionCard 
-                              key={user.id} 
-                              user={user} 
-                              isNearby 
-                              onClick={() => handleNearbyClick(user)}
-                            />
-                          ))}
-                        </div>
-                      </section>
-                    )}
-
-                    {/* Others Section */}
-                    {others.length > 0 && (
-                      <section>
-                        <div className="flex items-center gap-2 mb-3">
-                          <Globe className="w-4 h-4 text-muted-foreground" />
-                          <h2 className="font-nunito text-sm font-semibold text-foreground">
-                            {nearby.length > 0 ? 'Others' : 'All Connections'}
-                          </h2>
-                          <span className="text-xs font-nunito text-muted-foreground">
-                            ({others.length})
-                          </span>
-                        </div>
-                        <div className="space-y-2">
-                          {others.map(user => (
-                            <ConnectionCard 
-                              key={user.id} 
-                              user={user} 
-                              onClick={() => handleOthersClick(user)}
-                            />
-                          ))}
-                        </div>
-                      </section>
-                    )}
-                  </>
+                  connections.map(user => (
+                    <UserListCard 
+                      key={user.id} 
+                      user={user}
+                      onClick={() => handleUserClick(user)}
+                    />
+                  ))
                 )}
               </div>
             </ScrollArea>
@@ -300,6 +216,7 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
                     <FollowingCard
                       key={user.id}
                       user={user}
+                      onClick={() => handleUserClick(user as ConnectedUser)}
                       onUnfollow={() => handleUnfollow(user.id, user.nick)}
                       isUnfollowing={unfollowingId === user.id}
                     />
@@ -329,7 +246,11 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
                   </div>
                 ) : (
                   followers.map(user => (
-                    <FollowerCard key={user.id} user={user} />
+                    <FollowerCard 
+                      key={user.id} 
+                      user={user} 
+                      onClick={() => handleUserClick(user as ConnectedUser)}
+                    />
                   ))
                 )}
               </div>
@@ -365,41 +286,42 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
   );
 };
 
-interface ConnectionCardProps {
-  user: ConnectedUser;
-  isNearby?: boolean;
+// Unified User List Card - consistent styling across all tabs
+interface UserListCardProps {
+  user: {
+    id: string;
+    nick: string | null;
+    avatar_url: string | null;
+    avatar_config: {
+      skinColor?: string;
+      shape?: string;
+      eyes?: string;
+      mouth?: string;
+    } | null;
+    bio: string | null;
+  };
   onClick?: () => void;
+  actionButton?: React.ReactNode;
 }
 
-const ConnectionCard = ({ user, isNearby, onClick }: ConnectionCardProps) => {
+const UserListCard = ({ user, onClick, actionButton }: UserListCardProps) => {
   return (
     <button
       onClick={onClick}
-      className={`
-        w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left
-        ${isNearby 
-          ? 'bg-primary/5 border-primary/30 shadow-sm hover:border-primary/50 hover:bg-primary/10' 
-          : 'bg-card border-border hover:border-muted-foreground/30 hover:bg-muted/30'
-        }
-      `}
+      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border/50 bg-background hover:bg-muted/30 transition-colors text-left"
     >
-      <div className={`relative ${isNearby ? 'ring-2 ring-primary ring-offset-2 ring-offset-background rounded-full' : ''}`}>
-        <AvatarDisplay config={user.avatar_config} size={40} showGlow={false} />
-        {isNearby && (
-          <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-background rounded-full" />
-        )}
-      </div>
+      <AvatarDisplay config={user.avatar_config} size={40} showGlow={false} />
       <div className="flex-1 min-w-0">
         <p className="font-nunito text-sm font-medium truncate">
           {user.nick || 'Anonymous'}
         </p>
-        {isNearby && (
-          <p className="font-nunito text-xs text-primary">Tap to locate on map</p>
+        {user.bio && (
+          <p className="font-nunito text-xs text-muted-foreground truncate overflow-hidden whitespace-nowrap text-ellipsis">
+            {user.bio}
+          </p>
         )}
       </div>
-      {isNearby && (
-        <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
-      )}
+      {actionButton}
     </button>
   );
 };
@@ -417,61 +339,46 @@ interface FollowingCardProps {
     } | null;
     bio: string | null;
   };
+  onClick?: () => void;
   onUnfollow: () => void;
   isUnfollowing: boolean;
 }
 
-const FollowingCard = ({ user, onUnfollow, isUnfollowing }: FollowingCardProps) => {
+const FollowingCard = ({ user, onClick, onUnfollow, isUnfollowing }: FollowingCardProps) => {
   return (
-    <div className="w-full flex items-center gap-3 p-3 rounded-xl border-2 border-border bg-card">
-      <AvatarDisplay config={user.avatar_config} size={40} showGlow={false} />
-      <div className="flex-1 min-w-0">
-        <p className="font-nunito text-sm font-medium truncate">
-          {user.nick || 'Anonymous'}
-        </p>
-        {user.bio && (
-          <p className="font-nunito text-xs text-muted-foreground truncate">{user.bio}</p>
-        )}
-      </div>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={(e) => {
-          e.stopPropagation();
-          onUnfollow();
-        }}
-        disabled={isUnfollowing}
-        className="text-xs gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive"
-      >
-        {isUnfollowing ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-        ) : (
-          <UserMinus className="w-3.5 h-3.5" />
-        )}
-        Unfollow
-      </Button>
-    </div>
+    <UserListCard
+      user={user}
+      onClick={onClick}
+      actionButton={
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            onUnfollow();
+          }}
+          disabled={isUnfollowing}
+          className="text-xs gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive flex-shrink-0"
+        >
+          {isUnfollowing ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <UserMinus className="w-3.5 h-3.5" />
+          )}
+          Unfollow
+        </Button>
+      }
+    />
   );
 };
 
 interface FollowerCardProps {
   user: FollowerUser;
+  onClick?: () => void;
 }
 
-const FollowerCard = ({ user }: FollowerCardProps) => {
-  return (
-    <div className="w-full flex items-center gap-3 p-3 rounded-xl border-2 border-border bg-card">
-      <AvatarDisplay config={user.avatar_config} size={40} showGlow={false} />
-      <div className="flex-1 min-w-0">
-        <p className="font-nunito text-sm font-medium truncate">
-          {user.nick || 'Anonymous'}
-        </p>
-        {user.bio && (
-          <p className="font-nunito text-xs text-muted-foreground truncate">{user.bio}</p>
-        )}
-      </div>
-    </div>
-  );
+const FollowerCard = ({ user, onClick }: FollowerCardProps) => {
+  return <UserListCard user={user} onClick={onClick} />;
 };
 
 export default ConnectionsDrawer;
