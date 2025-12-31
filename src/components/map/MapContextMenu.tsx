@@ -163,7 +163,7 @@ const MapContextMenu = ({
             <div className="w-8 h-8 rounded-lg bg-warning/20 border border-warning/40 flex items-center justify-center">
               <Megaphone className="w-4 h-4 text-warning" />
             </div>
-            <span className="font-nunito text-sm font-medium">Add event</span>
+            <span className="font-nunito text-sm font-medium">Create Spot</span>
           </button>
 
           <button
