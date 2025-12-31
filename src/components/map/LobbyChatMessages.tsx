@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { Send } from 'lucide-react';
+import { Send, Users, Crown, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import MessageReactions from '@/components/map/MessageReactions';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,22 +39,43 @@ interface ChatMessage {
   profile?: PublicProfile;
 }
 
+interface Participant {
+  id: string;
+  user_id: string;
+  status: string;
+  chat_active: boolean;
+  profile?: PublicProfile;
+}
+
 interface LobbyChatMessagesProps {
   eventId: string;
   currentUserId: string;
+  hostId?: string;
+  host?: PublicProfile | null;
+  participants?: Participant[];
 }
 
 const MAX_MESSAGE_LENGTH = 2000;
+const MAX_VISIBLE_AVATARS = 4;
 
-const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) => {
+const LobbyChatMessages = ({ eventId, currentUserId, hostId, host, participants = [] }: LobbyChatMessagesProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [showParticipantsModal, setShowParticipantsModal] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Message reactions
   const messageIds = messages.map(m => m.id);
   const { getReactions, toggleReaction } = useMessageReactions(messageIds, currentUserId);
+
+  // Filter participants to exclude host and get active chat members
+  const activeChatMembers = useMemo(() => {
+    return participants.filter(p => p.user_id !== hostId && p.chat_active);
+  }, [participants, hostId]);
+
+  // Total members including host
+  const totalMembers = (host ? 1 : 0) + activeChatMembers.length;
 
   // Fetch all messages for the event (full history)
   useEffect(() => {
@@ -195,6 +217,136 @@ const LobbyChatMessages = ({ eventId, currentUserId }: LobbyChatMessagesProps) =
 
   return (
     <div className="flex flex-col h-full min-h-0">
+      {/* Chat Header - Participant Visibility */}
+      {(host || activeChatMembers.length > 0) && (
+        <button 
+          onClick={() => setShowParticipantsModal(true)}
+          className="flex items-center gap-3 px-3 py-2.5 mb-3 bg-muted/30 hover:bg-muted/50 rounded-xl transition-colors border border-border/30"
+        >
+          {/* Stacked avatars */}
+          <div className="flex items-center -space-x-2">
+            {/* Host avatar with crown */}
+            {host && (
+              <div className="relative z-10">
+                <div className="w-8 h-8 rounded-full ring-2 ring-card">
+                  <AvatarDisplay 
+                    config={host.avatar_config} 
+                    size={32} 
+                    showGlow={false}
+                  />
+                </div>
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-warning rounded-full flex items-center justify-center ring-1 ring-card">
+                  <span className="text-[8px]">👑</span>
+                </div>
+              </div>
+            )}
+            
+            {/* Participant avatars */}
+            {activeChatMembers.slice(0, MAX_VISIBLE_AVATARS).map((participant, idx) => (
+              <div 
+                key={participant.id} 
+                className="relative w-8 h-8 rounded-full ring-2 ring-card"
+                style={{ zIndex: MAX_VISIBLE_AVATARS - idx }}
+              >
+                <AvatarDisplay 
+                  config={participant.profile?.avatar_config} 
+                  size={32} 
+                  showGlow={false}
+                />
+              </div>
+            ))}
+            
+            {/* +N more indicator */}
+            {activeChatMembers.length > MAX_VISIBLE_AVATARS && (
+              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center ring-2 ring-card text-xs font-medium text-muted-foreground">
+                +{activeChatMembers.length - MAX_VISIBLE_AVATARS}
+              </div>
+            )}
+          </div>
+          
+          {/* Summary text */}
+          <div className="flex-1 text-left">
+            <p className="text-sm font-medium text-foreground">
+              {host?.nick || 'Organizer'}
+              {activeChatMembers.length > 0 && (
+                <span className="text-muted-foreground font-normal">
+                  {' '}+ {activeChatMembers.length} other{activeChatMembers.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </p>
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Users className="w-3 h-3" />
+              {totalMembers} in chat
+            </p>
+          </div>
+          
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+        </button>
+      )}
+
+      {/* Participants Modal */}
+      <Dialog open={showParticipantsModal} onOpenChange={setShowParticipantsModal}>
+        <DialogContent className="max-w-sm max-h-[70vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Chat Participants
+            </DialogTitle>
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-[50vh] pr-2">
+            <div className="space-y-2">
+              {/* Organizer */}
+              {host && (
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-warning/10 border border-warning/30">
+                  <div className="relative">
+                    <div className="w-10 h-10">
+                      <AvatarDisplay 
+                        config={host.avatar_config} 
+                        size={40} 
+                        showGlow={false}
+                      />
+                    </div>
+                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-warning rounded-full flex items-center justify-center ring-2 ring-card">
+                      <Crown className="w-3 h-3 text-warning-foreground" />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground truncate">{host.nick || 'Unknown'}</p>
+                    <p className="text-xs text-warning font-medium">Organizer</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Other participants */}
+              {activeChatMembers.map((participant) => (
+                <div key={participant.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/30">
+                  <div className="w-10 h-10">
+                    <AvatarDisplay 
+                      config={participant.profile?.avatar_config} 
+                      size={40} 
+                      showGlow={false}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground truncate">
+                      {participant.profile?.nick || 'Unknown'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Member</p>
+                  </div>
+                </div>
+              ))}
+              
+              {activeChatMembers.length === 0 && !host && (
+                <p className="text-center text-muted-foreground text-sm py-4">
+                  No participants yet
+                </p>
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
       {/* Messages */}
       <ScrollArea className="flex-1 min-h-0 pr-2">
         <div className="space-y-4 py-2">

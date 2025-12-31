@@ -35,6 +35,33 @@ interface ActiveMission {
   host_id: string;
 }
 
+interface AvatarConfig {
+  skinColor?: string;
+  shape?: string;
+  eyes?: string;
+  mouth?: string;
+}
+
+interface SpotProfile {
+  id: string;
+  nick: string;
+  avatar_url: string;
+  avatar_config: AvatarConfig | null;
+  bio: string;
+  tags: string[];
+  location_lat: number;
+  location_lng: number;
+  is_active: boolean;
+}
+
+interface SpotParticipant {
+  id: string;
+  user_id: string;
+  status: string;
+  chat_active: boolean;
+  profile?: SpotProfile;
+}
+
 interface ChatDrawerProps {
   currentUserId: string;
   externalOpen?: boolean;
@@ -64,6 +91,8 @@ const ChatDrawer = ({
   const [activeMissions, setActiveMissions] = useState<ActiveMission[]>([]);
   const [loadingMissions, setLoadingMissions] = useState(true);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [spotHost, setSpotHost] = useState<SpotProfile | null>(null);
+  const [spotParticipants, setSpotParticipants] = useState<SpotParticipant[]>([]);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   
@@ -141,6 +170,73 @@ const ChatDrawer = ({
       }
     }
   }, [externalEventId, externalOpen, activeMissions]);
+
+  // Fetch spot host and participants when a spot is selected
+  useEffect(() => {
+    if (!selectedSpot) {
+      setSpotHost(null);
+      setSpotParticipants([]);
+      return;
+    }
+
+    const fetchSpotData = async () => {
+      // Fetch host profile
+      const { data: hostProfiles } = await supabase
+        .rpc('get_public_profiles_by_ids', { user_ids: [selectedSpot.host_id] });
+      
+      if (hostProfiles?.[0]) {
+        setSpotHost(hostProfiles[0] as SpotProfile);
+      }
+
+      // Fetch participants
+      const { data: participantsData } = await supabase
+        .from('event_participants')
+        .select('id, user_id, status, chat_active')
+        .eq('event_id', selectedSpot.id)
+        .eq('chat_active', true);
+
+      if (participantsData) {
+        const userIds = participantsData.map(p => p.user_id);
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase
+            .rpc('get_public_profiles_by_ids', { user_ids: userIds });
+
+          const participantsWithProfiles = participantsData.map(p => ({
+            ...p,
+            profile: profiles?.find(pr => pr.id === p.user_id) as SpotProfile | undefined,
+          }));
+
+          setSpotParticipants(participantsWithProfiles);
+        } else {
+          setSpotParticipants([]);
+        }
+      }
+    };
+
+    fetchSpotData();
+
+    // Subscribe to participant changes for this spot
+    const channel = supabase
+      .channel(`spot-participants-${selectedSpot.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'event_participants',
+          filter: `event_id=eq.${selectedSpot.id}`,
+        },
+        () => {
+          // Refetch participants on any change
+          fetchSpotData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedSpot]);
 
   // Fetch active missions (public megaphones where user is a participant with chat_active)
   const fetchActiveMissions = useCallback(async () => {
@@ -565,7 +661,10 @@ const ChatDrawer = ({
           <div className="flex flex-col h-[60vh] mt-4">
             <LobbyChatMessages 
               eventId={selectedSpot.id} 
-              currentUserId={currentUserId} 
+              currentUserId={currentUserId}
+              hostId={selectedSpot.host_id}
+              host={spotHost}
+              participants={spotParticipants}
             />
           </div>
         ) : (
