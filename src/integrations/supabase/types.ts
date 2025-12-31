@@ -424,6 +424,38 @@ export type Database = {
         }
         Relationships: []
       }
+      spot_bans: {
+        Row: {
+          banned_by: string
+          created_at: string
+          event_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          banned_by: string
+          created_at?: string
+          event_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          banned_by?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "spot_bans_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "megaphones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -536,6 +568,10 @@ export type Database = {
         }[]
       }
       get_unread_message_count: { Args: { p_user_id: string }; Returns: number }
+      is_banned_from_event: {
+        Args: { p_event_id: string; p_user_id: string }
+        Returns: boolean
+      }
       is_event_member: {
         Args: { event_uuid: string; user_uuid: string }
         Returns: boolean

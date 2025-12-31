@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, isToday } from 'date-fns';
-import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Hourglass, User, MessageCircle, LogOut, MessageCircleOff } from 'lucide-react';
+import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Hourglass, User, MessageCircle, LogOut, MessageCircleOff, UserX, Ban, Unlock } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ACTIVITIES, ACTIVITY_CATEGORIES, getActivityById, getActivitiesByCategory, ActivityCategory } from '@/constants/activities';
+import { useSpotBans } from '@/hooks/useSpotBans';
 
 interface Quest {
   id: string;
@@ -130,6 +131,13 @@ const QuestLobby = ({
   const [hasJoined, setHasJoined] = useState(false);
   const [isChatActive, setIsChatActive] = useState(true);
   const [showAllParticipants, setShowAllParticipants] = useState(false);
+  const [showBannedUsers, setShowBannedUsers] = useState(false);
+  
+  // Spot bans hook
+  const { bannedUsers, banUser, unbanUser, checkIfBanned, loading: banLoading } = useSpotBans(
+    quest?.id || null,
+    quest?.host_id === currentUserId
+  );
   
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -263,8 +271,20 @@ const QuestLobby = ({
   };
 
   const handleJoin = async () => {
-    if (!quest) return;
+    if (!quest || !currentUserId) return;
     setLoading(true);
+
+    // Check if user is banned from this spot
+    const isBanned = await checkIfBanned(quest.id, currentUserId);
+    if (isBanned) {
+      setLoading(false);
+      toast({
+        title: "You have been banned from this event",
+        description: "The organizer has restricted your access.",
+        variant: "destructive",
+      });
+      return;
+    }
 
     const { error } = await supabase.from('event_participants').insert({
       event_id: quest.id,
@@ -454,6 +474,19 @@ const QuestLobby = ({
 
   const handleActivitySelect = (activityId: string) => {
     setEditActivity(activityId);
+  };
+
+  const handleBanUser = async (userId: string) => {
+    if (!currentUserId) return;
+    const success = await banUser(userId, currentUserId);
+    if (success) {
+      // Refresh participants list after ban
+      await refreshParticipants();
+    }
+  };
+
+  const handleUnbanUser = async (banId: string) => {
+    await unbanUser(banId);
   };
 
   const handleEditBack = () => {
@@ -921,6 +954,15 @@ const QuestLobby = ({
                       Delete
                     </Button>
                   </div>
+                  {/* Manage Banned Users button */}
+                  <Button 
+                    variant="outline"
+                    className="w-full border-muted-foreground/30 text-muted-foreground hover:bg-muted/50 min-h-[44px]"
+                    onClick={() => setShowBannedUsers(true)}
+                  >
+                    <Ban className="w-4 h-4 mr-2" />
+                    Manage Banned ({bannedUsers.length})
+                  </Button>
                 </>
               ) : hasJoined ? (
                 /* Participant actions: Chat (Join/Open/Leave), Leave Spot */
@@ -995,52 +1037,14 @@ const QuestLobby = ({
             <DialogTitle className="font-fredoka text-xl">All Participants</DialogTitle>
           </DialogHeader>
           <ScrollArea className="max-h-[60vh] pr-2">
-            <div className="grid grid-cols-4 gap-3 p-2">
+            <div className="space-y-2 p-2">
               {/* Host first */}
               {host && (
-                <button
-                  onClick={() => {
-                    if (isUserInViewport && host.location_lat && host.location_lng) {
-                      if (!isUserInViewport(host.location_lat, host.location_lng)) {
-                        toast({
-                          title: "User not visible",
-                          description: "User is currently not visible in this area.",
-                        });
-                        return;
-                      }
-                    }
-                    setShowAllParticipants(false);
-                    onOpenChange(false);
-                    onViewUserProfile?.(host);
-                  }}
-                  className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-primary/10 transition-colors"
-                >
-                  <div className="relative">
-                    <div className="w-14 h-14">
-                      <AvatarDisplay 
-                        config={host.avatar_config} 
-                        size={56} 
-                        showGlow={false}
-                      />
-                    </div>
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-warning rounded-full flex items-center justify-center border-2 border-card">
-                      <span className="text-[10px]">👑</span>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-medium text-warning truncate max-w-[60px]">
-                    {host.nick || 'Host'}
-                  </span>
-                </button>
-              )}
-              
-              {/* All filtered participants */}
-              {filteredParticipants.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => {
-                    if (p.profile) {
-                      if (isUserInViewport && p.profile.location_lat && p.profile.location_lng) {
-                        if (!isUserInViewport(p.profile.location_lat, p.profile.location_lng)) {
+                <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-primary/10 transition-colors">
+                  <button
+                    onClick={() => {
+                      if (isUserInViewport && host.location_lat && host.location_lng) {
+                        if (!isUserInViewport(host.location_lat, host.location_lng)) {
                           toast({
                             title: "User not visible",
                             description: "User is currently not visible in this area.",
@@ -1050,24 +1054,128 @@ const QuestLobby = ({
                       }
                       setShowAllParticipants(false);
                       onOpenChange(false);
-                      onViewUserProfile?.(p.profile);
-                    }
-                  }}
-                  className="flex flex-col items-center gap-1 p-2 rounded-xl hover:bg-primary/10 transition-colors"
-                >
-                  <div className="w-14 h-14">
-                    <AvatarDisplay 
-                      config={p.profile?.avatar_config} 
-                      size={56} 
-                      showGlow={false}
-                    />
-                  </div>
-                  <span className="text-[10px] font-medium text-foreground truncate max-w-[60px]">
-                    {p.profile?.nick || '?'}
-                  </span>
-                </button>
+                      onViewUserProfile?.(host);
+                    }}
+                    className="flex items-center gap-3 flex-1"
+                  >
+                    <div className="relative flex-shrink-0">
+                      <div className="w-12 h-12">
+                        <AvatarDisplay 
+                          config={host.avatar_config} 
+                          size={48} 
+                          showGlow={false}
+                        />
+                      </div>
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-warning rounded-full flex items-center justify-center border-2 border-card">
+                        <span className="text-[10px]">👑</span>
+                      </div>
+                    </div>
+                    <span className="text-sm font-medium text-warning truncate">
+                      {host.nick || 'Host'}
+                    </span>
+                  </button>
+                </div>
+              )}
+              
+              {/* All filtered participants with ban button for host */}
+              {filteredParticipants.map((p) => (
+                <div key={p.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-primary/10 transition-colors">
+                  <button
+                    onClick={() => {
+                      if (p.profile) {
+                        if (isUserInViewport && p.profile.location_lat && p.profile.location_lng) {
+                          if (!isUserInViewport(p.profile.location_lat, p.profile.location_lng)) {
+                            toast({
+                              title: "User not visible",
+                              description: "User is currently not visible in this area.",
+                            });
+                            return;
+                          }
+                        }
+                        setShowAllParticipants(false);
+                        onOpenChange(false);
+                        onViewUserProfile?.(p.profile);
+                      }
+                    }}
+                    className="flex items-center gap-3 flex-1"
+                  >
+                    <div className="w-12 h-12 flex-shrink-0">
+                      <AvatarDisplay 
+                        config={p.profile?.avatar_config} 
+                        size={48} 
+                        showGlow={false}
+                      />
+                    </div>
+                    <span className="text-sm font-medium text-foreground truncate">
+                      {p.profile?.nick || '?'}
+                    </span>
+                  </button>
+                  {isHost && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="flex-shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={() => handleBanUser(p.user_id)}
+                      disabled={banLoading}
+                    >
+                      <UserX className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
               ))}
             </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Manage Banned Users Modal */}
+      <Dialog open={showBannedUsers} onOpenChange={setShowBannedUsers}>
+        <DialogContent className="bg-card border-primary/30 max-w-md max-h-[80vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="font-fredoka text-xl flex items-center gap-2">
+              <Ban className="w-5 h-5 text-destructive" />
+              Banned Users
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[60vh] pr-2">
+            {bannedUsers.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                <Shield className="w-12 h-12 mb-3 opacity-50" />
+                <p className="text-sm">No banned users</p>
+              </div>
+            ) : (
+              <div className="space-y-2 p-2">
+                {bannedUsers.map((ban) => (
+                  <div key={ban.id} className="flex items-center gap-3 p-2 rounded-xl bg-muted/30">
+                    <div className="w-10 h-10 flex-shrink-0">
+                      <AvatarDisplay 
+                        config={ban.profile?.avatar_config} 
+                        size={40} 
+                        showGlow={false}
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium text-foreground truncate block">
+                        {ban.profile?.nick || 'Unknown user'}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        Banned {format(new Date(ban.created_at), 'MMM d, yyyy')}
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-shrink-0 border-success/50 text-success hover:bg-success/10"
+                      onClick={() => handleUnbanUser(ban.id)}
+                      disabled={banLoading}
+                    >
+                      <Unlock className="w-4 h-4 mr-1" />
+                      Unban
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </ScrollArea>
         </DialogContent>
       </Dialog>
