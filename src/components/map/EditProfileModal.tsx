@@ -11,15 +11,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { Json } from "@/integrations/supabase/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { 
   X,
   Loader2,
@@ -48,7 +39,7 @@ interface EditProfileModalProps {
 const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalProps) => {
   const [loading, setLoading] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [activeTab, setActiveTab] = useState("identity");
   
@@ -260,18 +251,73 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
                 </Button>
               </div>
 
-              {/* Delete Account */}
-              <div className="text-center pt-2 border-t border-border/30">
-                <button
-                  onClick={() => {
-                    setDeleteConfirmText("");
-                    setDeleteConfirmOpen(true);
-                  }}
-                  className="text-xs text-muted-foreground hover:text-destructive transition-colors underline-offset-2 hover:underline"
-                  disabled={deletingAccount}
-                >
-                  {deletingAccount ? "Deleting..." : "Delete my account"}
-                </button>
+              {/* Delete Account - Inline Confirmation */}
+              <div className="pt-2 border-t border-border/30">
+                {!showDeleteConfirm ? (
+                  <div className="text-center">
+                    <button
+                      onClick={() => {
+                        setDeleteConfirmText("");
+                        setShowDeleteConfirm(true);
+                      }}
+                      className="text-xs text-muted-foreground hover:text-destructive transition-colors underline-offset-2 hover:underline"
+                      disabled={deletingAccount}
+                    >
+                      Delete my account
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3 p-3 bg-destructive/5 border border-destructive/20 rounded-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                      <p className="text-xs text-muted-foreground">
+                        This will permanently delete your account and all data. This cannot be undone.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="delete-confirm" className="text-xs font-medium text-foreground">
+                        Type <span className="font-mono font-bold text-destructive">delete</span> to confirm
+                      </Label>
+                      <Input
+                        id="delete-confirm"
+                        value={deleteConfirmText}
+                        onChange={(e) => setDeleteConfirmText(e.target.value.toLowerCase())}
+                        placeholder="Type 'delete' here"
+                        className="bg-background border-2 border-border focus:border-destructive h-9 text-sm"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowDeleteConfirm(false);
+                          setDeleteConfirmText("");
+                        }}
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleDeleteAccount}
+                        disabled={deleteConfirmText !== "delete" || deletingAccount}
+                        className="flex-1"
+                      >
+                        {deletingAccount ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                            Deleting...
+                          </>
+                        ) : (
+                          "Confirm"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </TabsContent>
 
@@ -311,58 +357,6 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <AlertDialogContent className="bg-background border-2 border-destructive/30">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="font-fredoka flex items-center gap-2">
-              <AlertTriangle className="w-5 h-5 text-destructive" />
-              Delete Account Permanently?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-4">
-              <p>
-                This action cannot be undone. This will permanently delete your account, profile, all connections, events you've hosted, and remove all your data from our servers.
-              </p>
-              <div className="space-y-2 pt-2">
-                <Label htmlFor="delete-confirm" className="text-sm font-medium text-foreground">
-                  Type <span className="font-mono font-bold text-destructive">delete</span> to confirm
-                </Label>
-                <Input
-                  id="delete-confirm"
-                  value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value.toLowerCase())}
-                  placeholder="Type 'delete' here"
-                  className="bg-muted/50 border-2 border-border focus:border-destructive"
-                  autoComplete="off"
-                />
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setDeleteConfirmText("")}>
-              Cancel
-            </AlertDialogCancel>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                setDeleteConfirmOpen(false);
-                handleDeleteAccount();
-              }}
-              disabled={deleteConfirmText !== "delete" || deletingAccount}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deletingAccount ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  Deleting...
-                </>
-              ) : (
-                "Yes, Delete My Account"
-              )}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 
