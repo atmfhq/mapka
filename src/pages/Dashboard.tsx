@@ -325,7 +325,7 @@ const Dashboard = () => {
 
       {/* Status indicator - z-30 floating bottom left with safe area - Only show for guests */}
       {isGuest && (
-        <div className="fixed left-4 z-30 safe-area-left" style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
+        <div className="fixed left-4 z-30 safe-area-left bottom-4">
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/95 backdrop-blur-md border-2 border-border shadow-hard">
             <div className="w-2 h-2 rounded-full bg-muted-foreground animate-pulse" />
             <span className="font-nunito text-xs font-medium text-foreground/80 hidden sm:block">
