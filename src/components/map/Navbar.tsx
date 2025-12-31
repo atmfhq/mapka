@@ -238,9 +238,8 @@ const Navbar = ({
                 <ChatDrawer 
                   key={`chat-drawer-${currentUserId}`}
                   currentUserId={currentUserId}
-                  externalOpen={!!chatOpenUserId || !!chatOpenEventId}
+                  externalOpen={!!chatOpenUserId}
                   externalUserId={chatOpenUserId}
-                  externalEventId={chatOpenEventId}
                   onOpenChange={onChatOpenChange}
                   onOpenMission={onOpenMission}
                 />

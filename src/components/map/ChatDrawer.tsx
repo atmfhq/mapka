@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { MessageCircle, Send, ChevronLeft, Loader2, Info, BellOff, Bell } from 'lucide-react';
+import { MessageCircle, Send, ChevronLeft, Loader2, BellOff, Bell } from 'lucide-react';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,6 @@ import { useUnifiedConversations, type ConversationItem } from '@/hooks/useUnifi
 import { useDmMessageReactions } from '@/hooks/useDmMessageReactions';
 import ConversationRow from './ConversationRow';
 import ProfileModal from './ProfileModal';
-import LobbyChatMessages from './LobbyChatMessages';
 import MessageReactions from './MessageReactions';
 
 interface ChatMessage {
@@ -42,32 +41,10 @@ interface AvatarConfig {
   mouth?: string;
 }
 
-interface SpotProfile {
-  id: string;
-  nick: string;
-  avatar_url: string;
-  avatar_config: AvatarConfig | null;
-  bio: string;
-  tags: string[];
-  location_lat: number;
-  location_lng: number;
-  is_active: boolean;
-}
-
-interface SpotParticipant {
-  id: string;
-  user_id: string;
-  status: string;
-  chat_active: boolean;
-  is_chat_banned?: boolean;
-  profile?: SpotProfile;
-}
-
 interface ChatDrawerProps {
   currentUserId: string;
   externalOpen?: boolean;
   externalUserId?: string | null;
-  externalEventId?: string | null;
   onOpenChange?: (open: boolean) => void;
   onOpenMission?: (missionId: string) => void;
 }
@@ -78,13 +55,11 @@ const ChatDrawer = ({
   currentUserId, 
   externalOpen, 
   externalUserId,
-  externalEventId,
   onOpenChange,
   onOpenMission 
 }: ChatDrawerProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
-  const [selectedSpot, setSelectedSpot] = useState<ActiveMission | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -92,8 +67,6 @@ const ChatDrawer = ({
   const [activeMissions, setActiveMissions] = useState<ActiveMission[]>([]);
   const [loadingMissions, setLoadingMissions] = useState(true);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
-  const [spotHost, setSpotHost] = useState<SpotProfile | null>(null);
-  const [spotParticipants, setSpotParticipants] = useState<SpotParticipant[]>([]);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   
@@ -111,9 +84,7 @@ const ChatDrawer = ({
     getUnreadCount: getEventUnreadCount, 
     getDmUnreadCount,
     getTotalUnreadCount,
-    clearUnreadForEvent,
     clearUnreadForDm,
-    setActiveEventChat,
     setActiveDmChat,
     refetch: refetchUnreadCounts 
   } = useChatUnreadCounts(currentUserId, allEventIds, mutedEventIds, mutedInvitationIds);
@@ -142,9 +113,7 @@ const ChatDrawer = ({
     onOpenChange?.(value);
     if (!value) {
       setActiveDmChat(null);
-      setActiveEventChat(null);
       setSelectedUser(null);
-      setSelectedSpot(null);
       setMessages([]);
       silentRefetch();
     }
@@ -154,113 +123,28 @@ const ChatDrawer = ({
   useEffect(() => {
     if (externalUserId && externalOpen) {
       setSelectedUser(externalUserId);
-      setSelectedSpot(null);
     }
   }, [externalUserId, externalOpen]);
 
-  // Handle external spot selection (from QuestLobby "Open Chat")
-  useEffect(() => {
-    if (externalEventId && externalOpen) {
-      const mission = activeMissions.find(m => m.id === externalEventId);
-      if (mission) {
-        setSelectedSpot(mission);
-        setSelectedUser(null);
-        setActiveEventChat(externalEventId);
-        markEventAsRead(externalEventId);
-        clearUnreadForEvent(externalEventId);
-      }
-    }
-  }, [externalEventId, externalOpen, activeMissions]);
-
-  // Fetch spot data function
-  const fetchSpotData = async () => {
-    if (!selectedSpot) return;
-    
-    // Fetch host profile
-    const { data: hostProfiles } = await supabase
-      .rpc('get_public_profiles_by_ids', { user_ids: [selectedSpot.host_id] });
-    
-    if (hostProfiles?.[0]) {
-      setSpotHost(hostProfiles[0] as SpotProfile);
-    }
-
-    // Fetch participants (all, including banned ones for management)
-    const { data: participantsData } = await supabase
-      .from('event_participants')
-      .select('id, user_id, status, chat_active, is_chat_banned')
-      .eq('event_id', selectedSpot.id);
-
-    if (participantsData) {
-      const userIds = participantsData.map(p => p.user_id);
-      if (userIds.length > 0) {
-        const { data: profiles } = await supabase
-          .rpc('get_public_profiles_by_ids', { user_ids: userIds });
-
-        const participantsWithProfiles = participantsData.map(p => ({
-          ...p,
-          profile: profiles?.find(pr => pr.id === p.user_id) as SpotProfile | undefined,
-        }));
-
-        setSpotParticipants(participantsWithProfiles);
-      } else {
-        setSpotParticipants([]);
-      }
-    }
-  };
-
-  // Fetch spot host and participants when a spot is selected
-  useEffect(() => {
-    if (!selectedSpot) {
-      setSpotHost(null);
-      setSpotParticipants([]);
-      return;
-    }
-
-    fetchSpotData();
-
-    // Subscribe to participant changes for this spot
-    const channel = supabase
-      .channel(`spot-participants-${selectedSpot.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'event_participants',
-          filter: `event_id=eq.${selectedSpot.id}`,
-        },
-        () => {
-          // Refetch participants on any change
-          fetchSpotData();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [selectedSpot]);
-
-  // Fetch active missions (public megaphones where user is a participant with chat_active)
+  // Fetch active missions (public megaphones where user is a participant)
   const fetchActiveMissions = useCallback(async () => {
     if (!currentUserId) return;
     
     setLoadingMissions(true);
     
-    // Get hosted missions (hosts are always in chat)
+    // Get hosted missions
     const { data: hostedMissions } = await supabase
       .from('megaphones')
       .select('id, title, category, host_id')
       .eq('host_id', currentUserId)
       .eq('is_private', false);
 
-    // Get participations where chat_active is true
+    // Get participations
     const { data: participations } = await supabase
       .from('event_participants')
       .select('event_id')
       .eq('user_id', currentUserId)
-      .eq('status', 'joined')
-      .eq('chat_active', true);
+      .eq('status', 'joined');
 
     const participatedEventIds = participations?.map(p => p.event_id) || [];
     
@@ -302,7 +186,7 @@ const ChatDrawer = ({
     fetchActiveMissions();
   }, [fetchActiveMissions]);
 
-  // Realtime subscription for chat_active changes - instant UI update on Leave/Join Chat
+  // Realtime subscription for participation changes
   useEffect(() => {
     if (!currentUserId) return;
 
@@ -311,43 +195,13 @@ const ChatDrawer = ({
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'event_participants',
           filter: `user_id=eq.${currentUserId}`,
         },
-        (payload) => {
-          const updated = payload.new as { event_id: string; chat_active: boolean };
-          
-          // Refetch active missions when chat_active changes
+        () => {
           fetchActiveMissions();
-          
-          // If the currently open spot chat was left, close it
-          if (selectedSpot && selectedSpot.id === updated.event_id && !updated.chat_active) {
-            setActiveEventChat(null);
-            setSelectedSpot(null);
-          }
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'event_participants',
-          filter: `user_id=eq.${currentUserId}`,
-        },
-        (payload) => {
-          const deleted = payload.old as { event_id: string };
-          
-          // Refetch when user leaves a spot entirely
-          fetchActiveMissions();
-          
-          // Close the spot if it was open
-          if (selectedSpot && selectedSpot.id === deleted.event_id) {
-            setActiveEventChat(null);
-            setSelectedSpot(null);
-          }
         }
       )
       .subscribe();
@@ -355,7 +209,7 @@ const ChatDrawer = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUserId, selectedSpot, fetchActiveMissions, setActiveEventChat]);
+  }, [currentUserId, fetchActiveMissions]);
 
   const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
   const invitationId = selectedUser ? getInvitationIdForUser(selectedUser) : null;
@@ -471,7 +325,6 @@ const ChatDrawer = ({
   const handleSelectConversation = (item: ConversationItem) => {
     if (item.type === 'dm' && item.userId) {
       setSelectedUser(item.userId);
-      setSelectedSpot(null);
       setMessages([]);
       
       if (item.invitationId) {
@@ -480,14 +333,9 @@ const ChatDrawer = ({
         clearUnreadForDm(item.invitationId);
       }
     } else if (item.type === 'spot' && item.eventId) {
-      const mission = activeMissions.find(m => m.id === item.eventId);
-      if (mission) {
-        setSelectedSpot(mission);
-        setSelectedUser(null);
-        setActiveEventChat(item.eventId);
-        markEventAsRead(item.eventId);
-        clearUnreadForEvent(item.eventId);
-      }
+      // Open spot details modal instead of chat
+      handleOpenChange(false);
+      onOpenMission?.(item.eventId);
     }
   };
 
@@ -593,33 +441,6 @@ const ChatDrawer = ({
                   <span className="font-semibold">{selectedUserData?.nick || 'Unknown'}</span>
                 </button>
               </div>
-            ) : selectedSpot ? (
-              <div className="flex items-center gap-2 flex-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-8 h-8"
-                  onClick={() => {
-                    setActiveEventChat(null);
-                    setSelectedSpot(null);
-                  }}
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </Button>
-                <span className="font-semibold flex-1">{selectedSpot.title}</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-8 h-8"
-                  onClick={() => {
-                    handleOpenChange(false);
-                    onOpenMission?.(selectedSpot.id);
-                  }}
-                  title="Spot Details"
-                >
-                  <Info className="w-5 h-5" />
-                </Button>
-              </div>
             ) : (
               <>
                 <MessageCircle className="w-5 h-5 text-success" />
@@ -629,7 +450,7 @@ const ChatDrawer = ({
           </SheetTitle>
         </SheetHeader>
 
-        {!selectedUser && !selectedSpot ? (
+        {!selectedUser ? (
           <ScrollArea className="h-[60vh] mt-4">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
@@ -659,18 +480,6 @@ const ChatDrawer = ({
               </div>
             )}
           </ScrollArea>
-        ) : selectedSpot ? (
-          /* Spot Chat View */
-          <div className="flex flex-col h-[60vh] mt-4">
-            <LobbyChatMessages 
-              eventId={selectedSpot.id} 
-              currentUserId={currentUserId}
-              hostId={selectedSpot.host_id}
-              host={spotHost}
-              participants={spotParticipants}
-              onParticipantsChange={fetchSpotData}
-            />
-          </div>
         ) : (
           /* DM Chat View */
           <div className="flex flex-col h-[60vh] mt-4">
