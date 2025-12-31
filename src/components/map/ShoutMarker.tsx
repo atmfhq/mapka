@@ -8,9 +8,10 @@ interface ShoutMarkerProps {
   onClick?: () => void;
   onHide?: () => void;
   canHide?: boolean;
+  isOwn?: boolean;
 }
 
-const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, onClick, onHide, canHide = false }: ShoutMarkerProps) => {
+const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, onClick, onHide, canHide = false, isOwn = false }: ShoutMarkerProps) => {
   // Calculate opacity based on age (fades slightly as shout ages over 24 hours)
   const createdTime = new Date(createdAt).getTime();
   const now = Date.now();
@@ -34,7 +35,11 @@ const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, on
       {/* Speech bubble container */}
       <div className="relative flex flex-col items-center">
         {/* Main bubble */}
-        <div className="relative bg-card/95 backdrop-blur-sm border-2 border-accent/60 rounded-xl px-3 py-2 shadow-lg max-w-[180px] min-w-[80px] transform transition-all duration-200 group-hover:scale-105 group-hover:shadow-xl">
+        <div className={`relative bg-card/95 backdrop-blur-sm rounded-xl px-3 py-2 shadow-lg max-w-[180px] min-w-[80px] transform transition-all duration-200 group-hover:scale-105 group-hover:shadow-xl ${
+          isOwn 
+            ? 'border-[3px] border-primary' 
+            : 'border-2 border-accent/60'
+        }`}>
           {/* Hide button */}
           {canHide && (
             <button
@@ -65,7 +70,9 @@ const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, on
         </div>
         
         {/* Pointer/tail */}
-        <div className="w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] border-t-accent/60 -mt-[1px]" />
+        <div className={`w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] -mt-[1px] ${
+          isOwn ? 'border-t-primary' : 'border-t-accent/60'
+        }`} />
       </div>
     </div>
   );
