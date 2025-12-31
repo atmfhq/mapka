@@ -1639,7 +1639,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       titleLabel.textContent = quest.title.length > 18 ? quest.title.substring(0, 18) + '...' : quest.title;
       el.appendChild(titleLabel);
 
-      el.addEventListener('click', (e) => {
+      el.addEventListener('click', async (e) => {
         e.stopPropagation();
         
         // Guest login wall: block detail view for unauthenticated users
@@ -1658,7 +1658,15 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             essential: true
           });
         }
-        setSelectedQuest(quest);
+        
+        // Fetch full quest data to ensure share_code is included
+        const { data: fullQuest } = await supabase
+          .from('megaphones')
+          .select('*')
+          .eq('id', quest.id)
+          .maybeSingle();
+        
+        setSelectedQuest(fullQuest || quest);
         setLobbyOpen(true);
       });
 
