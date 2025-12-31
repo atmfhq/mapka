@@ -155,15 +155,15 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
   if (!open) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ isolation: 'isolate' }}>
-      {/* Backdrop - Light blue overlay matching Connections modal */}
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center md:p-4" style={{ isolation: 'isolate' }}>
+      {/* Backdrop - hidden on mobile since full-screen */}
       <div 
-        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-background/80 backdrop-blur-sm hidden md:block"
         onClick={() => onOpenChange(false)}
       />
       
-      {/* Modal - Standard card style matching Connections modal */}
-      <div className="relative bg-card border-2 border-border rounded-2xl shadow-hard w-full max-w-md max-h-[85vh] flex flex-col animate-in zoom-in-95 fade-in duration-200 z-10">
+      {/* Modal - Full screen on mobile, card on desktop */}
+      <div className="relative bg-card md:border-2 md:border-border md:rounded-2xl md:shadow-hard w-screen h-dvh md:w-full md:max-w-md md:max-h-[85vh] md:h-auto flex flex-col animate-in zoom-in-95 fade-in duration-200 z-10">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3">

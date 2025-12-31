@@ -310,15 +310,15 @@ const ChatDrawer = ({
   }
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center" style={{ isolation: 'isolate' }}>
-      {/* Backdrop */}
+    <div className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center" style={{ isolation: 'isolate' }}>
+      {/* Backdrop - hidden on mobile since full-screen */}
       <div
-        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-background/80 backdrop-blur-sm hidden md:block"
         onClick={handleClose}
       />
 
-      {/* Modal */}
-      <div className="relative bg-card border-2 border-border rounded-t-2xl sm:rounded-2xl shadow-hard w-full sm:max-w-md max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300 z-10">
+      {/* Modal - Full screen on mobile, card on desktop */}
+      <div className="relative bg-card md:border-2 md:border-border md:rounded-2xl md:shadow-hard w-screen h-dvh md:w-full md:max-w-md md:max-h-[85vh] md:h-auto flex flex-col animate-in slide-in-from-bottom-4 md:fade-in duration-300 z-10">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
