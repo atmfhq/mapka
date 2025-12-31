@@ -81,20 +81,15 @@ const Dashboard = () => {
     
     const handleDeepLink = async () => {
       try {
-        // Fetch the spot data - by share_code or id
-        let query = supabase
-          .from('megaphones')
-          .select('id, lat, lng, title');
+        // Use RPC function to resolve deep link (bypasses distance-based RLS)
+        const { data, error } = await supabase.rpc('resolve_megaphone_link', {
+          p_share_code: shareCode || null,
+          p_id: eventId || null,
+        });
         
-        if (shareCode) {
-          query = query.eq('share_code', shareCode);
-        } else if (eventId) {
-          query = query.eq('id', eventId);
-        }
+        const spot = data?.[0];
         
-        const { data, error } = await query.maybeSingle();
-        
-        if (error || !data) {
+        if (error || !spot) {
           toast({
             title: 'Spot not found',
             description: 'The spot you were looking for no longer exists.',
@@ -109,8 +104,8 @@ const Dashboard = () => {
           const { error: updateError } = await supabase
             .from('profiles')
             .update({
-              location_lat: data.lat,
-              location_lng: data.lng,
+              location_lat: spot.lat,
+              location_lng: spot.lng,
             })
             .eq('id', user.id);
           
@@ -126,7 +121,7 @@ const Dashboard = () => {
           }
           
           // Update local state with new location
-          setCurrentLocation({ lat: data.lat, lng: data.lng, name: null });
+          setCurrentLocation({ lat: spot.lat, lng: spot.lng, name: null });
           
           // Refresh profile to sync state
           await refreshProfile();
@@ -137,14 +132,14 @@ const Dashboard = () => {
           });
         } else {
           // For guests: just update guest location state
-          setGuestLocation({ lat: data.lat, lng: data.lng });
+          setGuestLocation({ lat: spot.lat, lng: spot.lng });
         }
         
         // Fly camera to the new location
-        mapRef.current?.flyTo(data.lat, data.lng);
+        mapRef.current?.flyTo(spot.lat, spot.lng);
         
         // Open the spot details modal
-        mapRef.current?.openMissionById(data.id);
+        mapRef.current?.openMissionById(spot.id);
         
         // Clear the deep link params after handling
         setSearchParams({}, { replace: true });
