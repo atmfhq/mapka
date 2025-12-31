@@ -11,10 +11,10 @@ export const useShoutLikes = (shoutIds: string[], userId: string | null) => {
     }
 
     try {
-      const { data, error } = await (supabase
-        .from('shout_likes' as any)
+      const { data, error } = await supabase
+        .from('shout_likes')
         .select('shout_id, user_id')
-        .in('shout_id', shoutIds) as any);
+        .in('shout_id', shoutIds);
 
       if (error) throw error;
 
@@ -82,17 +82,17 @@ export const useShoutLikes = (shoutIds: string[], userId: string | null) => {
 
     try {
       if (hasLiked) {
-        const { error } = await (supabase
-          .from('shout_likes' as any)
+        const { error } = await supabase
+          .from('shout_likes')
           .delete()
           .eq('shout_id', shoutId)
-          .eq('user_id', userId) as any);
+          .eq('user_id', userId);
 
         if (error) throw error;
       } else {
-        const { error } = await (supabase
-          .from('shout_likes' as any)
-          .insert({ shout_id: shoutId, user_id: userId }) as any);
+        const { error } = await supabase
+          .from('shout_likes')
+          .insert({ shout_id: shoutId, user_id: userId });
 
         if (error) throw error;
       }

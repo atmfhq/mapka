@@ -491,6 +491,35 @@ export type Database = {
           },
         ]
       }
+      shout_likes: {
+        Row: {
+          created_at: string
+          id: string
+          shout_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          shout_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          shout_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shout_likes_shout_id_fkey"
+            columns: ["shout_id"]
+            isOneToOne: false
+            referencedRelation: "shouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shouts: {
         Row: {
           content: string
