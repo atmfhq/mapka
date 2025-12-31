@@ -203,7 +203,7 @@ const DeployQuestModal = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-primary/30 max-w-md max-h-[90vh] overflow-y-auto px-5">
+      <DialogContent className="bg-card border-primary/30 max-w-md w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto overflow-x-hidden px-5">
         {/* Tactical header */}
         <DialogHeader className="space-y-4">
           <div className="flex items-center gap-3">
