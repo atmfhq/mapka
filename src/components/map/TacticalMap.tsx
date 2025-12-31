@@ -2081,10 +2081,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
                   });
                 }
               }}
-              className="w-11 h-11 bg-card/90 backdrop-blur-md border-border/50 hover:bg-muted group"
+              className="w-11 h-11 bg-card/90 backdrop-blur-md border-primary/40 hover:border-primary hover:bg-primary/10 transition-all"
               title="Center on My Location"
             >
-              <img src="/pin-logo.svg" alt="Center" className="w-6 h-6 opacity-60 group-hover:opacity-100 transition-opacity" style={{ filter: 'brightness(0)' }} />
+              <img src="/pin-logo.svg" alt="Center" className="w-6 h-6 drop-shadow-sm" />
             </Button>
           )}
 
