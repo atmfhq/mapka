@@ -104,9 +104,9 @@ export const EmojiPicker = ({ value, onChange, className }: EmojiPickerProps) =>
         </div>
       </div>
 
-      {/* Emoji grid - vertical scroll */}
-      <ScrollArea className="h-[200px] w-full rounded-xl border border-border/50 bg-muted/20 p-2">
-        <div className="space-y-4">
+      {/* Emoji grid - vertical scroll with wrapping */}
+      <ScrollArea className="h-[200px] w-full rounded-xl border border-border/50 bg-muted/20">
+        <div className="p-2 space-y-4">
           {displayCategories.map(category => (
             <div key={category.name}>
               {!selectedCategory && (
@@ -114,14 +114,14 @@ export const EmojiPicker = ({ value, onChange, className }: EmojiPickerProps) =>
                   {category.name}
                 </p>
               )}
-              <div className="grid grid-cols-5 gap-1">
+              <div className="flex flex-wrap gap-1">
                 {category.emojis.map((emoji, idx) => (
                   <button
                     key={`${category.name}-${idx}`}
                     type="button"
                     onClick={() => onChange(emoji)}
                     className={cn(
-                      "w-9 h-9 flex items-center justify-center rounded-lg text-xl transition-all hover:bg-primary/20 hover:scale-110",
+                      "w-10 h-10 flex items-center justify-center rounded-lg text-xl transition-all hover:bg-primary/20 hover:scale-105",
                       value === emoji && "bg-primary/30 ring-2 ring-primary"
                     )}
                   >
