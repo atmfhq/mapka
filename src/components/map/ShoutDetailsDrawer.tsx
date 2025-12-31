@@ -149,21 +149,20 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
     }
   };
 
-  const getRemainingTime = () => {
-    if (!shout) return 0;
+  const formatRemainingTime = () => {
+    if (!shout) return '';
     const createdTime = new Date(shout.created_at).getTime();
     const now = Date.now();
     const twentyFourHours = 24 * 60 * 60 * 1000;
-    return Math.max(0, twentyFourHours - (now - createdTime));
-  };
-
-  const remaining = getRemainingTime();
-  const progress = remaining / (24 * 60 * 60 * 1000);
-  
-  const getBarColor = () => {
-    if (progress > 0.66) return 'bg-emerald-500';
-    if (progress > 0.33) return 'bg-amber-500';
-    return 'bg-red-500';
+    const remainingMs = Math.max(0, twentyFourHours - (now - createdTime));
+    
+    if (remainingMs === 0) return 'expired';
+    
+    const hours = Math.floor(remainingMs / (60 * 60 * 1000));
+    const minutes = Math.floor((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
+    
+    if (hours > 0) return `${hours}h left`;
+    return `${minutes}m left`;
   };
 
   if (!isOpen || !shout) return null;
@@ -189,7 +188,7 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
             <div>
               <h3 className="font-nunito font-bold text-foreground">Shout</h3>
               <p className="text-xs text-muted-foreground">
-                {formatDistanceToNow(new Date(shout.created_at), { addSuffix: true })}
+                {formatDistanceToNow(new Date(shout.created_at), { addSuffix: true })} • {formatRemainingTime()}
               </p>
             </div>
           </div>
@@ -224,13 +223,6 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
                 {shout.content}
               </p>
 
-              {/* Progress bar */}
-              <div className="h-1.5 w-full bg-muted/50 rounded-full overflow-hidden">
-                <div 
-                  className={`h-full rounded-full transition-all duration-1000 ${getBarColor()}`}
-                  style={{ width: `${progress * 100}%` }}
-                />
-              </div>
 
               {/* Like button and Delete button */}
               <div className="flex items-center gap-2">
