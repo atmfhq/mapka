@@ -3,8 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 
 // Export for real-time updates
 export interface LastMessageUpdate {
-  type: 'dm' | 'event';
-  id: string; // invitationId or eventId
+  type: 'dm';
+  id: string; // invitationId
   messageAt: string;
   preview: string;
   senderId: string;
@@ -19,7 +19,7 @@ interface AvatarConfig {
 
 export interface ConversationItem {
   id: string;
-  type: 'pending_invite' | 'dm' | 'spot';
+  type: 'pending_invite' | 'dm';
   title: string;
   subtitle: string;
   avatarConfig: AvatarConfig | null;
@@ -28,9 +28,7 @@ export interface ConversationItem {
   unreadCount: number;
   userId?: string;
   invitationId?: string;
-  eventId?: string;
   activityType?: string;
-  category?: string;
   senderId?: string;
 }
 
@@ -55,16 +53,8 @@ interface ConnectedUser {
   invitationId: string;
 }
 
-interface ActiveMission {
-  id: string;
-  title: string;
-  category: string;
-  host_id: string;
-}
-
 interface LastMessageInfo {
-  invitationId?: string;
-  eventId?: string;
+  invitationId: string;
   lastMessageAt: string;
   lastMessagePreview: string;
   lastMessageSenderId: string;
@@ -74,31 +64,21 @@ export const useUnifiedConversations = (
   currentUserId: string | null,
   pendingInvitations: PendingInvitation[],
   connectedUsers: ConnectedUser[],
-  activeMissions: ActiveMission[],
-  getEventUnreadCount: (eventId: string) => number,
   getDmUnreadCount: (invitationId: string) => number
 ) => {
   const [dmLastMessages, setDmLastMessages] = useState<Map<string, LastMessageInfo>>(new Map());
-  const [eventLastMessages, setEventLastMessages] = useState<Map<string, LastMessageInfo>>(new Map());
-  const [senderNicks, setSenderNicks] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
 
   // Use refs to avoid dependency issues with arrays
   const connectedUsersRef = useRef(connectedUsers);
-  const activeMissionsRef = useRef(activeMissions);
   
   // Update refs when data changes
   useEffect(() => {
     connectedUsersRef.current = connectedUsers;
   }, [connectedUsers]);
-  
-  useEffect(() => {
-    activeMissionsRef.current = activeMissions;
-  }, [activeMissions]);
 
   // Stable keys for dependency tracking
   const connectedUsersKey = connectedUsers.map(u => u.invitationId).join(',');
-  const activeMissionsKey = activeMissions.map(m => m.id).join(',');
 
   // Fetch last messages for DMs
   const fetchDmLastMessages = useCallback(async () => {
@@ -151,68 +131,6 @@ export const useUnifiedConversations = (
     setDmLastMessages(newLastMessages);
   }, []);
 
-  // Fetch last messages for event chats
-  const fetchEventLastMessages = useCallback(async () => {
-    const missions = activeMissionsRef.current;
-    
-    if (missions.length === 0) {
-      setEventLastMessages(new Map());
-      return;
-    }
-
-    const eventIds = missions.map(m => m.id);
-    const newLastMessages = new Map<string, LastMessageInfo>();
-    const senderIdsToFetch = new Set<string>();
-    
-    // Fetch last message for each event in parallel
-    const promises = eventIds.map(async (eventId) => {
-      const { data } = await supabase
-        .from('event_chat_messages')
-        .select('content, created_at, user_id')
-        .eq('event_id', eventId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (data) {
-        return {
-          eventId,
-          info: {
-            eventId,
-            lastMessageAt: data.created_at,
-            lastMessagePreview: data.content.slice(0, 40) + (data.content.length > 40 ? '...' : ''),
-            lastMessageSenderId: data.user_id,
-          }
-        };
-      }
-      return null;
-    });
-
-    const results = await Promise.all(promises);
-    for (const result of results) {
-      if (result) {
-        newLastMessages.set(result.eventId, result.info);
-        senderIdsToFetch.add(result.info.lastMessageSenderId);
-      }
-    }
-
-    // Fetch sender nicknames for event messages
-    if (senderIdsToFetch.size > 0) {
-      const { data: profiles } = await supabase
-        .rpc('get_public_profiles_by_ids', { user_ids: Array.from(senderIdsToFetch) });
-      
-      if (profiles) {
-        const nickMap = new Map<string, string>();
-        for (const p of profiles) {
-          nickMap.set(p.id, p.nick || 'User');
-        }
-        setSenderNicks(nickMap);
-      }
-    }
-
-    setEventLastMessages(newLastMessages);
-  }, []);
-
   // Fetch all last messages when data changes
   useEffect(() => {
     let cancelled = false;
@@ -220,7 +138,7 @@ export const useUnifiedConversations = (
     const fetchAll = async () => {
       setLoading(true);
       try {
-        await Promise.all([fetchDmLastMessages(), fetchEventLastMessages()]);
+        await fetchDmLastMessages();
       } catch (err) {
         console.error('Error fetching conversation data:', err);
       }
@@ -234,7 +152,7 @@ export const useUnifiedConversations = (
     return () => {
       cancelled = true;
     };
-  }, [connectedUsersKey, activeMissionsKey, fetchDmLastMessages, fetchEventLastMessages]);
+  }, [connectedUsersKey, fetchDmLastMessages]);
 
   // Real-time subscription for DM messages - instant reordering
   useEffect(() => {
@@ -304,57 +222,7 @@ export const useUnifiedConversations = (
     };
   }, [currentUserId]);
 
-  // Real-time subscription for event messages - instant reordering
-  useEffect(() => {
-    if (!currentUserId) return;
-
-    const channel = supabase
-      .channel('conversations-event-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'event_chat_messages',
-        },
-        async (payload) => {
-          const msg = payload.new as { event_id: string; content: string; created_at: string; user_id: string };
-          
-          // Fetch sender nick if we don't have it
-          if (!senderNicks.has(msg.user_id) && msg.user_id !== currentUserId) {
-            const { data: profiles } = await supabase
-              .rpc('get_public_profiles_by_ids', { user_ids: [msg.user_id] });
-            
-            if (profiles && profiles[0]) {
-              setSenderNicks(prev => {
-                const next = new Map(prev);
-                next.set(msg.user_id, profiles[0].nick || 'User');
-                return next;
-              });
-            }
-          }
-          
-          // Update the lastMessages map immediately for instant reordering
-          setEventLastMessages(prev => {
-            const next = new Map(prev);
-            next.set(msg.event_id, {
-              eventId: msg.event_id,
-              lastMessageAt: msg.created_at,
-              lastMessagePreview: msg.content.slice(0, 40) + (msg.content.length > 40 ? '...' : ''),
-              lastMessageSenderId: msg.user_id,
-            });
-            return next;
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentUserId, senderNicks]);
-
-  // Build unified conversation list
+  // Build unified conversation list - DMs only, no spots/events
   const conversations = useMemo((): ConversationItem[] => {
     const items: ConversationItem[] = [];
 
@@ -376,7 +244,7 @@ export const useUnifiedConversations = (
       });
     }
 
-    // Add connected users (DMs)
+    // Add connected users (DMs only)
     for (const user of connectedUsers) {
       const lastMsg = dmLastMessages.get(user.invitationId);
       const unread = getDmUnreadCount(user.invitationId);
@@ -403,32 +271,6 @@ export const useUnifiedConversations = (
       });
     }
 
-    // Add active missions (spots)
-    for (const mission of activeMissions) {
-      const lastMsg = eventLastMessages.get(mission.id);
-      const unread = getEventUnreadCount(mission.id);
-      
-      let subtitle = 'No messages yet';
-      if (lastMsg) {
-        const senderNick = lastMsg.lastMessageSenderId === currentUserId 
-          ? 'You' 
-          : (senderNicks.get(lastMsg.lastMessageSenderId) || 'User');
-        subtitle = `${senderNick}: ${lastMsg.lastMessagePreview}`;
-      }
-
-      items.push({
-        id: `spot-${mission.id}`,
-        type: 'spot',
-        title: mission.title,
-        subtitle,
-        avatarConfig: null,
-        lastActivityAt: lastMsg ? new Date(lastMsg.lastMessageAt) : new Date(0),
-        unreadCount: unread,
-        eventId: mission.id,
-        category: mission.category,
-      });
-    }
-
     // Sort by lastActivityAt descending (newest first)
     items.sort((a, b) => b.lastActivityAt.getTime() - a.lastActivityAt.getTime());
 
@@ -436,18 +278,14 @@ export const useUnifiedConversations = (
   }, [
     pendingInvitations,
     connectedUsers,
-    activeMissions,
     dmLastMessages,
-    eventLastMessages,
-    senderNicks,
     currentUserId,
-    getEventUnreadCount,
     getDmUnreadCount,
   ]);
 
   const refetch = useCallback(async () => {
-    await Promise.all([fetchDmLastMessages(), fetchEventLastMessages()]);
-  }, [fetchDmLastMessages, fetchEventLastMessages]);
+    await fetchDmLastMessages();
+  }, [fetchDmLastMessages]);
 
   return {
     conversations,

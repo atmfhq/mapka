@@ -238,7 +238,6 @@ const Navbar = ({
                   externalOpen={!!chatOpenUserId}
                   externalUserId={chatOpenUserId}
                   onOpenChange={onChatOpenChange}
-                  onOpenMission={onOpenMission}
                 />
               </div>
 

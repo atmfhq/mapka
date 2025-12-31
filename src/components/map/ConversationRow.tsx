@@ -1,10 +1,8 @@
 import { formatDistanceToNow } from 'date-fns';
 import { Radio } from 'lucide-react';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ConversationItem } from '@/hooks/useUnifiedConversations';
-import { ACTIVITIES, getCategoryForActivity, ACTIVITY_CATEGORIES } from '@/constants/activities';
 
 interface ConversationRowProps {
   item: ConversationItem;
@@ -12,51 +10,6 @@ interface ConversationRowProps {
   onAcceptInvite?: (invitationId: string, senderId: string, activityType: string) => void;
   onDeclineInvite?: (invitationId: string) => void;
 }
-
-// Category colors matching TacticalMap marker styling (HSL format)
-const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string }> = {
-  sport: { bg: 'bg-[hsl(15,100%,55%)]/20', border: 'border-[hsl(15,100%,55%)]/40', text: 'text-[hsl(15,100%,55%)]' },
-  tabletop: { bg: 'bg-[hsl(200,100%,50%)]/20', border: 'border-[hsl(200,100%,50%)]/40', text: 'text-[hsl(200,100%,50%)]' },
-  social: { bg: 'bg-[hsl(45,100%,55%)]/20', border: 'border-[hsl(45,100%,55%)]/40', text: 'text-[hsl(45,100%,55%)]' },
-  outdoor: { bg: 'bg-[hsl(145,70%,45%)]/20', border: 'border-[hsl(145,70%,45%)]/40', text: 'text-[hsl(145,70%,45%)]' },
-};
-
-// Check if a string is an emoji
-const isEmoji = (str: string): boolean => {
-  if (!str) return false;
-  const emojiRegex = /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/u;
-  return emojiRegex.test(str);
-};
-
-// Get activity icon from category - use emoji directly if available
-const getSpotIcon = (category: string): string => {
-  // If the category is an emoji, return it directly
-  if (isEmoji(category)) {
-    return category;
-  }
-  
-  // First try to find exact activity match
-  const activity = ACTIVITIES.find(
-    a => a.label.toLowerCase() === category.toLowerCase() || a.id.toLowerCase() === category.toLowerCase()
-  );
-  if (activity) return activity.icon;
-  
-  // Fallback to category icon
-  const categoryInfo = ACTIVITY_CATEGORIES.find(c => c.id === category.toLowerCase());
-  if (categoryInfo) return categoryInfo.icon;
-  
-  return '📍'; // Default fallback
-};
-
-// Get category color styles from category
-const getCategoryStyles = (category: string): { bg: string; border: string; text: string } => {
-  // For emoji-based categories, use primary color scheme
-  if (isEmoji(category)) {
-    return { bg: 'bg-primary/20', border: 'border-primary/40', text: 'text-primary' };
-  }
-  const categoryKey = getCategoryForActivity(category) || category.toLowerCase();
-  return CATEGORY_COLORS[categoryKey] || { bg: 'bg-primary/20', border: 'border-primary/40', text: 'text-primary' };
-};
 
 const ConversationRow = ({ 
   item, 
@@ -70,11 +23,6 @@ const ConversationRow = ({
 
   const isPendingInvite = item.type === 'pending_invite';
   const hasUnread = item.unreadCount > 0;
-  const isSpot = item.type === 'spot';
-
-  // Get icon and colors for spots
-  const spotIcon = isSpot ? getSpotIcon(item.category || '') : null;
-  const categoryStyles = isSpot ? getCategoryStyles(item.category || '') : null;
 
   return (
     <div
@@ -88,19 +36,13 @@ const ConversationRow = ({
       `}
       onClick={() => !isPendingInvite && onSelect(item)}
     >
-      {/* Avatar / Spot Icon */}
+      {/* Avatar */}
       <div className="relative flex-shrink-0 w-12 h-12">
-        {isSpot && spotIcon && categoryStyles ? (
-          <div className={`w-12 h-12 rounded-xl ${categoryStyles.bg} border ${categoryStyles.border} flex items-center justify-center`}>
-            <span className="text-2xl">{spotIcon}</span>
-          </div>
-        ) : (
-          <AvatarDisplay
-            config={item.avatarConfig}
-            size={48}
-            showGlow={false}
-          />
-        )}
+        <AvatarDisplay
+          config={item.avatarConfig}
+          size={48}
+          showGlow={false}
+        />
         
         {/* Pending invite indicator */}
         {isPendingInvite && (
@@ -127,12 +69,6 @@ const ConversationRow = ({
             <span className={`text-xs flex-shrink-0 whitespace-nowrap ${hasUnread ? 'text-primary font-medium' : 'text-muted-foreground'}`}>
               {timeAgo}
             </span>
-          )}
-          {/* Type badge for spots - show emoji for emoji categories, otherwise show text */}
-          {isSpot && categoryStyles && !isEmoji(item.category || '') && (
-            <Badge variant="outline" className={`${categoryStyles.bg} ${categoryStyles.text} ${categoryStyles.border} text-[10px] capitalize flex-shrink-0 px-1.5 py-0`}>
-              {item.category}
-            </Badge>
           )}
         </div>
         <p className={`text-xs truncate mt-0.5 ${

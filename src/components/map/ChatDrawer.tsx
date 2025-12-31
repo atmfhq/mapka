@@ -27,13 +27,6 @@ interface ChatMessage {
   created_at: string;
 }
 
-interface ActiveMission {
-  id: string;
-  title: string;
-  category: string;
-  host_id: string;
-}
-
 interface AvatarConfig {
   skinColor?: string;
   shape?: string;
@@ -46,7 +39,6 @@ interface ChatDrawerProps {
   externalOpen?: boolean;
   externalUserId?: string | null;
   onOpenChange?: (open: boolean) => void;
-  onOpenMission?: (missionId: string) => void;
 }
 
 const MAX_MESSAGE_LENGTH = 2000;
@@ -56,7 +48,6 @@ const ChatDrawer = ({
   externalOpen, 
   externalUserId,
   onOpenChange,
-  onOpenMission 
 }: ChatDrawerProps) => {
   const [internalOpen, setInternalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
@@ -64,8 +55,6 @@ const ChatDrawer = ({
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [loadingMessages, setLoadingMessages] = useState(false);
-  const [activeMissions, setActiveMissions] = useState<ActiveMission[]>([]);
-  const [loadingMissions, setLoadingMissions] = useState(true);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -73,24 +62,17 @@ const ChatDrawer = ({
   
   const { connectedUsers, loading, refetch: refetchConnections, getInvitationIdForUser } = useConnectedUsers(currentUserId);
   const { pendingInvitations, pendingCount, refetch: refetchPending } = useInvitationRealtime(currentUserId);
-  const { markInvitationAsRead, markEventAsRead, silentRefetch } = useUnreadMessages(currentUserId);
-  const { mutedEventIds, mutedInvitationIds } = useMutedChats(currentUserId);
-
-  // Collect all event IDs for per-chat unread counts
-  const allEventIds = useMemo(() => {
-    return activeMissions.map(mission => mission.id);
-  }, [activeMissions]);
+  const { markInvitationAsRead, silentRefetch } = useUnreadMessages(currentUserId);
+  const { mutedInvitationIds } = useMutedChats(currentUserId);
 
   const { 
-    getUnreadCount: getEventUnreadCount, 
     getDmUnreadCount,
     getTotalUnreadCount,
     clearUnreadForDm,
     setActiveDmChat,
-    refetch: refetchUnreadCounts 
-  } = useChatUnreadCounts(currentUserId, allEventIds, mutedEventIds, mutedInvitationIds);
+  } = useChatUnreadCounts(currentUserId, [], new Set(), mutedInvitationIds);
 
-  // Unified conversations list
+  // Unified conversations list - DMs only
   const { conversations, loading: loadingConversations, refetch: refetchConversations } = useUnifiedConversations(
     currentUserId,
     pendingInvitations,
@@ -101,8 +83,6 @@ const ChatDrawer = ({
       avatar_url: u.avatar_url,
       invitationId: u.invitationId,
     })),
-    activeMissions,
-    getEventUnreadCount,
     getDmUnreadCount
   );
 
@@ -131,90 +111,7 @@ const ChatDrawer = ({
     }
   }, [externalUserId, externalOpen]);
 
-  // Fetch active missions (public megaphones where user is a participant)
-  const fetchActiveMissions = useCallback(async () => {
-    if (!currentUserId) return;
-    
-    setLoadingMissions(true);
-    
-    // Get hosted missions
-    const { data: hostedMissions } = await supabase
-      .from('megaphones')
-      .select('id, title, category, host_id')
-      .eq('host_id', currentUserId)
-      .eq('is_private', false);
 
-    // Get participations
-    const { data: participations } = await supabase
-      .from('event_participants')
-      .select('event_id')
-      .eq('user_id', currentUserId)
-      .eq('status', 'joined');
-
-    const participatedEventIds = participations?.map(p => p.event_id) || [];
-    
-    let participatedMissions: ActiveMission[] = [];
-    if (participatedEventIds.length > 0) {
-      const { data } = await supabase
-        .from('megaphones')
-        .select('id, title, category, host_id')
-        .in('id', participatedEventIds)
-        .eq('is_private', false);
-      participatedMissions = data || [];
-    }
-
-    const allMissions = [...(hostedMissions || []), ...participatedMissions];
-    const uniqueMissions = allMissions.filter((m, i, arr) => 
-      arr.findIndex(x => x.id === m.id) === i
-    );
-
-    const now = Date.now();
-    const { data: fullMegaphones } = await supabase
-      .from('megaphones')
-      .select('id, start_time, duration_minutes')
-      .in('id', uniqueMissions.map(m => m.id));
-
-    const activeMissionIds = new Set(
-      (fullMegaphones || [])
-        .filter(m => {
-          const endTime = new Date(m.start_time).getTime() + (m.duration_minutes * 60 * 1000);
-          return endTime > now;
-        })
-        .map(m => m.id)
-    );
-
-    setActiveMissions(uniqueMissions.filter(m => activeMissionIds.has(m.id)));
-    setLoadingMissions(false);
-  }, [currentUserId]);
-
-  useEffect(() => {
-    fetchActiveMissions();
-  }, [fetchActiveMissions]);
-
-  // Realtime subscription for participation changes
-  useEffect(() => {
-    if (!currentUserId) return;
-
-    const channel = supabase
-      .channel('chat-participation-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'event_participants',
-          filter: `user_id=eq.${currentUserId}`,
-        },
-        () => {
-          fetchActiveMissions();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [currentUserId, fetchActiveMissions]);
 
   const selectedUserData = connectedUsers.find(u => u.id === selectedUser);
   const invitationId = selectedUser ? getInvitationIdForUser(selectedUser) : null;
@@ -337,10 +234,6 @@ const ChatDrawer = ({
         markInvitationAsRead(item.invitationId);
         clearUnreadForDm(item.invitationId);
       }
-    } else if (item.type === 'spot' && item.eventId) {
-      // Open spot details modal instead of chat
-      handleOpenChange(false);
-      onOpenMission?.(item.eventId);
     }
   };
 
@@ -389,7 +282,7 @@ const ChatDrawer = ({
   };
 
   const totalBadgeCount = pendingCount + getTotalUnreadCount();
-  const isLoading = loading || loadingMissions || loadingConversations;
+  const isLoading = loading || loadingConversations;
 
   // Trigger button (always rendered)
   const triggerButton = (
