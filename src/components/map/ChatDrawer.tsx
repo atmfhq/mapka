@@ -59,6 +59,7 @@ interface SpotParticipant {
   user_id: string;
   status: string;
   chat_active: boolean;
+  is_chat_banned?: boolean;
   profile?: SpotProfile;
 }
 
@@ -171,6 +172,42 @@ const ChatDrawer = ({
     }
   }, [externalEventId, externalOpen, activeMissions]);
 
+  // Fetch spot data function
+  const fetchSpotData = async () => {
+    if (!selectedSpot) return;
+    
+    // Fetch host profile
+    const { data: hostProfiles } = await supabase
+      .rpc('get_public_profiles_by_ids', { user_ids: [selectedSpot.host_id] });
+    
+    if (hostProfiles?.[0]) {
+      setSpotHost(hostProfiles[0] as SpotProfile);
+    }
+
+    // Fetch participants (all, including banned ones for management)
+    const { data: participantsData } = await supabase
+      .from('event_participants')
+      .select('id, user_id, status, chat_active, is_chat_banned')
+      .eq('event_id', selectedSpot.id);
+
+    if (participantsData) {
+      const userIds = participantsData.map(p => p.user_id);
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .rpc('get_public_profiles_by_ids', { user_ids: userIds });
+
+        const participantsWithProfiles = participantsData.map(p => ({
+          ...p,
+          profile: profiles?.find(pr => pr.id === p.user_id) as SpotProfile | undefined,
+        }));
+
+        setSpotParticipants(participantsWithProfiles);
+      } else {
+        setSpotParticipants([]);
+      }
+    }
+  };
+
   // Fetch spot host and participants when a spot is selected
   useEffect(() => {
     if (!selectedSpot) {
@@ -178,40 +215,6 @@ const ChatDrawer = ({
       setSpotParticipants([]);
       return;
     }
-
-    const fetchSpotData = async () => {
-      // Fetch host profile
-      const { data: hostProfiles } = await supabase
-        .rpc('get_public_profiles_by_ids', { user_ids: [selectedSpot.host_id] });
-      
-      if (hostProfiles?.[0]) {
-        setSpotHost(hostProfiles[0] as SpotProfile);
-      }
-
-      // Fetch participants
-      const { data: participantsData } = await supabase
-        .from('event_participants')
-        .select('id, user_id, status, chat_active')
-        .eq('event_id', selectedSpot.id)
-        .eq('chat_active', true);
-
-      if (participantsData) {
-        const userIds = participantsData.map(p => p.user_id);
-        if (userIds.length > 0) {
-          const { data: profiles } = await supabase
-            .rpc('get_public_profiles_by_ids', { user_ids: userIds });
-
-          const participantsWithProfiles = participantsData.map(p => ({
-            ...p,
-            profile: profiles?.find(pr => pr.id === p.user_id) as SpotProfile | undefined,
-          }));
-
-          setSpotParticipants(participantsWithProfiles);
-        } else {
-          setSpotParticipants([]);
-        }
-      }
-    };
 
     fetchSpotData();
 
@@ -665,6 +668,7 @@ const ChatDrawer = ({
               hostId={selectedSpot.host_id}
               host={spotHost}
               participants={spotParticipants}
+              onParticipantsChange={fetchSpotData}
             />
           </div>
         ) : (

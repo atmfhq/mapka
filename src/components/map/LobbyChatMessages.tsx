@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { format } from 'date-fns';
-import { Send, Users, Crown, ChevronDown } from 'lucide-react';
+import { Send, Users, Crown, ChevronDown, Settings, UserX, Unlock } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import MessageReactions from '@/components/map/MessageReactions';
 import { supabase } from '@/integrations/supabase/client';
@@ -44,6 +45,7 @@ interface Participant {
   user_id: string;
   status: string;
   chat_active: boolean;
+  is_chat_banned?: boolean;
   profile?: PublicProfile;
 }
 
@@ -53,29 +55,62 @@ interface LobbyChatMessagesProps {
   hostId?: string;
   host?: PublicProfile | null;
   participants?: Participant[];
+  onParticipantsChange?: () => void;
 }
 
 const MAX_MESSAGE_LENGTH = 2000;
 const MAX_VISIBLE_AVATARS = 4;
 
-const LobbyChatMessages = ({ eventId, currentUserId, hostId, host, participants = [] }: LobbyChatMessagesProps) => {
+const LobbyChatMessages = ({ eventId, currentUserId, hostId, host, participants = [], onParticipantsChange }: LobbyChatMessagesProps) => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
+  const [showManageModal, setShowManageModal] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const isHost = currentUserId === hostId;
 
   // Message reactions
   const messageIds = messages.map(m => m.id);
   const { getReactions, toggleReaction } = useMessageReactions(messageIds, currentUserId);
 
-  // Filter participants to exclude host and get active chat members
+  // Filter participants to exclude host and get active chat members (not banned)
   const activeChatMembers = useMemo(() => {
-    return participants.filter(p => p.user_id !== hostId && p.chat_active);
+    return participants.filter(p => p.user_id !== hostId && p.chat_active && !p.is_chat_banned);
+  }, [participants, hostId]);
+
+  // Get all participants for management (excluding host)
+  const allParticipantsForManagement = useMemo(() => {
+    return participants.filter(p => p.user_id !== hostId);
   }, [participants, hostId]);
 
   // Total members including host
   const totalMembers = (host ? 1 : 0) + activeChatMembers.length;
+
+  // Handle chat ban/unban
+  const handleChatBan = async (participantId: string, userId: string, ban: boolean) => {
+    const { error } = await supabase
+      .from('event_participants')
+      .update({ is_chat_banned: ban, chat_active: ban ? false : true })
+      .eq('id', participantId);
+
+    if (error) {
+      toast({
+        title: ban ? "Failed to remove from chat" : "Failed to restore chat access",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: ban ? "User removed from chat" : "Chat access restored",
+      description: ban ? "They can still attend the event but cannot access the chat." : "User can now participate in the chat again.",
+    });
+
+    onParticipantsChange?.();
+  };
 
   // Fetch all messages for the event (full history)
   useEffect(() => {
@@ -219,69 +254,88 @@ const LobbyChatMessages = ({ eventId, currentUserId, hostId, host, participants 
     <div className="flex flex-col h-full min-h-0">
       {/* Chat Header - Participant Visibility */}
       {(host || activeChatMembers.length > 0) && (
-        <button 
-          onClick={() => setShowParticipantsModal(true)}
-          className="flex items-center gap-3 px-3 py-2.5 mb-3 bg-muted/30 hover:bg-muted/50 rounded-xl transition-colors border border-border/30"
-        >
-          {/* Stacked avatars */}
-          <div className="flex items-center -space-x-2">
-            {/* Host avatar with crown */}
-            {host && (
-              <div className="relative z-10">
-                <div className="w-8 h-8 rounded-full ring-2 ring-card">
+        <div className="flex items-center gap-2 mb-3">
+          <button 
+            onClick={() => setShowParticipantsModal(true)}
+            className="flex-1 flex items-center gap-3 px-3 py-2.5 bg-muted/30 hover:bg-muted/50 rounded-xl transition-colors border border-border/30"
+          >
+            {/* Stacked avatars */}
+            <div className="flex items-center -space-x-2">
+              {/* Host avatar with crown */}
+              {host && (
+                <div className="relative z-10">
+                  <div className="w-8 h-8 rounded-full ring-2 ring-card">
+                    <AvatarDisplay 
+                      config={host.avatar_config} 
+                      size={32} 
+                      showGlow={false}
+                    />
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-warning rounded-full flex items-center justify-center ring-1 ring-card">
+                    <span className="text-[8px]">👑</span>
+                  </div>
+                </div>
+              )}
+              
+              {/* Participant avatars */}
+              {activeChatMembers.slice(0, MAX_VISIBLE_AVATARS).map((participant, idx) => (
+                <div 
+                  key={participant.id} 
+                  className="relative w-8 h-8 rounded-full ring-2 ring-card"
+                  style={{ zIndex: MAX_VISIBLE_AVATARS - idx }}
+                >
                   <AvatarDisplay 
-                    config={host.avatar_config} 
+                    config={participant.profile?.avatar_config} 
                     size={32} 
                     showGlow={false}
                   />
                 </div>
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-warning rounded-full flex items-center justify-center ring-1 ring-card">
-                  <span className="text-[8px]">👑</span>
+              ))}
+              
+              {/* +N more indicator */}
+              {activeChatMembers.length > MAX_VISIBLE_AVATARS && (
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center ring-2 ring-card text-xs font-medium text-muted-foreground">
+                  +{activeChatMembers.length - MAX_VISIBLE_AVATARS}
                 </div>
-              </div>
-            )}
-            
-            {/* Participant avatars */}
-            {activeChatMembers.slice(0, MAX_VISIBLE_AVATARS).map((participant, idx) => (
-              <div 
-                key={participant.id} 
-                className="relative w-8 h-8 rounded-full ring-2 ring-card"
-                style={{ zIndex: MAX_VISIBLE_AVATARS - idx }}
-              >
-                <AvatarDisplay 
-                  config={participant.profile?.avatar_config} 
-                  size={32} 
-                  showGlow={false}
-                />
-              </div>
-            ))}
-            
-            {/* +N more indicator */}
-            {activeChatMembers.length > MAX_VISIBLE_AVATARS && (
-              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center ring-2 ring-card text-xs font-medium text-muted-foreground">
-                +{activeChatMembers.length - MAX_VISIBLE_AVATARS}
-              </div>
-            )}
-          </div>
-          
-          {/* Summary text */}
-          <div className="flex-1 text-left">
-            <p className="text-sm font-medium text-foreground">
-              {host?.nick || 'Organizer'}
-              {activeChatMembers.length > 0 && (
-                <span className="text-muted-foreground font-normal">
-                  {' '}+ {activeChatMembers.length} other{activeChatMembers.length !== 1 ? 's' : ''}
-                </span>
               )}
-            </p>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <Users className="w-3 h-3" />
-              {totalMembers} in chat
-            </p>
-          </div>
-          
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-        </button>
+            </div>
+            
+            {/* Summary text */}
+            <div className="flex-1 text-left">
+              <p className="text-sm font-medium text-foreground">
+                {host?.nick || 'Organizer'}
+                {activeChatMembers.length > 0 && (
+                  <span className="text-muted-foreground font-normal">
+                    {' '}+ {activeChatMembers.length} other{activeChatMembers.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Users className="w-3 h-3" />
+                {totalMembers} in chat
+              </p>
+            </div>
+            
+            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+          </button>
+
+          {/* Host Settings Menu */}
+          {isHost && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl bg-muted/30 border border-border/30">
+                  <Settings className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setShowManageModal(true)}>
+                  <Users className="w-4 h-4 mr-2" />
+                  Manage Participants
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
       )}
 
       {/* Participants Modal */}
@@ -347,7 +401,79 @@ const LobbyChatMessages = ({ eventId, currentUserId, hostId, host, participants 
         </DialogContent>
       </Dialog>
 
-      {/* Messages */}
+      {/* Manage Participants Modal (Host Only) */}
+      <Dialog open={showManageModal} onOpenChange={setShowManageModal}>
+        <DialogContent className="max-w-sm max-h-[70vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Manage Chat Access
+            </DialogTitle>
+          </DialogHeader>
+          
+          <ScrollArea className="max-h-[50vh] pr-2">
+            <div className="space-y-2">
+              {allParticipantsForManagement.length === 0 ? (
+                <p className="text-center text-muted-foreground text-sm py-4">
+                  No participants to manage
+                </p>
+              ) : (
+                allParticipantsForManagement.map((participant) => {
+                  const isBanned = participant.is_chat_banned;
+                  return (
+                    <div 
+                      key={participant.id} 
+                      className={`flex items-center gap-3 p-3 rounded-lg border ${
+                        isBanned 
+                          ? 'bg-destructive/10 border-destructive/30' 
+                          : 'bg-muted/30 border-border/30'
+                      }`}
+                    >
+                      <div className="w-10 h-10">
+                        <AvatarDisplay 
+                          config={participant.profile?.avatar_config} 
+                          size={40} 
+                          showGlow={false}
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground truncate">
+                          {participant.profile?.nick || 'Unknown'}
+                        </p>
+                        <p className={`text-xs ${isBanned ? 'text-destructive' : 'text-muted-foreground'}`}>
+                          {isBanned ? 'Removed from chat' : 'Active in chat'}
+                        </p>
+                      </div>
+                      <Button
+                        variant={isBanned ? "outline" : "destructive"}
+                        size="sm"
+                        onClick={() => handleChatBan(participant.id, participant.user_id, !isBanned)}
+                        className="gap-1.5"
+                      >
+                        {isBanned ? (
+                          <>
+                            <Unlock className="w-3.5 h-3.5" />
+                            Restore
+                          </>
+                        ) : (
+                          <>
+                            <UserX className="w-3.5 h-3.5" />
+                            Remove
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </ScrollArea>
+          
+          <p className="text-xs text-muted-foreground mt-2">
+            Removing a user from chat doesn't remove them from the event attendance.
+          </p>
+        </DialogContent>
+      </Dialog>
       <ScrollArea className="flex-1 min-h-0 pr-2">
         <div className="space-y-4 py-2">
           {messages.length === 0 ? (

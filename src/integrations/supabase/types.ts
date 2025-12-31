@@ -165,6 +165,7 @@ export type Database = {
           chat_active: boolean
           event_id: string
           id: string
+          is_chat_banned: boolean
           joined_at: string
           last_read_at: string | null
           status: string
@@ -174,6 +175,7 @@ export type Database = {
           chat_active?: boolean
           event_id: string
           id?: string
+          is_chat_banned?: boolean
           joined_at?: string
           last_read_at?: string | null
           status?: string
@@ -183,6 +185,7 @@ export type Database = {
           chat_active?: boolean
           event_id?: string
           id?: string
+          is_chat_banned?: boolean
           joined_at?: string
           last_read_at?: string | null
           status?: string
@@ -569,6 +572,10 @@ export type Database = {
       }
       get_unread_message_count: { Args: { p_user_id: string }; Returns: number }
       is_banned_from_event: {
+        Args: { p_event_id: string; p_user_id: string }
+        Returns: boolean
+      }
+      is_chat_banned_from_event: {
         Args: { p_event_id: string; p_user_id: string }
         Returns: boolean
       }
