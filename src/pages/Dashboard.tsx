@@ -36,15 +36,58 @@ const Dashboard = () => {
   const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
   const mapRef = useRef<TacticalMapHandle | null>(null);
   const deepLinkHandledRef = useRef(false);
+  
+  // Pre-fetched deep link spot data (for initializing map at correct location)
+  const [deepLinkSpot, setDeepLinkSpot] = useState<{ id: string; lat: number; lng: number } | null>(null);
+  const [deepLinkLoading, setDeepLinkLoading] = useState(false);
+  const deepLinkFetchedRef = useRef(false);
 
   const isGuest = !user;
+  
+  // Check for deep link params in URL
+  const eventId = searchParams.get('eventId');
+  const shareCode = searchParams.get('c');
+  const hasDeepLink = !!(eventId || shareCode);
 
-  // Set guest location once active area is loaded
+  // Pre-fetch deep link spot coordinates BEFORE map renders (for correct initial center)
   useEffect(() => {
-    if (isGuest && !activeAreaLoading && !guestLocation) {
+    if (!hasDeepLink || deepLinkFetchedRef.current) return;
+    
+    deepLinkFetchedRef.current = true;
+    setDeepLinkLoading(true);
+    
+    const prefetchSpot = async () => {
+      try {
+        const { data, error } = await supabase.rpc('resolve_megaphone_link', {
+          p_share_code: shareCode || null,
+          p_id: eventId || null,
+        });
+        
+        const spot = data?.[0];
+        
+        if (!error && spot) {
+          setDeepLinkSpot({ id: spot.id, lat: spot.lat, lng: spot.lng });
+          // For guests, immediately set this as the guest location
+          if (!user) {
+            setGuestLocation({ lat: spot.lat, lng: spot.lng });
+          }
+        }
+      } catch (err) {
+        console.error('Error prefetching deep link spot:', err);
+      } finally {
+        setDeepLinkLoading(false);
+      }
+    };
+    
+    prefetchSpot();
+  }, [hasDeepLink, eventId, shareCode, user]);
+
+  // Set guest location once active area is loaded (only if no deep link)
+  useEffect(() => {
+    if (isGuest && !activeAreaLoading && !guestLocation && !hasDeepLink) {
       setGuestLocation({ lat: activeAreaLat, lng: activeAreaLng });
     }
-  }, [isGuest, activeAreaLoading, activeAreaLat, activeAreaLng, guestLocation]);
+  }, [isGuest, activeAreaLoading, activeAreaLat, activeAreaLng, guestLocation, hasDeepLink]);
 
   // Initialize location and active status from profile (for logged-in users)
   useEffect(() => {
@@ -65,13 +108,13 @@ const Dashboard = () => {
     }
   }, [loading, user, profile, navigate]);
 
-  // Handle deep link for eventId or share code (c) parameter - teleport user to spot location
+  // Handle deep link after map is ready - teleport user and open spot modal
   useEffect(() => {
-    const eventId = searchParams.get('eventId');
-    const shareCode = searchParams.get('c');
+    // Skip if no deep link, already handled, or map not ready
+    if (!hasDeepLink || deepLinkHandledRef.current || !mapRef.current) return;
     
-    // Skip if no deep link params, already handled, or map not ready
-    if ((!eventId && !shareCode) || deepLinkHandledRef.current || !mapRef.current) return;
+    // Wait for prefetch to complete
+    if (deepLinkLoading) return;
     
     // For logged-in users, wait for profile to be loaded
     if (user && !profile) return;
@@ -79,82 +122,91 @@ const Dashboard = () => {
     deepLinkHandledRef.current = true;
     
     const handleDeepLink = async () => {
-      try {
-        // Use RPC function to resolve deep link (bypasses distance-based RLS)
-        const { data, error } = await supabase.rpc('resolve_megaphone_link', {
-          p_share_code: shareCode || null,
-          p_id: eventId || null,
-        });
-        
-        const spot = data?.[0];
-        
-        if (error || !spot) {
-          toast({
-            title: 'Spot not found',
-            description: 'The spot you were looking for no longer exists.',
-            variant: 'destructive',
+      // Use prefetched spot data if available, otherwise fetch again
+      let spot = deepLinkSpot;
+      
+      if (!spot) {
+        try {
+          const { data, error } = await supabase.rpc('resolve_megaphone_link', {
+            p_share_code: shareCode || null,
+            p_id: eventId || null,
           });
-          setSearchParams({}, { replace: true });
-          return;
-        }
-        
-        // For logged-in users: teleport to the spot location
-        if (user) {
-          const { error: updateError } = await supabase
-            .from('profiles')
-            .update({
-              location_lat: spot.lat,
-              location_lng: spot.lng,
-            })
-            .eq('id', user.id);
           
-          if (updateError) {
-            console.error('Error teleporting user:', updateError);
+          const fetchedSpot = data?.[0];
+          
+          if (error || !fetchedSpot) {
             toast({
-              title: 'Failed to teleport',
-              description: 'Unable to move to the event location.',
+              title: 'Spot not found',
+              description: 'The spot you were looking for no longer exists.',
               variant: 'destructive',
             });
             setSearchParams({}, { replace: true });
             return;
           }
           
-          // Update local state with new location
-          setCurrentLocation({ lat: spot.lat, lng: spot.lng, name: null });
-          
-          // Refresh profile to sync state
-          await refreshProfile();
-          
-          // Show arrival toast
+          spot = { id: fetchedSpot.id, lat: fetchedSpot.lat, lng: fetchedSpot.lng };
+        } catch (err) {
+          console.error('Error handling deep link:', err);
           toast({
-            title: 'You have arrived at the event location.',
+            title: 'Spot not found',
+            description: 'Unable to load the spot details.',
+            variant: 'destructive',
           });
-        } else {
-          // For guests: just update guest location state
-          setGuestLocation({ lat: spot.lat, lng: spot.lng });
+          setSearchParams({}, { replace: true });
+          return;
+        }
+      }
+      
+      // For logged-in users: teleport to the spot location
+      if (user && spot) {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            location_lat: spot.lat,
+            location_lng: spot.lng,
+          })
+          .eq('id', user.id);
+        
+        if (updateError) {
+          console.error('Error teleporting user:', updateError);
+          toast({
+            title: 'Failed to teleport',
+            description: 'Unable to move to the event location.',
+            variant: 'destructive',
+          });
+          setSearchParams({}, { replace: true });
+          return;
         }
         
-        // Fly camera to the new location
+        // Update local state with new location
+        setCurrentLocation({ lat: spot.lat, lng: spot.lng, name: null });
+        
+        // Refresh profile to sync state
+        await refreshProfile();
+        
+        // Show arrival toast
+        toast({
+          title: 'You have arrived at the event location.',
+        });
+      } else if (spot) {
+        // For guests: ensure guest location is set
+        setGuestLocation({ lat: spot.lat, lng: spot.lng });
+      }
+      
+      if (spot) {
+        // Fly camera to the spot location (in case map initialized elsewhere)
         mapRef.current?.flyTo(spot.lat, spot.lng);
         
         // Open the spot details modal
         mapRef.current?.openMissionById(spot.id);
-        
-        // Clear the deep link params after handling
-        setSearchParams({}, { replace: true });
-      } catch (err) {
-        console.error('Error handling deep link:', err);
-        toast({
-          title: 'Spot not found',
-          description: 'Unable to load the spot details.',
-          variant: 'destructive',
-        });
-        setSearchParams({}, { replace: true });
       }
+      
+      // Clear the deep link params after handling
+      setSearchParams({}, { replace: true });
     };
     
     handleDeepLink();
-  }, [searchParams, setSearchParams, toast, user, profile, refreshProfile]);
+  }, [hasDeepLink, deepLinkLoading, deepLinkSpot, eventId, shareCode, setSearchParams, toast, user, profile, refreshProfile]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -245,8 +297,8 @@ const Dashboard = () => {
     setViewportBounds(bounds);
   };
 
-  // Show loading for guests waiting for active area, or logged-in users waiting for profile
-  if (loading || (isGuest && activeAreaLoading)) {
+  // Show loading for guests waiting for active area or deep link, or logged-in users waiting for profile
+  if (loading || (isGuest && activeAreaLoading && !deepLinkSpot) || (hasDeepLink && deepLinkLoading)) {
     return <LoadingScreen />;
   }
 
@@ -255,9 +307,9 @@ const Dashboard = () => {
     return <LoadingScreen />;
   }
 
-  // Determine map center - use active area for guests until they search
-  const guestLat = guestLocation?.lat ?? activeAreaLat;
-  const guestLng = guestLocation?.lng ?? activeAreaLng;
+  // Determine map center - prioritize deep link spot, then guest location, then active area
+  const guestLat = deepLinkSpot?.lat ?? guestLocation?.lat ?? activeAreaLat;
+  const guestLng = deepLinkSpot?.lng ?? guestLocation?.lng ?? activeAreaLng;
   const mapLat = isGuest ? guestLat : (currentLocation.lat ?? profile?.location_lat ?? activeAreaLat);
   const mapLng = isGuest ? guestLng : (currentLocation.lng ?? profile?.location_lng ?? activeAreaLng);
 
