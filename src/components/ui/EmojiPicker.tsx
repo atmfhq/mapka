@@ -52,19 +52,19 @@ export const EmojiPicker = ({ value, onChange, className }: EmojiPickerProps) =>
     : EMOJI_CATEGORIES;
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("space-y-2 w-full min-w-0 overflow-hidden", className)}>
       {/* Selected emoji display */}
       {value && (
         <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/10 border-2 border-primary/40">
           <span className="text-3xl">{value}</span>
-          <div className="flex-1">
+          <div className="flex-1 min-w-0">
             <p className="font-semibold text-primary font-nunito">Selected Icon</p>
             <p className="text-xs text-muted-foreground">Tap below to change</p>
           </div>
           <button
             type="button"
             onClick={() => onChange('')}
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="text-sm text-muted-foreground hover:text-foreground shrink-0"
           >
             Clear
           </button>
@@ -72,38 +72,40 @@ export const EmojiPicker = ({ value, onChange, className }: EmojiPickerProps) =>
       )}
 
       {/* Category pills - horizontal scroll */}
-      <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-        <button
-          type="button"
-          onClick={() => setSelectedCategory(null)}
-          className={cn(
-            "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0",
-            !selectedCategory 
-              ? "bg-primary text-primary-foreground" 
-              : "bg-muted/50 text-muted-foreground hover:bg-muted"
-          )}
-        >
-          All
-        </button>
-        {EMOJI_CATEGORIES.map(category => (
+      <div className="w-full overflow-x-auto overflow-y-hidden scrollbar-hide">
+        <div className="flex flex-nowrap gap-1.5 pb-1">
           <button
-            key={category.name}
             type="button"
-            onClick={() => setSelectedCategory(category.name)}
+            onClick={() => setSelectedCategory(null)}
             className={cn(
               "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0",
-              selectedCategory === category.name
-                ? "bg-primary text-primary-foreground"
+              !selectedCategory 
+                ? "bg-primary text-primary-foreground" 
                 : "bg-muted/50 text-muted-foreground hover:bg-muted"
             )}
           >
-            {category.name}
+            All
           </button>
-        ))}
+          {EMOJI_CATEGORIES.map(category => (
+            <button
+              key={category.name}
+              type="button"
+              onClick={() => setSelectedCategory(category.name)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0",
+                selectedCategory === category.name
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
+              )}
+            >
+              {category.name}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* Emoji grid */}
-      <ScrollArea className="h-[200px] rounded-xl border border-border/50 bg-muted/20 p-2">
+      {/* Emoji grid - vertical scroll */}
+      <ScrollArea className="h-[200px] w-full rounded-xl border border-border/50 bg-muted/20 p-2">
         <div className="space-y-4">
           {displayCategories.map(category => (
             <div key={category.name}>
