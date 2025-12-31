@@ -1731,6 +1731,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       // Can hide if logged in and not the shout owner
       const canHide = !!currentUserId && shout.user_id !== currentUserId;
+      const isOwn = !!currentUserId && shout.user_id === currentUserId;
       
       if (shoutMarkersMapRef.current.has(shout.id)) {
         // Already exists - update position and re-render with new counts
@@ -1745,6 +1746,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             onClick={handleShoutClick}
             onHide={handleHideShout}
             canHide={canHide}
+            isOwn={isOwn}
           />
         );
         return;
@@ -1764,6 +1766,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           onClick={handleShoutClick}
           onHide={handleHideShout}
           canHide={canHide}
+          isOwn={isOwn}
         />
       );
 
