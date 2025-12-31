@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, isToday } from 'date-fns';
 import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Hourglass, User, MessageCircle, LogOut, MessageCircleOff, UserX, Ban, Unlock, Share2 } from 'lucide-react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -510,24 +510,34 @@ const QuestLobby = ({
   const totalMembers = filteredParticipants.length + 1;
   const durationHours = quest.duration_minutes / 60;
 
-  return (
-    <>
-    <Sheet open={open} onOpenChange={(newOpen) => {
-      if (!newOpen) {
-        setIsEditing(false);
-      }
-      onOpenChange(newOpen);
-    }}>
-      <SheetContent 
-        side="bottom" 
-        className="bg-card border-t border-primary/30 rounded-t-2xl max-h-[85vh] overflow-hidden flex flex-col"
-      >
+  const handleClose = () => {
+    setIsEditing(false);
+    onOpenChange(false);
+  };
+
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center" style={{ isolation: 'isolate' }}>
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+        onClick={handleClose}
+      />
+
+      <div className="relative bg-card border-2 border-border rounded-t-2xl sm:rounded-2xl shadow-hard w-full sm:max-w-md max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300 z-10">
         {isEditing ? (
           /* Edit Mode */
           <div className="py-4 px-4 space-y-4 overflow-y-auto flex-1">
             <div className="flex items-center justify-between pb-2 border-b border-border/50">
               <h2 className="font-fredoka text-xl">Edit Spot</h2>
-              <Button variant="ghost" size="icon" onClick={cancelEditing}>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  cancelEditing();
+                }}
+                className="rounded-lg hover:bg-muted"
+              >
                 <X className="w-5 h-5" />
               </Button>
             </div>
@@ -712,54 +722,79 @@ const QuestLobby = ({
           </div>
         ) : (
           /* Details View - Optimized Layout */
-          <div className="flex flex-col flex-1 overflow-y-auto py-3">
-            {/* 1. HEADER - Title at top */}
-            <div className="px-1">
-              {/* Status badges row */}
-              <div className="flex items-center justify-between mb-2">
+          <div className="flex flex-col flex-1 overflow-y-auto">
+            {/* Header with close button */}
+            <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+              <div className="flex items-center gap-3">
                 {(() => {
                   const activityData = getActivityByLabel(quest.category);
                   return (
-                    <Badge 
-                      variant="outline" 
-                      className={quest.is_private 
-                        ? 'bg-warning/20 text-warning border-warning/40' 
-                        : getCategoryColorClasses(quest.category)
-                      }
-                    >
-                      {quest.is_private ? (
-                        <span className="flex items-center gap-1">
-                          <Lock className="w-3 h-3" />
-                          Private
-                        </span>
+                    <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center">
+                      {activityData ? (
+                        <span className="text-lg">{activityData.icon}</span>
                       ) : (
-                        <span className="flex items-center gap-1.5">
-                          {activityData && <span>{activityData.icon}</span>}
-                          {quest.category}
-                        </span>
+                        <Users className="w-5 h-5 text-primary" />
                       )}
-                    </Badge>
+                    </div>
                   );
                 })()}
-                <div className="flex items-center gap-2">
-                  {isHost && (
-                    <Badge variant="outline" className="bg-success/20 text-success border-success/40 text-xs">
-                      HOST
-                    </Badge>
-                  )}
-                  {hasJoined && !isHost && (
-                    <Badge variant="outline" className="bg-primary/20 text-primary border-primary/40 text-xs">
-                      JOINED
-                    </Badge>
-                  )}
+                <div>
+                  <h3 className="font-nunito font-bold text-foreground">Spot</h3>
+                  <div className="flex items-center gap-2">
+                    {quest.is_private && (
+                      <Badge variant="outline" className="bg-warning/20 text-warning border-warning/40 text-[10px] px-1.5 py-0">
+                        <Lock className="w-2.5 h-2.5 mr-0.5" />
+                        Private
+                      </Badge>
+                    )}
+                    {isHost && (
+                      <Badge variant="outline" className="bg-success/20 text-success border-success/40 text-[10px] px-1.5 py-0">
+                        HOST
+                      </Badge>
+                    )}
+                    {hasJoined && !isHost && (
+                      <Badge variant="outline" className="bg-primary/20 text-primary border-primary/40 text-[10px] px-1.5 py-0">
+                        JOINED
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleClose();
+                }}
+                className="rounded-lg hover:bg-muted"
+              >
+                <X className="w-5 h-5 text-muted-foreground" />
+              </Button>
+            </div>
 
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto p-4">
               {/* Spot Name - Prominent */}
-              <h2 className="font-fredoka text-2xl text-foreground leading-tight">
+              <h2 className="font-fredoka text-2xl text-foreground leading-tight mb-1">
                 {quest.title}
               </h2>
-            </div>
+              
+              {/* Category badge */}
+              {(() => {
+                const activityData = getActivityByLabel(quest.category);
+                return (
+                  <Badge 
+                    variant="outline" 
+                    className={getCategoryColorClasses(quest.category) + ' mb-4'}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      {activityData && <span>{activityData.icon}</span>}
+                      {quest.category}
+                    </span>
+                  </Badge>
+                );
+              })()}
 
             {/* 2. PARTICIPANTS - Avatars (organizer first, no clipping) */}
             <div className="mt-4 px-1">
@@ -904,15 +939,16 @@ const QuestLobby = ({
 
             {/* 4. DESCRIPTION */}
             {quest.description && (
-              <div className="mt-4 px-1">
+              <div className="mt-4">
                 <p className="text-sm text-foreground/90 leading-relaxed font-nunito">
                   {quest.description}
                 </p>
               </div>
             )}
+            </div>
 
-            {/* Actions */}
-            <div className="mt-auto pt-4 border-t border-border/50 space-y-3">
+            {/* Actions - Fixed at bottom */}
+            <div className="p-4 border-t border-border/50 space-y-3 shrink-0">
               {isGuest ? (
                 <Button 
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka min-h-[52px] text-base"
@@ -1073,8 +1109,13 @@ const QuestLobby = ({
             </div>
           </div>
         )}
-      </SheetContent>
-    </Sheet>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {open && createPortal(modalContent, document.body)}
 
       {/* See All Participants Modal */}
       <Dialog open={showAllParticipants} onOpenChange={setShowAllParticipants}>
