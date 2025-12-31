@@ -28,7 +28,7 @@ import { useDebouncedLocation } from '@/hooks/useDebouncedLocation';
 import ShoutMarker from './ShoutMarker';
 import MapLoadingSkeleton from './MapLoadingSkeleton';
 import { Button } from '@/components/ui/button';
-import { Crosshair, Plus, Minus, Compass, Users, UsersRound, Eye, Ghost, Calendar, CalendarOff, Megaphone, MessageSquareOff } from 'lucide-react';
+import { Compass, Users, UsersRound, Eye, Ghost, Calendar, CalendarOff, Megaphone, MessageSquareOff } from 'lucide-react';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HERE';
 
@@ -2103,39 +2103,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
               className="w-11 h-11 bg-card/90 backdrop-blur-md border-primary/30 hover:bg-primary/20 hover:border-primary"
               title="Center on My Location"
             >
-              <Crosshair className="w-5 h-5 text-primary" />
+              <img src="/icon.svg" alt="Center" className="w-6 h-6" />
             </Button>
           )}
-
-          {/* Zoom In */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              if (map.current) {
-                map.current.zoomIn({ duration: 300 });
-              }
-            }}
-            className="w-11 h-11 bg-card/90 backdrop-blur-md border-border/50 hover:bg-muted"
-            title="Zoom In"
-          >
-            <Plus className="w-5 h-5" />
-          </Button>
-
-          {/* Zoom Out */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              if (map.current) {
-                map.current.zoomOut({ duration: 300 });
-              }
-            }}
-            className="w-11 h-11 bg-card/90 backdrop-blur-md border-border/50 hover:bg-muted"
-            title="Zoom Out"
-          >
-            <Minus className="w-5 h-5" />
-          </Button>
 
           {/* Compass / View Toggle */}
           <Button
