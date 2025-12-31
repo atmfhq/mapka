@@ -1,13 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { LogOut, UserCog, MapPin, Search, X, Loader2, Users } from 'lucide-react';
+import { MapPin, Search, X, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import ChatDrawer from './ChatDrawer';
 import ConnectionsDrawer from './ConnectionsDrawer';
 import NotificationsDropdown from './NotificationsDropdown';
-import InstallPrompt from '@/components/InstallPrompt';
+import EditProfileModal from './EditProfileModal';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -66,7 +64,7 @@ const Navbar = ({
   onLocationUpdated,
   viewportBounds,
 }: NavbarProps) => {
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -74,7 +72,6 @@ const Navbar = ({
   const [isTeleporting, setIsTeleporting] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   // Debounced geocoding search
@@ -264,62 +261,23 @@ const Navbar = ({
               </div>
 
               {/* Profile Avatar Button */}
-              <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
-                <SheetTrigger asChild>
-                  <button 
-                    onClick={() => setSettingsOpen(true)}
-                    className="hover:scale-105 transition-transform"
-                  >
-                    <AvatarDisplay config={avatarConfig} size={52} showGlow={false} />
-                  </button>
-                </SheetTrigger>
-                <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh]">
-                  <SheetHeader className="pb-4 border-b border-border/50">
-                    <SheetTitle className="font-fredoka text-xl flex items-center gap-3">
-                      <div className="w-12 h-12">
-                        <AvatarDisplay config={avatarConfig} size={48} showGlow={false} />
-                      </div>
-                      <div className="text-left">
-                        <div>{nick}</div>
-                        <div className="text-sm font-nunito font-normal text-muted-foreground">
-                          Adventurer Profile
-                        </div>
-                      </div>
-                    </SheetTitle>
-                  </SheetHeader>
-                  
-                  <div className="py-4 space-y-3">
-                    <Link to="/profile/edit" onClick={() => setSettingsOpen(false)}>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start gap-3 border-primary/30 text-primary hover:bg-primary/10 min-h-[48px]"
-                      >
-                        <UserCog className="w-5 h-5" />
-                        <span className="font-medium">Edit Profile</span>
-                      </Button>
-                    </Link>
-                    
-                    <InstallPrompt />
-                    
-                    <Button
-                      onClick={() => {
-                        setSettingsOpen(false);
-                        onSignOut();
-                      }}
-                      variant="outline"
-                      className="w-full justify-start gap-3 border-destructive/30 text-destructive hover:bg-destructive/10 min-h-[48px]"
-                    >
-                      <LogOut className="w-5 h-5" />
-                      <span className="font-medium">Sign Out</span>
-                    </Button>
-                  </div>
-                </SheetContent>
-              </Sheet>
+              <button 
+                onClick={() => setProfileModalOpen(true)}
+                className="hover:scale-105 transition-transform"
+              >
+                <AvatarDisplay config={avatarConfig} size={52} showGlow={false} />
+              </button>
             </div>
           </div>
         </div>
       </header>
 
+      {/* Edit Profile Modal */}
+      <EditProfileModal 
+        open={profileModalOpen} 
+        onOpenChange={setProfileModalOpen}
+        onSignOut={onSignOut}
+      />
     </>
   );
 };

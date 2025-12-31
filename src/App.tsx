@@ -10,7 +10,6 @@ import LoadingScreen from "@/components/LoadingScreen";
 import Auth from "./pages/Auth";
 import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
-import EditProfile from "./pages/EditProfile";
 
 const queryClient = new QueryClient();
 
@@ -47,18 +46,9 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/profile/edit"
-              element={
-                <ProtectedRoute>
-                  <OnboardingGuard>
-                    <EditProfile />
-                  </OnboardingGuard>
-                </ProtectedRoute>
-              }
-            />
-            {/* Legacy route redirect */}
+            {/* Legacy route redirects */}
             <Route path="/dashboard" element={<Navigate to="/" replace />} />
+            <Route path="/profile/edit" element={<Navigate to="/" replace />} />
             {/* Catch-all: redirect any unknown routes to map */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
