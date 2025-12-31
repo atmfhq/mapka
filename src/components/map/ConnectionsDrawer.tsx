@@ -141,16 +141,11 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
       <div className="relative bg-card border-2 border-border rounded-t-2xl sm:rounded-2xl shadow-hard w-full sm:max-w-md max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300 z-10">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center">
-              <Users className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-nunito font-bold text-foreground">Network</h3>
-              <p className="text-xs text-muted-foreground">
-                {connections.length} connection{connections.length !== 1 ? 's' : ''} · {following.length} following · {followers.length} follower{followers.length !== 1 ? 's' : ''}
-              </p>
-            </div>
+          <div>
+            <h3 className="font-nunito font-bold text-foreground">Network</h3>
+            <p className="text-xs text-muted-foreground">
+              {connections.length} connection{connections.length !== 1 ? 's' : ''} · {following.length} following · {followers.length} follower{followers.length !== 1 ? 's' : ''}
+            </p>
           </div>
           <Button
             variant="ghost"
