@@ -56,6 +56,7 @@ interface Participant {
   user_id: string;
   status: string;
   chat_active: boolean;
+  is_chat_banned?: boolean;
   profile?: Profile;
 }
 
@@ -130,6 +131,7 @@ const QuestLobby = ({
   const [loading, setLoading] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [isChatActive, setIsChatActive] = useState(true);
+  const [isChatBlocked, setIsChatBlocked] = useState(false);
   const [showAllParticipants, setShowAllParticipants] = useState(false);
   const [showBannedUsers, setShowBannedUsers] = useState(false);
   
@@ -223,7 +225,7 @@ const QuestLobby = ({
 
       const { data: participantsData } = await supabase
         .from('event_participants')
-        .select('id, user_id, status, chat_active')
+        .select('id, user_id, status, chat_active, is_chat_banned')
         .eq('event_id', quest.id);
 
       if (participantsData) {
@@ -240,6 +242,7 @@ const QuestLobby = ({
         const currentParticipant = participantsData.find(p => p.user_id === currentUserId);
         setHasJoined(!!currentParticipant);
         setIsChatActive(currentParticipant?.chat_active ?? true);
+        setIsChatBlocked(currentParticipant?.is_chat_banned ?? false);
       }
     };
 
@@ -251,7 +254,7 @@ const QuestLobby = ({
     
     const { data } = await supabase
       .from('event_participants')
-      .select('id, user_id, status, chat_active')
+      .select('id, user_id, status, chat_active, is_chat_banned')
       .eq('event_id', quest.id);
     
     if (data) {
@@ -267,6 +270,7 @@ const QuestLobby = ({
       setParticipants(participantsWithProfiles);
       const currentParticipant = data.find(p => p.user_id === currentUserId);
       setIsChatActive(currentParticipant?.chat_active ?? true);
+      setIsChatBlocked(currentParticipant?.is_chat_banned ?? false);
     }
   };
 
@@ -967,7 +971,16 @@ const QuestLobby = ({
               ) : hasJoined ? (
                 /* Participant actions: Chat (Join/Open/Leave), Leave Spot */
                 <>
-                  {isChatActive ? (
+                  {isChatBlocked ? (
+                    /* Blocked from chat: Show blocked state */
+                    <div className="w-full p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-center">
+                      <Ban className="w-6 h-6 text-destructive mx-auto mb-2" />
+                      <p className="text-sm font-medium text-destructive">You are blocked from this chat</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Contact the organizer to be unblocked
+                      </p>
+                    </div>
+                  ) : isChatActive ? (
                     /* In chat: Show Open Chat + Leave Chat */
                     <>
                       <Button 
