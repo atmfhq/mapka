@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Users, Sparkles, MapPin, Globe, X, Loader2 } from 'lucide-react';
+import { Users, Sparkles, MapPin, Globe, X, Loader2, UserMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useConnections, ConnectedUser } from '@/hooks/useConnections';
+import { useFollowingList } from '@/hooks/useFollows';
+import { useToast } from '@/hooks/use-toast';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import ProfileModal from './ProfileModal';
 
@@ -23,9 +26,13 @@ interface ConnectionsDrawerProps {
 
 const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo }: ConnectionsDrawerProps) => {
   const { connections, loading, error, refetch } = useConnections(currentUserId);
+  const { following, loading: followingLoading, unfollowUser } = useFollowingList(currentUserId);
+  const { toast } = useToast();
   const [isOpen, setIsOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<ConnectedUser | null>(null);
+  const [activeTab, setActiveTab] = useState('connections');
+  const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
 
   // Split connections into nearby and others based on viewport
   const { nearby, others } = useMemo(() => {
@@ -76,6 +83,25 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
   const handleOthersClick = (user: ConnectedUser) => {
     setSelectedUser(user);
     setProfileModalOpen(true);
+  };
+
+  const handleUnfollow = async (userId: string, userName: string | null) => {
+    setUnfollowingId(userId);
+    const success = await unfollowUser(userId);
+    setUnfollowingId(null);
+
+    if (success) {
+      toast({
+        title: 'Unfollowed',
+        description: `You have unfollowed ${userName || 'this user'}`,
+      });
+    } else {
+      toast({
+        title: 'Error',
+        description: 'Failed to unfollow. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Trigger button
@@ -136,9 +162,9 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
               <Users className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-nunito font-bold text-foreground">Connections</h3>
+              <h3 className="font-nunito font-bold text-foreground">Network</h3>
               <p className="text-xs text-muted-foreground">
-                {connections.length} friend{connections.length !== 1 ? 's' : ''}
+                {connections.length} connection{connections.length !== 1 ? 's' : ''} · {following.length} following
               </p>
             </div>
           </div>
@@ -155,84 +181,130 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
           </Button>
         </div>
 
-        {/* Content */}
-        <ScrollArea className="flex-1 overflow-auto">
-          <div className="p-4 space-y-6">
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : error ? (
-              <div className="text-center py-8">
-                <p className="text-destructive font-nunito text-sm">{error}</p>
-                <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-3">
-                  Try Again
-                </Button>
-              </div>
-            ) : connections.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                  <Sparkles className="w-8 h-8 text-primary" />
-                </div>
-                <h2 className="font-nunito text-lg font-bold mb-1">No Connections Yet</h2>
-                <p className="font-nunito text-sm text-muted-foreground max-w-xs">
-                  Join spots on the map to automatically connect with their creators!
-                </p>
-              </div>
-            ) : (
-              <>
-                {/* Nearby Section */}
-                {nearby.length > 0 && (
-                  <section>
-                    <div className="flex items-center gap-2 mb-3">
-                      <MapPin className="w-4 h-4 text-primary" />
-                      <h2 className="font-nunito text-sm font-semibold text-foreground">
-                        Nearby
-                      </h2>
-                      <span className="text-xs font-nunito text-muted-foreground">
-                        ({nearby.length})
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      {nearby.map(user => (
-                        <ConnectionCard 
-                          key={user.id} 
-                          user={user} 
-                          isNearby 
-                          onClick={() => handleNearbyClick(user)}
-                        />
-                      ))}
-                    </div>
-                  </section>
-                )}
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
+          <TabsList className="w-full grid grid-cols-2 mx-4 mt-3 mb-0" style={{ width: 'calc(100% - 2rem)' }}>
+            <TabsTrigger value="connections" className="font-nunito text-sm">
+              Connections
+            </TabsTrigger>
+            <TabsTrigger value="following" className="font-nunito text-sm">
+              Following
+            </TabsTrigger>
+          </TabsList>
 
-                {/* Others Section */}
-                {others.length > 0 && (
-                  <section>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Globe className="w-4 h-4 text-muted-foreground" />
-                      <h2 className="font-nunito text-sm font-semibold text-foreground">
-                        {nearby.length > 0 ? 'Others' : 'All Connections'}
-                      </h2>
-                      <span className="text-xs font-nunito text-muted-foreground">
-                        ({others.length})
-                      </span>
+          {/* Connections Tab */}
+          <TabsContent value="connections" className="flex-1 overflow-hidden mt-0">
+            <ScrollArea className="h-full">
+              <div className="p-4 space-y-6">
+                {loading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : error ? (
+                  <div className="text-center py-8">
+                    <p className="text-destructive font-nunito text-sm">{error}</p>
+                    <Button variant="outline" size="sm" onClick={() => refetch()} className="mt-3">
+                      Try Again
+                    </Button>
+                  </div>
+                ) : connections.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                      <Sparkles className="w-8 h-8 text-primary" />
                     </div>
-                    <div className="space-y-2">
-                      {others.map(user => (
-                        <ConnectionCard 
-                          key={user.id} 
-                          user={user} 
-                          onClick={() => handleOthersClick(user)}
-                        />
-                      ))}
-                    </div>
-                  </section>
+                    <h2 className="font-nunito text-lg font-bold mb-1">No Connections Yet</h2>
+                    <p className="font-nunito text-sm text-muted-foreground max-w-xs">
+                      Join spots on the map to automatically connect with their creators!
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Nearby Section */}
+                    {nearby.length > 0 && (
+                      <section>
+                        <div className="flex items-center gap-2 mb-3">
+                          <MapPin className="w-4 h-4 text-primary" />
+                          <h2 className="font-nunito text-sm font-semibold text-foreground">
+                            Nearby
+                          </h2>
+                          <span className="text-xs font-nunito text-muted-foreground">
+                            ({nearby.length})
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {nearby.map(user => (
+                            <ConnectionCard 
+                              key={user.id} 
+                              user={user} 
+                              isNearby 
+                              onClick={() => handleNearbyClick(user)}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    )}
+
+                    {/* Others Section */}
+                    {others.length > 0 && (
+                      <section>
+                        <div className="flex items-center gap-2 mb-3">
+                          <Globe className="w-4 h-4 text-muted-foreground" />
+                          <h2 className="font-nunito text-sm font-semibold text-foreground">
+                            {nearby.length > 0 ? 'Others' : 'All Connections'}
+                          </h2>
+                          <span className="text-xs font-nunito text-muted-foreground">
+                            ({others.length})
+                          </span>
+                        </div>
+                        <div className="space-y-2">
+                          {others.map(user => (
+                            <ConnectionCard 
+                              key={user.id} 
+                              user={user} 
+                              onClick={() => handleOthersClick(user)}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    )}
+                  </>
                 )}
-              </>
-            )}
-          </div>
-        </ScrollArea>
+              </div>
+            </ScrollArea>
+          </TabsContent>
+
+          {/* Following Tab */}
+          <TabsContent value="following" className="flex-1 overflow-hidden mt-0">
+            <ScrollArea className="h-full">
+              <div className="p-4 space-y-2">
+                {followingLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  </div>
+                ) : following.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                      <Users className="w-8 h-8 text-primary" />
+                    </div>
+                    <h2 className="font-nunito text-lg font-bold mb-1">Not Following Anyone</h2>
+                    <p className="font-nunito text-sm text-muted-foreground max-w-xs">
+                      Follow users to get updates when they create spots or post shouts!
+                    </p>
+                  </div>
+                ) : (
+                  following.map(user => (
+                    <FollowingCard
+                      key={user.id}
+                      user={user}
+                      onUnfollow={() => handleUnfollow(user.id, user.nick)}
+                      isUnfollowing={unfollowingId === user.id}
+                    />
+                  ))
+                )}
+              </div>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Profile Modal */}
@@ -298,6 +370,56 @@ const ConnectionCard = ({ user, isNearby, onClick }: ConnectionCardProps) => {
         <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
       )}
     </button>
+  );
+};
+
+interface FollowingCardProps {
+  user: {
+    id: string;
+    nick: string | null;
+    avatar_url: string | null;
+    avatar_config: {
+      skinColor?: string;
+      shape?: string;
+      eyes?: string;
+      mouth?: string;
+    } | null;
+    bio: string | null;
+  };
+  onUnfollow: () => void;
+  isUnfollowing: boolean;
+}
+
+const FollowingCard = ({ user, onUnfollow, isUnfollowing }: FollowingCardProps) => {
+  return (
+    <div className="w-full flex items-center gap-3 p-3 rounded-xl border-2 border-border bg-card">
+      <AvatarDisplay config={user.avatar_config} size={40} showGlow={false} />
+      <div className="flex-1 min-w-0">
+        <p className="font-nunito text-sm font-medium truncate">
+          {user.nick || 'Anonymous'}
+        </p>
+        {user.bio && (
+          <p className="font-nunito text-xs text-muted-foreground truncate">{user.bio}</p>
+        )}
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={(e) => {
+          e.stopPropagation();
+          onUnfollow();
+        }}
+        disabled={isUnfollowing}
+        className="text-xs gap-1.5 text-muted-foreground hover:text-destructive hover:border-destructive"
+      >
+        {isUnfollowing ? (
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        ) : (
+          <UserMinus className="w-3.5 h-3.5" />
+        )}
+        Unfollow
+      </Button>
+    </div>
   );
 };
 
