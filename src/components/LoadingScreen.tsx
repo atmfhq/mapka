@@ -4,7 +4,7 @@ const LoadingScreen = () => {
       <div className="text-center">
         {/* App Logo */}
         <div className="w-24 h-24 mx-auto mb-6">
-          <img src="/icon.svg" alt="Mapka" className="w-full h-full" />
+          <img src="/pin-logo.svg" alt="Mapka" className="w-full h-full" />
         </div>
         
         {/* App Name */}
