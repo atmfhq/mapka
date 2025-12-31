@@ -71,37 +71,35 @@ export const EmojiPicker = ({ value, onChange, className }: EmojiPickerProps) =>
         </div>
       )}
 
-      {/* Category pills - horizontal scroll */}
-      <div className="w-full overflow-x-auto overflow-y-hidden scrollbar-hide">
-        <div className="flex flex-nowrap gap-1.5 pb-1">
+      {/* Category pills - wrapping */}
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          onClick={() => setSelectedCategory(null)}
+          className={cn(
+            "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
+            !selectedCategory 
+              ? "bg-primary text-primary-foreground" 
+              : "bg-muted/50 text-muted-foreground hover:bg-muted"
+          )}
+        >
+          All
+        </button>
+        {EMOJI_CATEGORIES.map(category => (
           <button
+            key={category.name}
             type="button"
-            onClick={() => setSelectedCategory(null)}
+            onClick={() => setSelectedCategory(category.name)}
             className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0",
-              !selectedCategory 
-                ? "bg-primary text-primary-foreground" 
+              "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
+              selectedCategory === category.name
+                ? "bg-primary text-primary-foreground"
                 : "bg-muted/50 text-muted-foreground hover:bg-muted"
             )}
           >
-            All
+            {category.name}
           </button>
-          {EMOJI_CATEGORIES.map(category => (
-            <button
-              key={category.name}
-              type="button"
-              onClick={() => setSelectedCategory(category.name)}
-              className={cn(
-                "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors shrink-0",
-                selectedCategory === category.name
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted/50 text-muted-foreground hover:bg-muted"
-              )}
-            >
-              {category.name}
-            </button>
-          ))}
-        </div>
+        ))}
       </div>
 
       {/* Emoji grid - vertical scroll with wrapping */}
