@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
-import { MessageCircle, Send, ChevronLeft, Loader2, BellOff, Bell } from 'lucide-react';
+import { MessageCircle, Send, ChevronLeft, Loader2, X } from 'lucide-react';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
@@ -68,6 +68,7 @@ const ChatDrawer = ({
   const [loadingMissions, setLoadingMissions] = useState(true);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   
   const { connectedUsers, loading, refetch: refetchConnections, getInvitationIdForUser } = useConnectedUsers(currentUserId);
@@ -117,6 +118,10 @@ const ChatDrawer = ({
       setMessages([]);
       silentRefetch();
     }
+  };
+
+  const handleClose = () => {
+    handleOpenChange(false);
   };
 
   // Handle external user selection (from map click)
@@ -386,36 +391,50 @@ const ChatDrawer = ({
   const totalBadgeCount = pendingCount + getTotalUnreadCount();
   const isLoading = loading || loadingMissions || loadingConversations;
 
-  return (
-    <Sheet open={isOpen} onOpenChange={handleOpenChange}>
-      <SheetTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative min-w-[44px] min-h-[44px] text-muted-foreground hover:text-foreground"
-          onClick={() => setInternalOpen(true)}
-        >
-          <MessageCircle className="w-5 h-5" />
-          {totalBadgeCount > 0 && (
-            <span className={`absolute top-1 right-1 w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center ${
-              pendingCount > 0 
-                ? 'bg-warning text-warning-foreground animate-pulse' 
-                : 'bg-destructive text-destructive-foreground'
-            }`}>
-              {totalBadgeCount > 99 ? '99+' : totalBadgeCount}
-            </span>
-          )}
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh]">
-        <SheetHeader>
-          <SheetTitle className="font-fredoka text-xl flex items-center gap-2">
+  // Trigger button (always rendered)
+  const triggerButton = (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="relative min-w-[44px] min-h-[44px] text-muted-foreground hover:text-foreground"
+      onClick={() => setInternalOpen(true)}
+    >
+      <MessageCircle className="w-5 h-5" />
+      {totalBadgeCount > 0 && (
+        <span className={`absolute top-1 right-1 w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center ${
+          pendingCount > 0 
+            ? 'bg-warning text-warning-foreground animate-pulse' 
+            : 'bg-destructive text-destructive-foreground'
+        }`}>
+          {totalBadgeCount > 99 ? '99+' : totalBadgeCount}
+        </span>
+      )}
+    </Button>
+  );
+
+  if (!isOpen) {
+    return triggerButton;
+  }
+
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center" style={{ isolation: 'isolate' }}>
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+        onClick={handleClose}
+      />
+
+      {/* Modal */}
+      <div className="relative bg-card border-2 border-border rounded-t-2xl sm:rounded-2xl shadow-hard w-full sm:max-w-md max-h-[85vh] flex flex-col animate-in slide-in-from-bottom-4 fade-in duration-300 z-10">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-3">
             {selectedUser ? (
-              <div className="flex items-center gap-2 flex-1">
+              <>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="w-8 h-8"
+                  className="w-8 h-8 shrink-0"
                   onClick={() => {
                     setActiveDmChat(null);
                     setSelectedUser(null);
@@ -425,7 +444,7 @@ const ChatDrawer = ({
                   <ChevronLeft className="w-5 h-5" />
                 </Button>
                 <button
-                  className="w-9 h-9 hover:opacity-80 transition-opacity"
+                  className="w-9 h-9 hover:opacity-80 transition-opacity shrink-0"
                   onClick={() => setProfileModalOpen(true)}
                 >
                   <AvatarDisplay 
@@ -435,56 +454,79 @@ const ChatDrawer = ({
                   />
                 </button>
                 <button
-                  className="flex-1 text-left hover:opacity-80 transition-opacity"
+                  className="flex-1 text-left hover:opacity-80 transition-opacity min-w-0"
                   onClick={() => setProfileModalOpen(true)}
                 >
-                  <span className="font-semibold">{selectedUserData?.nick || 'Unknown'}</span>
+                  <span className="font-nunito font-bold text-foreground truncate block">
+                    {selectedUserData?.nick || 'Unknown'}
+                  </span>
                 </button>
-              </div>
+              </>
             ) : (
               <>
-                <MessageCircle className="w-5 h-5 text-success" />
-                Messages
+                <div className="w-10 h-10 rounded-xl bg-success/20 border border-success/40 flex items-center justify-center">
+                  <MessageCircle className="w-5 h-5 text-success" />
+                </div>
+                <div>
+                  <h3 className="font-nunito font-bold text-foreground">Messages</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
+                  </p>
+                </div>
               </>
             )}
-          </SheetTitle>
-        </SheetHeader>
+          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleClose();
+            }}
+            className="rounded-lg hover:bg-muted shrink-0"
+          >
+            <X className="w-5 h-5 text-muted-foreground" />
+          </Button>
+        </div>
 
+        {/* Content */}
         {!selectedUser ? (
-          <ScrollArea className="h-[60vh] mt-4">
-            {isLoading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
-              </div>
-            ) : conversations.length === 0 ? (
-              <div className="text-center py-12 border border-dashed border-border/50 rounded-lg">
-                <MessageCircle className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
-                <p className="text-muted-foreground/60 text-sm">
-                  No conversations yet
-                </p>
-                <p className="text-muted-foreground/40 text-xs mt-1">
-                  Connect with users on the map to start chatting
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2 pr-2">
-                {conversations.map((item) => (
-                  <ConversationRow
-                    key={item.id}
-                    item={item}
-                    onSelect={handleSelectConversation}
-                    onAcceptInvite={handleAcceptInvitation}
-                    onDeclineInvite={handleDeclineInvitation}
-                  />
-                ))}
-              </div>
-            )}
+          <ScrollArea className="flex-1 overflow-auto">
+            <div className="p-4">
+              {isLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+              ) : conversations.length === 0 ? (
+                <div className="text-center py-12 border border-dashed border-border/50 rounded-lg">
+                  <MessageCircle className="w-10 h-10 mx-auto text-muted-foreground/30 mb-3" />
+                  <p className="text-muted-foreground/60 text-sm">
+                    No conversations yet
+                  </p>
+                  <p className="text-muted-foreground/40 text-xs mt-1">
+                    Connect with users on the map to start chatting
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {conversations.map((item) => (
+                    <ConversationRow
+                      key={item.id}
+                      item={item}
+                      onSelect={handleSelectConversation}
+                      onAcceptInvite={handleAcceptInvitation}
+                      onDeclineInvite={handleDeclineInvitation}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           </ScrollArea>
         ) : (
           /* DM Chat View */
-          <div className="flex flex-col h-[60vh] mt-4">
-            <ScrollArea className="flex-1 pr-4">
-              <div className="space-y-3">
+          <>
+            <ScrollArea className="flex-1 overflow-auto">
+              <div className="p-4 space-y-3">
                 {loadingMessages ? (
                   <div className="flex items-center justify-center py-8">
                     <Loader2 className="w-6 h-6 animate-spin text-primary" />
@@ -535,28 +577,33 @@ const ChatDrawer = ({
               </div>
             </ScrollArea>
 
+            {/* Message input - pinned to bottom */}
             {invitationId && (
-              <div className="flex gap-2 mt-4 pt-4 border-t border-border/50">
-                <Input
-                  value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
-                  placeholder="Type a message..."
-                  className="flex-1"
-                  maxLength={MAX_MESSAGE_LENGTH}
-                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                />
-                <Button
-                  size="icon"
-                  onClick={handleSendMessage}
-                  disabled={sending || !newMessage.trim()}
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
+              <div className="p-4 border-t border-border shrink-0">
+                <div className="flex gap-2">
+                  <Input
+                    ref={inputRef}
+                    value={newMessage}
+                    onChange={(e) => setNewMessage(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
+                    placeholder="Type a message..."
+                    className="flex-1 bg-muted/50 border-border"
+                    maxLength={MAX_MESSAGE_LENGTH}
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                  />
+                  <Button
+                    size="icon"
+                    onClick={handleSendMessage}
+                    disabled={sending || !newMessage.trim()}
+                    className="shrink-0 bg-primary hover:bg-primary/90"
+                  >
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
             )}
-          </div>
+          </>
         )}
-      </SheetContent>
+      </div>
 
       {selectedUserData && (
         <ProfileModal
@@ -583,12 +630,19 @@ const ChatDrawer = ({
             refetchConnections();
           }}
           onCloseChat={() => {
-            handleOpenChange(false);
+            handleClose();
           }}
           onNavigate={(path) => navigate(path)}
         />
       )}
-    </Sheet>
+    </div>
+  );
+
+  return (
+    <>
+      {triggerButton}
+      {createPortal(modalContent, document.body)}
+    </>
   );
 };
 
