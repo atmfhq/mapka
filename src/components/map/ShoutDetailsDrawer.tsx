@@ -118,17 +118,17 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
     }
   };
 
-  // Calculate remaining time
+  // Calculate remaining time (24 hour lifespan)
   const getRemainingTime = () => {
     if (!shout) return 0;
     const createdTime = new Date(shout.created_at).getTime();
     const now = Date.now();
-    const thirtyMin = 30 * 60 * 1000;
-    return Math.max(0, thirtyMin - (now - createdTime));
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    return Math.max(0, twentyFourHours - (now - createdTime));
   };
 
   const remaining = getRemainingTime();
-  const progress = remaining / (30 * 60 * 1000);
+  const progress = remaining / (24 * 60 * 60 * 1000);
   
   const getBarColor = () => {
     if (progress > 0.66) return 'bg-emerald-500';
@@ -163,12 +163,17 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 rounded-lg hover:bg-muted transition-colors"
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="rounded-lg hover:bg-muted"
           >
             <X className="w-5 h-5 text-muted-foreground" />
-          </button>
+          </Button>
         </div>
 
         {/* Content */}
