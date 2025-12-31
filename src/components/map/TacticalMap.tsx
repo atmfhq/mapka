@@ -28,7 +28,11 @@ import { useDebouncedLocation } from '@/hooks/useDebouncedLocation';
 import ShoutMarker from './ShoutMarker';
 import MapLoadingSkeleton from './MapLoadingSkeleton';
 import { Button } from '@/components/ui/button';
-import { Compass, Users, UsersRound, Eye, Ghost, Calendar, CalendarOff, Megaphone, MessageSquareOff } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Compass, Users, UsersRound, Eye, Ghost, CalendarDays, X, Megaphone, MessageSquareOff } from 'lucide-react';
+import { format, isSameDay, startOfDay, endOfDay } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HERE';
 
@@ -66,8 +70,6 @@ interface Quest {
   share_code?: string;
 }
 
-export type DateFilter = 'today' | '3days' | '7days';
-
 export interface ViewportBounds {
   north: number;
   south: number;
@@ -81,7 +83,8 @@ interface TacticalMapProps {
   baseLat: number;
   baseLng: number;
   currentUserId: string | null;
-  dateFilter: DateFilter;
+  selectedDate: Date | null;
+  onSelectedDateChange: (date: Date | null) => void;
   currentUserAvatarConfig?: AvatarConfig | null;
   locationLat?: number | null;
   locationLng?: number | null;
@@ -241,7 +244,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   baseLat,
   baseLng,
   currentUserId, 
-  dateFilter,
+  selectedDate,
+  onSelectedDateChange,
   currentUserAvatarConfig,
   locationLat,
   locationLng,
@@ -286,7 +290,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const lastDbUpdateRef = useRef<number>(0); // Throttle DB updates separately from visual
   const bounceTimestampsRef = useRef<Map<string, string>>(new Map()); // Track last bounce timestamps per user
   const [showUsers, setShowUsers] = useState(true); // Toggle visibility of user avatars on map
-  const [showEvents, setShowEvents] = useState(true); // Toggle visibility of events on map
   const [showShouts, setShowShouts] = useState(true); // Toggle visibility of shouts on map
   const [activeBubbles, setActiveBubbles] = useState<Map<string, ActiveBubble>>(new Map()); // Speech bubbles per user
   const speechBubbleRootsRef = useRef<Map<string, Root>>(new Map()); // Roots for speech bubble DOM elements
@@ -399,32 +402,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const filteredQuests = useMemo(() => {
     const now = Date.now();
     
-    // Calculate date filter cutoff
-    const getDateCutoff = (): number => {
-      switch (dateFilter) {
-        case 'today':
-          // End of today
-          const endOfToday = new Date();
-          endOfToday.setHours(23, 59, 59, 999);
-          return endOfToday.getTime();
-        case '3days':
-          return now + (3 * 24 * 60 * 60 * 1000);
-        case '7days':
-        default:
-          return now + (7 * 24 * 60 * 60 * 1000);
-      }
-    };
-    
-    const dateCutoff = getDateCutoff();
-    
     // First filter out private events - they should not appear on map
     const publicQuests = quests.filter(m => !m.is_private);
     
     // Apply date filter:
-    // Show quests that:
-    // 1. Start within the selected timeframe, OR
-    // 2. Are currently ongoing (started in past but end in future)
-    // AND exclude expired quests
+    // If selectedDate is set, only show quests active on that specific day
+    // Otherwise, show all upcoming quests (default behavior)
     return publicQuests.filter(q => {
       const startTime = new Date(q.start_time).getTime();
       const endTime = startTime + (q.duration_minutes * 60 * 1000);
@@ -432,13 +415,20 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       // Exclude expired quests
       if (endTime < now) return false;
       
-      // Include if currently ongoing (started but not ended)
-      if (startTime <= now && endTime > now) return true;
+      // If a specific date is selected, filter to that day only
+      if (selectedDate) {
+        const dayStart = startOfDay(selectedDate).getTime();
+        const dayEnd = endOfDay(selectedDate).getTime();
+        
+        // Show quest if it overlaps with the selected day
+        // Quest is active on day if: startTime <= dayEnd AND endTime >= dayStart
+        return startTime <= dayEnd && endTime >= dayStart;
+      }
       
-      // Include if starts within the date filter range
-      return startTime <= dateCutoff;
+      // No filter - show all upcoming quests (not expired)
+      return true;
     });
-  }, [quests, dateFilter]);
+  }, [quests, selectedDate]);
 
   // Fetch nearby profiles using spatial RPC - uses DEBOUNCED location for performance
   const fetchProfiles = useCallback(async () => {
@@ -1528,15 +1518,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     // Skip if map style not ready yet
     if (!mapStyleLoaded) return;
 
-    // If showEvents is false, remove all quest markers and skip rendering
-    if (!showEvents) {
-      questMarkersMapRef.current.forEach((marker) => {
-        marker.remove();
-      });
-      questMarkersMapRef.current.clear();
-      return;
-    }
-
     // Build set of current quest IDs
     const currentQuestIds = new Set(filteredQuests.map(q => q.id));
 
@@ -1630,7 +1611,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       questMarkersMapRef.current.set(quest.id, marker);
     });
     
-  }, [filteredQuests, currentUserId, joinedQuestIds, mapStyleLoaded, showEvents]);
+  }, [filteredQuests, currentUserId, joinedQuestIds, mapStyleLoaded]);
 
   // Render shout markers on map
   useEffect(() => {
@@ -2180,24 +2161,58 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             </Button>
           )}
 
-          {/* Toggle Events Visibility */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setShowEvents(prev => !prev)}
-            className={`w-11 h-11 backdrop-blur-md border-border/50 transition-all ${
-              showEvents 
-                ? 'bg-card/90 hover:bg-primary/20 hover:border-primary' 
-                : 'bg-muted/60 hover:bg-muted/80'
-            }`}
-            title={showEvents ? 'Hide Events' : 'Show Events'}
-          >
-            {showEvents ? (
-              <Calendar className="w-5 h-5 text-primary" />
-            ) : (
-              <CalendarOff className="w-5 h-5 text-muted-foreground opacity-50" />
-            )}
-          </Button>
+          {/* Calendar Date Filter */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className={cn(
+                  "w-11 h-11 backdrop-blur-md border-border/50 transition-all relative",
+                  selectedDate 
+                    ? 'bg-primary/20 hover:bg-primary/30 border-primary' 
+                    : 'bg-card/90 hover:bg-primary/20 hover:border-primary'
+                )}
+                title={selectedDate ? `Filtering: ${format(selectedDate, 'MMM d')}` : 'Filter by Date'}
+              >
+                <CalendarDays className={cn(
+                  "w-5 h-5",
+                  selectedDate ? "text-primary" : "text-primary"
+                )} />
+                {selectedDate && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full text-[10px] font-bold text-primary-foreground flex items-center justify-center">
+                    {format(selectedDate, 'd')}
+                  </span>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="end" sideOffset={8}>
+              <div className="p-2 border-b border-border flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-foreground px-1">
+                  {selectedDate ? format(selectedDate, 'EEEE, MMM d') : 'Pick a date'}
+                </span>
+                {selectedDate && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onSelectedDateChange(null)}
+                    className="h-7 px-2 text-xs text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="w-3 h-3 mr-1" />
+                    Clear
+                  </Button>
+                )}
+              </div>
+              <Calendar
+                mode="single"
+                selected={selectedDate ?? undefined}
+                onSelect={(date) => onSelectedDateChange(date ?? null)}
+                disabled={(date) => date < startOfDay(new Date())}
+                initialFocus
+                className={cn("p-3 pointer-events-auto")}
+              />
+            </PopoverContent>
+          </Popover>
 
           {/* Toggle Shouts Visibility */}
           <Button

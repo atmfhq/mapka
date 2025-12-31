@@ -22,7 +22,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
-  const [dateFilter, setDateFilter] = useState<'today' | '3days' | '7days'>('7days');
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [chatOpenUserId, setChatOpenUserId] = useState<string | null>(null);
   const [chatOpenEventId, setChatOpenEventId] = useState<string | null>(null);
   const [isActive, setIsActive] = useState(true);
@@ -271,7 +271,8 @@ const Dashboard = () => {
           baseLat={mapLat}
           baseLng={mapLng}
           currentUserId={user?.id ?? null}
-          dateFilter={dateFilter}
+          selectedDate={selectedDate}
+          onSelectedDateChange={setSelectedDate}
           currentUserAvatarConfig={profile?.avatar_config as AvatarConfig | null}
           locationLat={isGuest ? guestLat : currentLocation.lat}
           locationLng={isGuest ? guestLng : currentLocation.lng}
