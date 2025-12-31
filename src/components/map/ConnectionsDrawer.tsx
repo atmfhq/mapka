@@ -309,6 +309,11 @@ interface UserListCardProps {
 }
 
 const UserListCard = ({ user, onClick, actionButton }: UserListCardProps) => {
+  // Hard truncate bio to 40 characters
+  const truncatedBio = user.bio && user.bio.length > 40 
+    ? user.bio.slice(0, 40) + '...' 
+    : user.bio;
+
   return (
     <button
       onClick={onClick}
@@ -321,9 +326,9 @@ const UserListCard = ({ user, onClick, actionButton }: UserListCardProps) => {
         <p className="font-nunito text-sm font-medium truncate">
           {user.nick || 'Anonymous'}
         </p>
-        {user.bio && (
-          <p className="font-nunito text-xs text-muted-foreground truncate">
-            {user.bio}
+        {truncatedBio && (
+          <p className="font-nunito text-xs text-muted-foreground">
+            {truncatedBio}
           </p>
         )}
       </div>
