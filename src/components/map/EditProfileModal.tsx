@@ -183,14 +183,14 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
 
   const modalContent = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ isolation: 'isolate' }}>
-      {/* Backdrop - Standard dark overlay matching other modals */}
+      {/* Backdrop - Light blue overlay matching Connections modal */}
       <div 
-        className="absolute inset-0 bg-black/80"
+        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
         onClick={() => onOpenChange(false)}
       />
       
-      {/* Modal - Standard card style */}
-      <div className="relative bg-background border-2 border-border rounded-2xl shadow-hard w-full max-w-md max-h-[85vh] flex flex-col animate-in zoom-in-95 fade-in duration-200 z-10">
+      {/* Modal - Standard card style matching Connections modal */}
+      <div className="relative bg-card border-2 border-border rounded-2xl shadow-hard w-full max-w-md max-h-[85vh] flex flex-col animate-in zoom-in-95 fade-in duration-200 z-10">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
