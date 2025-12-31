@@ -1642,13 +1642,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       el.addEventListener('click', async (e) => {
         e.stopPropagation();
         
-        // Guest login wall: block detail view for unauthenticated users
-        if (isGuestRef.current) {
-          setGuestPromptVariant('view');
-          setGuestPromptOpen(true);
-          return;
-        }
-        
+        // Allow guests to view spot details (login wall only for interactions like join/chat)
         if (map.current) {
           map.current.flyTo({
             center: [quest.lng, quest.lat],
