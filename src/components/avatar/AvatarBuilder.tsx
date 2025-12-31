@@ -31,9 +31,10 @@ interface AvatarConfig {
 interface AvatarBuilderProps {
   initialConfig?: AvatarConfig | null;
   onChange: (config: AvatarConfig) => void;
+  compact?: boolean;
 }
 
-const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
+const AvatarBuilder = ({ initialConfig, onChange, compact = false }: AvatarBuilderProps) => {
   const [config, setConfig] = useState<AvatarConfig>({
     skinColor: resolveColor(initialConfig?.skinColor) || DEFAULT_AVATAR_CONFIG.skinColor,
     shape: initialConfig?.shape || DEFAULT_AVATAR_CONFIG.shape,
@@ -100,11 +101,11 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
   const currentColor = config.skinColor || DEFAULT_AVATAR_CONFIG.skinColor;
 
   return (
-    <div className="space-y-6">
+    <div className={compact ? "space-y-4" : "space-y-6"}>
       {/* Avatar Preview */}
-      <div className="flex justify-center py-6">
+      <div className={`flex justify-center ${compact ? "py-3" : "py-6"}`}>
         <div className="relative">
-          <AvatarDisplay config={config} size={160} showGlow />
+          <AvatarDisplay config={config} size={compact ? 120 : 160} showGlow />
           <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-card border-2 border-border font-nunito text-xs text-muted-foreground shadow-hard-sm">
             Preview
           </div>
@@ -259,7 +260,7 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
           <Label className="font-nunito text-sm font-medium text-foreground mb-3 block">
             Eyes Style ({AVAILABLE_EYES.length} options)
           </Label>
-          <ScrollArea className="h-64 rounded-lg border border-border/50 bg-muted/20 p-2">
+          <ScrollArea className={`${compact ? "h-48" : "h-64"} rounded-lg border border-border/50 bg-muted/20 p-2`}>
             <div className="grid grid-cols-4 gap-2">
               {AVAILABLE_EYES.map((filename) => (
                 <OptionButton
@@ -286,7 +287,7 @@ const AvatarBuilder = ({ initialConfig, onChange }: AvatarBuilderProps) => {
           <Label className="font-nunito text-sm font-medium text-foreground mb-3 block">
             Mouth Style ({AVAILABLE_MOUTHS.length} options)
           </Label>
-          <ScrollArea className="h-64 rounded-lg border border-border/50 bg-muted/20 p-2">
+          <ScrollArea className={`${compact ? "h-48" : "h-64"} rounded-lg border border-border/50 bg-muted/20 p-2`}>
             <div className="grid grid-cols-4 gap-2">
               {AVAILABLE_MOUTHS.map((filename) => (
                 <OptionButton
