@@ -2425,7 +2425,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             }, 300);
           }
         }}
-        onOpenSpotChat={onOpenSpotChat}
         isUserInViewport={(lat, lng) => {
           if (!map.current) return true;
           const bounds = map.current.getBounds();

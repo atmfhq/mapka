@@ -2,11 +2,11 @@ import { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, isToday } from 'date-fns';
-import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Hourglass, User, MessageCircle, LogOut, MessageCircleOff, UserX, Ban, Unlock, Share2 } from 'lucide-react';
+import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Hourglass, LogOut, UserX, Ban, Unlock, Share2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -18,6 +18,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { ACTIVITIES, ACTIVITY_CATEGORIES, getActivityById, getActivitiesByCategory, ActivityCategory } from '@/constants/activities';
 import { useSpotBans } from '@/hooks/useSpotBans';
+import { useSpotComments, useSpotCommentLikes } from '@/hooks/useSpotComments';
+import EntityComments from '@/components/map/EntityComments';
 
 interface Quest {
   id: string;
@@ -71,9 +73,6 @@ interface QuestLobbyProps {
   onLeave?: (questId: string) => void;
   onUpdate?: (quest: Quest) => void;
   onViewUserProfile?: (user: Profile) => void;
-  onOpenSpotChat?: (eventId: string) => void;
-  onLeaveChatSuccess?: (eventId: string) => void;
-  onJoinChatSuccess?: (eventId: string) => void;
   isUserInViewport?: (lat: number, lng: number) => boolean;
 }
 
@@ -121,9 +120,6 @@ const QuestLobby = ({
   onLeave,
   onUpdate,
   onViewUserProfile,
-  onOpenSpotChat,
-  onLeaveChatSuccess,
-  onJoinChatSuccess,
   isUserInViewport
 }: QuestLobbyProps) => {
   const navigate = useNavigate();
@@ -131,8 +127,6 @@ const QuestLobby = ({
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
-  const [isChatActive, setIsChatActive] = useState(true);
-  const [isChatBlocked, setIsChatBlocked] = useState(false);
   const [showAllParticipants, setShowAllParticipants] = useState(false);
   const [showBannedUsers, setShowBannedUsers] = useState(false);
   
@@ -141,6 +135,11 @@ const QuestLobby = ({
     quest?.id || null,
     quest?.host_id === currentUserId
   );
+
+  // Spot comments hooks
+  const { comments, addComment, deleteComment } = useSpotComments(quest?.id || null);
+  const commentIds = useMemo(() => comments.map(c => c.id), [comments]);
+  const { getLikes: getCommentLikes, toggleLike: toggleCommentLike } = useSpotCommentLikes(commentIds, currentUserId);
   
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -242,8 +241,6 @@ const QuestLobby = ({
         setParticipants(participantsWithProfiles);
         const currentParticipant = participantsData.find(p => p.user_id === currentUserId);
         setHasJoined(!!currentParticipant);
-        setIsChatActive(currentParticipant?.chat_active ?? true);
-        setIsChatBlocked(currentParticipant?.is_chat_banned ?? false);
       }
     };
 
@@ -269,9 +266,6 @@ const QuestLobby = ({
       }));
 
       setParticipants(participantsWithProfiles);
-      const currentParticipant = data.find(p => p.user_id === currentUserId);
-      setIsChatActive(currentParticipant?.chat_active ?? true);
-      setIsChatBlocked(currentParticipant?.is_chat_banned ?? false);
     }
   };
 
@@ -311,7 +305,6 @@ const QuestLobby = ({
 
     toast({ title: "Spot joined!", description: "You're now part of the group." });
     setHasJoined(true);
-    setIsChatActive(true);
     onJoin?.(quest.id);
     await refreshParticipants();
   };
@@ -339,64 +332,8 @@ const QuestLobby = ({
 
     toast({ title: "Left spot" });
     setHasJoined(false);
-    setIsChatActive(true);
     setParticipants(prev => prev.filter(p => p.user_id !== currentUserId));
     onLeave?.(quest.id);
-  };
-
-  const handleJoinChat = async () => {
-    if (!quest) return;
-    setLoading(true);
-
-    // Update joined_at when rejoining chat so they get fresh history
-    const { error } = await supabase
-      .from('event_participants')
-      .update({ chat_active: true, joined_at: new Date().toISOString() })
-      .eq('event_id', quest.id)
-      .eq('user_id', currentUserId);
-
-    setLoading(false);
-
-    if (error) {
-      toast({
-        title: "Failed to join chat",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({ title: "Joined chat" });
-    setIsChatActive(true);
-    await refreshParticipants();
-    onJoinChatSuccess?.(quest.id);
-  };
-
-  const handleLeaveChat = async () => {
-    if (!quest) return;
-    setLoading(true);
-
-    const { error } = await supabase
-      .from('event_participants')
-      .update({ chat_active: false })
-      .eq('event_id', quest.id)
-      .eq('user_id', currentUserId);
-
-    setLoading(false);
-
-    if (error) {
-      toast({
-        title: "Failed to leave chat",
-        description: error.message,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({ title: "Left chat", description: "You're still attending the spot." });
-    setIsChatActive(false);
-    await refreshParticipants();
-    onLeaveChatSuccess?.(quest.id);
   };
 
   const handleDelete = async () => {
@@ -945,6 +882,20 @@ const QuestLobby = ({
                 </p>
               </div>
             )}
+
+            {/* Comments Section */}
+            <div className="mt-4 pt-4 border-t border-border/50">
+              <EntityComments
+                entityType="spot"
+                entityId={quest.id}
+                currentUserId={currentUserId}
+                comments={comments}
+                onAddComment={addComment}
+                onDeleteComment={deleteComment}
+                getLikes={getCommentLikes}
+                toggleLike={toggleCommentLike}
+              />
+            </div>
             </div>
 
             {/* Actions - Fixed at bottom */}
@@ -961,99 +912,37 @@ const QuestLobby = ({
                   Login to Join
                 </Button>
               ) : isHost ? (
-                /* Host actions: Open Chat, Edit, Delete */
-                <>
+                <div className="flex gap-2">
                   <Button 
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka min-h-[52px] text-base"
-                    onClick={() => {
-                      if (quest) {
-                        onOpenChange(false);
-                        onOpenSpotChat?.(quest.id);
-                      }
-                    }}
-                  >
-                    <MessageCircle className="w-5 h-5 mr-2" />
-                    Open Chat
-                  </Button>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 border-primary/50 text-primary hover:bg-primary/10 min-h-[48px]"
-                      onClick={startEditing}
-                      disabled={loading}
-                    >
-                      <Pencil className="w-4 h-4 mr-2" />
-                      Edit
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 border-destructive/50 text-destructive hover:bg-destructive/10 min-h-[48px]"
-                      onClick={handleDelete}
-                      disabled={loading}
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </Button>
-                  </div>
-                </>
-              ) : hasJoined ? (
-                /* Participant actions: Chat (Join/Open/Leave), Leave Spot */
-                <>
-                  {isChatBlocked ? (
-                    /* Blocked from chat: Show blocked state */
-                    <div className="w-full p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-center">
-                      <Ban className="w-6 h-6 text-destructive mx-auto mb-2" />
-                      <p className="text-sm font-medium text-destructive">You are blocked from this chat</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Contact the organizer to be unblocked
-                      </p>
-                    </div>
-                  ) : isChatActive ? (
-                    /* In chat: Show Open Chat + Leave Chat */
-                    <>
-                      <Button 
-                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka min-h-[52px] text-base"
-                        onClick={() => {
-                          if (quest) {
-                            onOpenChange(false);
-                            onOpenSpotChat?.(quest.id);
-                          }
-                        }}
-                      >
-                        <MessageCircle className="w-5 h-5 mr-2" />
-                        Open Chat
-                      </Button>
-                      <Button 
-                        variant="outline"
-                        className="w-full border-muted-foreground/30 text-muted-foreground hover:bg-muted/50 min-h-[44px]"
-                        onClick={handleLeaveChat}
-                        disabled={loading}
-                      >
-                        <MessageCircleOff className="w-4 h-4 mr-2" />
-                        Leave Chat
-                      </Button>
-                    </>
-                  ) : (
-                    /* Not in chat: Show Join Chat button */
-                    <Button 
-                      className="w-full bg-success hover:bg-success/90 text-success-foreground font-fredoka min-h-[52px] text-base"
-                      onClick={handleJoinChat}
-                      disabled={loading}
-                    >
-                      <MessageCircle className="w-5 h-5 mr-2" />
-                      Join Chat
-                    </Button>
-                  )}
-                  <Button 
-                    variant="outline"
-                    className="w-full border-destructive/50 text-destructive hover:bg-destructive/10 min-h-[48px]"
-                    onClick={handleLeaveSpot}
+                    variant="outline" 
+                    className="flex-1 border-primary/50 text-primary hover:bg-primary/10 min-h-[48px]"
+                    onClick={startEditing}
                     disabled={loading}
                   >
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Leave Spot
+                    <Pencil className="w-4 h-4 mr-2" />
+                    Edit
                   </Button>
-                </>
+                  <Button 
+                    variant="outline" 
+                    className="flex-1 border-destructive/50 text-destructive hover:bg-destructive/10 min-h-[48px]"
+                    onClick={handleDelete}
+                    disabled={loading}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Delete
+                  </Button>
+                </div>
+              ) : hasJoined ? (
+                /* Participant actions: Leave Spot */
+                <Button 
+                  variant="outline"
+                  className="w-full border-destructive/50 text-destructive hover:bg-destructive/10 min-h-[48px]"
+                  onClick={handleLeaveSpot}
+                  disabled={loading}
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Leave Spot
+                </Button>
               ) : (
                 /* Not joined: Show Join Spot button */
                 <Button 
