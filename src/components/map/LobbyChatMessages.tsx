@@ -88,26 +88,50 @@ const LobbyChatMessages = ({ eventId, currentUserId, hostId, host, participants 
   // Total members including host
   const totalMembers = (host ? 1 : 0) + activeChatMembers.length;
 
-  // Handle chat ban/unban
-  const handleChatBan = async (participantId: string, userId: string, ban: boolean) => {
-    const { error } = await supabase
-      .from('event_participants')
-      .update({ is_chat_banned: ban, chat_active: ban ? false : true })
-      .eq('id', participantId);
+  // Handle chat block/unlock
+  const handleChatBlock = async (participantId: string, userId: string, block: boolean) => {
+    if (block) {
+      // Block: set is_chat_banned to true and chat_active to false
+      const { error } = await supabase
+        .from('event_participants')
+        .update({ is_chat_banned: true, chat_active: false })
+        .eq('id', participantId);
 
-    if (error) {
+      if (error) {
+        toast({
+          title: "Failed to block user",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({
-        title: ban ? "Failed to remove from chat" : "Failed to restore chat access",
-        description: error.message,
-        variant: "destructive",
+        title: "User blocked from chat",
+        description: "They can still attend the event but cannot access the chat.",
       });
-      return;
-    }
+    } else {
+      // Unlock: remove the ban flag but do NOT auto-join them to chat
+      // They return to neutral state (attendee, not in chat)
+      const { error } = await supabase
+        .from('event_participants')
+        .update({ is_chat_banned: false, chat_active: false })
+        .eq('id', participantId);
 
-    toast({
-      title: ban ? "User removed from chat" : "Chat access restored",
-      description: ban ? "They can still attend the event but cannot access the chat." : "User can now participate in the chat again.",
-    });
+      if (error) {
+        toast({
+          title: "Failed to unlock user",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "User unlocked",
+        description: "They can now rejoin the chat if they choose to.",
+      });
+    }
 
     onParticipantsChange?.();
   };
@@ -401,7 +425,7 @@ const LobbyChatMessages = ({ eventId, currentUserId, hostId, host, participants 
         </DialogContent>
       </Dialog>
 
-      {/* Manage Participants Modal (Host Only) */}
+      {/* Manage Chat Access Modal (Host Only) */}
       <Dialog open={showManageModal} onOpenChange={setShowManageModal}>
         <DialogContent className="max-w-sm max-h-[70vh]">
           <DialogHeader>
@@ -413,64 +437,67 @@ const LobbyChatMessages = ({ eventId, currentUserId, hostId, host, participants 
           
           <ScrollArea className="max-h-[50vh] pr-2">
             <div className="space-y-2">
-              {allParticipantsForManagement.length === 0 ? (
+              {/* Only show users who are either in chat (chat_active) OR blocked */}
+              {allParticipantsForManagement.filter(p => p.chat_active || p.is_chat_banned).length === 0 ? (
                 <p className="text-center text-muted-foreground text-sm py-4">
-                  No participants to manage
+                  No chat participants to manage
                 </p>
               ) : (
-                allParticipantsForManagement.map((participant) => {
-                  const isBanned = participant.is_chat_banned;
-                  return (
-                    <div 
-                      key={participant.id} 
-                      className={`flex items-center gap-3 p-3 rounded-lg border ${
-                        isBanned 
-                          ? 'bg-destructive/10 border-destructive/30' 
-                          : 'bg-muted/30 border-border/30'
-                      }`}
-                    >
-                      <div className="w-10 h-10">
-                        <AvatarDisplay 
-                          config={participant.profile?.avatar_config} 
-                          size={40} 
-                          showGlow={false}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-foreground truncate">
-                          {participant.profile?.nick || 'Unknown'}
-                        </p>
-                        <p className={`text-xs ${isBanned ? 'text-destructive' : 'text-muted-foreground'}`}>
-                          {isBanned ? 'Removed from chat' : 'Active in chat'}
-                        </p>
-                      </div>
-                      <Button
-                        variant={isBanned ? "outline" : "destructive"}
-                        size="sm"
-                        onClick={() => handleChatBan(participant.id, participant.user_id, !isBanned)}
-                        className="gap-1.5"
+                allParticipantsForManagement
+                  .filter(p => p.chat_active || p.is_chat_banned)
+                  .map((participant) => {
+                    const isBlocked = participant.is_chat_banned;
+                    return (
+                      <div 
+                        key={participant.id} 
+                        className={`flex items-center gap-3 p-3 rounded-lg border ${
+                          isBlocked 
+                            ? 'bg-destructive/10 border-destructive/30' 
+                            : 'bg-muted/30 border-border/30'
+                        }`}
                       >
-                        {isBanned ? (
-                          <>
-                            <Unlock className="w-3.5 h-3.5" />
-                            Restore
-                          </>
-                        ) : (
-                          <>
-                            <UserX className="w-3.5 h-3.5" />
-                            Remove
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  );
-                })
+                        <div className="w-10 h-10">
+                          <AvatarDisplay 
+                            config={participant.profile?.avatar_config} 
+                            size={40} 
+                            showGlow={false}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground truncate">
+                            {participant.profile?.nick || 'Unknown'}
+                          </p>
+                          <p className={`text-xs ${isBlocked ? 'text-destructive' : 'text-muted-foreground'}`}>
+                            {isBlocked ? 'Blocked from chat' : 'Active in chat'}
+                          </p>
+                        </div>
+                        <Button
+                          variant={isBlocked ? "outline" : "destructive"}
+                          size="sm"
+                          onClick={() => handleChatBlock(participant.id, participant.user_id, !isBlocked)}
+                          className="gap-1.5"
+                        >
+                          {isBlocked ? (
+                            <>
+                              <Unlock className="w-3.5 h-3.5" />
+                              Unlock
+                            </>
+                          ) : (
+                            <>
+                              <UserX className="w-3.5 h-3.5" />
+                              Block
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    );
+                  })
               )}
             </div>
           </ScrollArea>
           
           <p className="text-xs text-muted-foreground mt-2">
-            Removing a user from chat doesn't remove them from the event attendance.
+            Blocking a user from chat doesn't remove them from the event attendance.
           </p>
         </DialogContent>
       </Dialog>
