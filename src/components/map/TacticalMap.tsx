@@ -256,7 +256,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   
   const [deployModalOpen, setDeployModalOpen] = useState(false);
   const [guestPromptOpen, setGuestPromptOpen] = useState(false);
-  const [guestPromptVariant, setGuestPromptVariant] = useState<'join' | 'connect' | 'create'>('create');
+  const [guestPromptVariant, setGuestPromptVariant] = useState<'join' | 'connect' | 'create' | 'view'>('create');
   const [clickedCoords, setClickedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [contextMenuCoords, setContextMenuCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [contextMenuScreenPos, setContextMenuScreenPos] = useState<{ x: number; y: number } | null>(null);
@@ -1251,6 +1251,14 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
         el.addEventListener('click', (e) => {
           e.stopPropagation();
+          
+          // Guest login wall: block detail view for unauthenticated users
+          if (isGuestRef.current) {
+            setGuestPromptVariant('view');
+            setGuestPromptOpen(true);
+            return;
+          }
+          
           if (map.current) {
             map.current.flyTo({
               center: [jitteredLng, jitteredLat],
@@ -1655,6 +1663,14 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       el.addEventListener('click', (e) => {
         e.stopPropagation();
+        
+        // Guest login wall: block detail view for unauthenticated users
+        if (isGuestRef.current) {
+          setGuestPromptVariant('view');
+          setGuestPromptOpen(true);
+          return;
+        }
+        
         if (map.current) {
           map.current.flyTo({
             center: [quest.lng, quest.lat],
@@ -1700,6 +1716,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       
       // Create a click handler for this shout
       const handleShoutClick = () => {
+        // Guest login wall: block detail view for unauthenticated users
+        if (isGuestRef.current) {
+          setGuestPromptVariant('view');
+          setGuestPromptOpen(true);
+          return;
+        }
+        
         setSelectedShout({
           id: shout.id,
           user_id: shout.user_id,
@@ -1745,6 +1768,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             onHide={handleHideShout}
             canHide={canHide}
             isOwn={isOwn}
+            isGuest={isGuest}
           />
         );
         return;
@@ -1765,6 +1789,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           onHide={handleHideShout}
           canHide={canHide}
           isOwn={isOwn}
+          isGuest={isGuest}
         />
       );
 
@@ -1775,7 +1800,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       shoutMarkersMapRef.current.set(shout.id, { marker, root });
     });
     
-  }, [shouts, mapStyleLoaded, getShoutCounts, hideShout, currentUserId]);
+  }, [shouts, mapStyleLoaded, getShoutCounts, hideShout, currentUserId, isGuest]);
 
   // Cleanup markers/React roots on unmount only (prevents re-blooming on data refresh)
   useEffect(() => {

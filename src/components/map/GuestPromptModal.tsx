@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 interface GuestPromptModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  variant: 'join' | 'connect' | 'create';
+  variant: 'join' | 'connect' | 'create' | 'view';
 }
 
 const VARIANT_CONFIG = {
@@ -30,6 +30,11 @@ const VARIANT_CONFIG = {
     title: 'Set Your Location!',
     description: 'Sign in to appear on the map and start connecting with people nearby.',
     icon: Sparkles,
+  },
+  view: {
+    title: 'Unlock Full Access',
+    description: 'Log in to view details, comments, and connect with users.',
+    icon: LogIn,
   },
 };
 

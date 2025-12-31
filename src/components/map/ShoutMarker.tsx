@@ -9,9 +9,10 @@ interface ShoutMarkerProps {
   onHide?: () => void;
   canHide?: boolean;
   isOwn?: boolean;
+  isGuest?: boolean;
 }
 
-const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, onClick, onHide, canHide = false, isOwn = false }: ShoutMarkerProps) => {
+const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, onClick, onHide, canHide = false, isOwn = false, isGuest = false }: ShoutMarkerProps) => {
   // Calculate opacity based on age (fades slightly as shout ages over 24 hours)
   const createdTime = new Date(createdAt).getTime();
   const now = Date.now();
@@ -56,17 +57,19 @@ const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, on
             {content}
           </p>
           
-          {/* Social counters */}
-          <div className="mt-1.5 flex items-center gap-3 text-[10px] text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Heart className="w-3 h-3 text-rose-400" />
-              <span className="font-medium">{likesCount}</span>
+          {/* Social counters - hidden for guests */}
+          {!isGuest && (
+            <div className="mt-1.5 flex items-center gap-3 text-[10px] text-muted-foreground">
+              <div className="flex items-center gap-1">
+                <Heart className="w-3 h-3 text-rose-400" />
+                <span className="font-medium">{likesCount}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <MessageCircle className="w-3 h-3 text-accent" />
+                <span className="font-medium">{commentsCount}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <MessageCircle className="w-3 h-3 text-accent" />
-              <span className="font-medium">{commentsCount}</span>
-            </div>
-          </div>
+          )}
         </div>
         
         {/* Pointer/tail */}
