@@ -3,13 +3,14 @@ import { supabase } from '@/integrations/supabase/client';
 
 interface Notification {
   id: string;
-  type: 'new_spot' | 'invitation_received' | 'invitation_accepted' | 'user_joined';
+  type: 'new_spot' | 'invitation_received' | 'invitation_accepted' | 'user_joined' | 'followed_spot' | 'followed_shout';
   title: string;
   description: string;
   timestamp: string;
   read: boolean;
   metadata?: {
     spotId?: string;
+    shoutId?: string;
     userId?: string;
     lat?: number;
     lng?: number;
@@ -72,6 +73,7 @@ export const useNotifications = (currentUserId: string | null) => {
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [userCreatedAt, setUserCreatedAt] = useState<string | null>(null);
+  const [followingIds, setFollowingIds] = useState<string[]>([]);
 
   // Load persisted dismissed/read state on mount
   useEffect(() => {
@@ -79,6 +81,44 @@ export const useNotifications = (currentUserId: string | null) => {
       setDismissedIds(getDismissedIds(currentUserId));
       setReadIds(getReadIds(currentUserId));
     }
+  }, [currentUserId]);
+
+  // Fetch list of users the current user is following
+  useEffect(() => {
+    if (!currentUserId) {
+      setFollowingIds([]);
+      return;
+    }
+
+    const fetchFollowing = async () => {
+      const { data } = await supabase
+        .from('follows')
+        .select('following_id')
+        .eq('follower_id', currentUserId);
+
+      setFollowingIds(data?.map(f => f.following_id) || []);
+    };
+
+    fetchFollowing();
+
+    // Subscribe to follow changes
+    const channel = supabase
+      .channel(`following-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'follows',
+          filter: `follower_id=eq.${currentUserId}`,
+        },
+        fetchFollowing
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [currentUserId]);
 
   // Fetch recent notifications (spots created nearby, etc.)
@@ -129,26 +169,89 @@ export const useNotifications = (currentUserId: string | null) => {
           .rpc('get_public_profiles_by_ids', { user_ids: hostIds });
 
         recentSpots.forEach(spot => {
-          const notifId = `spot-${spot.id}`;
+          const isFollowed = followingIds.includes(spot.host_id);
+          const notifId = isFollowed ? `followed-spot-${spot.id}` : `spot-${spot.id}`;
           
           // Skip if dismissed
           if (currentDismissedIds.has(notifId)) return;
           
           const host = profiles?.find(p => p.id === spot.host_id);
-          notifs.push({
-            id: notifId,
-            type: 'new_spot',
-            title: 'New Spot Nearby',
-            description: `${host?.nick || 'Someone'} created "${spot.title}"`,
-            timestamp: spot.created_at,
-            read: currentReadIds.has(notifId),
-            metadata: {
-              spotId: spot.id,
-              lat: spot.lat,
-              lng: spot.lng,
-            },
-          });
+          
+          if (isFollowed) {
+            // Followed user's spot - priority notification
+            notifs.push({
+              id: notifId,
+              type: 'followed_spot',
+              title: `${host?.nick || 'Someone'} created an event`,
+              description: `"${spot.title}"`,
+              timestamp: spot.created_at,
+              read: currentReadIds.has(notifId),
+              metadata: {
+                spotId: spot.id,
+                userId: spot.host_id,
+                lat: spot.lat,
+                lng: spot.lng,
+              },
+            });
+          } else {
+            notifs.push({
+              id: notifId,
+              type: 'new_spot',
+              title: 'New Spot Nearby',
+              description: `${host?.nick || 'Someone'} created "${spot.title}"`,
+              timestamp: spot.created_at,
+              read: currentReadIds.has(notifId),
+              metadata: {
+                spotId: spot.id,
+                lat: spot.lat,
+                lng: spot.lng,
+              },
+            });
+          }
         });
+      }
+
+      // Fetch shouts from followed users (last 24 hours)
+      if (followingIds.length > 0) {
+        const { data: followedShouts } = await supabase
+          .from('shouts')
+          .select('id, content, created_at, user_id, lat, lng')
+          .in('user_id', followingIds)
+          .gte('created_at', effectiveCutoff)
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        if (followedShouts && followedShouts.length > 0) {
+          const shoutUserIds = [...new Set(followedShouts.map(s => s.user_id))];
+          const { data: shoutProfiles } = await supabase
+            .rpc('get_public_profiles_by_ids', { user_ids: shoutUserIds });
+
+          followedShouts.forEach(shout => {
+            const notifId = `followed-shout-${shout.id}`;
+            
+            if (currentDismissedIds.has(notifId)) return;
+            
+            const author = shoutProfiles?.find(p => p.id === shout.user_id);
+            const contentSnippet = shout.content.length > 50 
+              ? shout.content.substring(0, 50) + '...' 
+              : shout.content;
+            
+            notifs.push({
+              id: notifId,
+              type: 'followed_shout',
+              title: `${author?.nick || 'Someone'} shouted`,
+              description: `"${contentSnippet}"`,
+              timestamp: shout.created_at,
+              read: currentReadIds.has(notifId),
+              metadata: {
+                shoutId: shout.id,
+                userId: shout.user_id,
+                lat: shout.lat,
+                lng: shout.lng,
+              },
+            });
+          });
+        }
       }
 
       // Fetch users who joined MY spots (last 24 hours, but not before account creation)
@@ -199,8 +302,17 @@ export const useNotifications = (currentUserId: string | null) => {
         }
       }
 
-      // Sort by timestamp
-      notifs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      // Sort by timestamp, with followed content slightly prioritized
+      notifs.sort((a, b) => {
+        // Followed content gets a slight boost
+        const aIsFollowed = a.type === 'followed_spot' || a.type === 'followed_shout';
+        const bIsFollowed = b.type === 'followed_spot' || b.type === 'followed_shout';
+        
+        if (aIsFollowed && !bIsFollowed) return -1;
+        if (!aIsFollowed && bIsFollowed) return 1;
+        
+        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      });
 
       setNotifications(notifs);
       setUnreadCount(notifs.filter(n => !n.read).length);
@@ -209,7 +321,7 @@ export const useNotifications = (currentUserId: string | null) => {
     }
 
     setLoading(false);
-  }, [currentUserId]);
+  }, [currentUserId, followingIds]);
 
   // Initial fetch
   useEffect(() => {
@@ -232,7 +344,8 @@ export const useNotifications = (currentUserId: string | null) => {
         async (payload) => {
           if (payload.new.is_private || payload.new.host_id === currentUserId) return;
 
-          const notifId = `spot-${payload.new.id}`;
+          const isFollowed = followingIds.includes(payload.new.host_id);
+          const notifId = isFollowed ? `followed-spot-${payload.new.id}` : `spot-${payload.new.id}`;
           
           // Skip if already dismissed
           if (dismissedIds.has(notifId)) return;
@@ -242,7 +355,20 @@ export const useNotifications = (currentUserId: string | null) => {
           
           const host = profiles?.[0];
 
-          const newNotif: Notification = {
+          const newNotif: Notification = isFollowed ? {
+            id: notifId,
+            type: 'followed_spot',
+            title: `${host?.nick || 'Someone'} created an event`,
+            description: `"${payload.new.title}"`,
+            timestamp: payload.new.created_at,
+            read: false,
+            metadata: {
+              spotId: payload.new.id,
+              userId: payload.new.host_id,
+              lat: payload.new.lat,
+              lng: payload.new.lng,
+            },
+          } : {
             id: notifId,
             type: 'new_spot',
             title: 'New Spot Nearby',
@@ -265,7 +391,62 @@ export const useNotifications = (currentUserId: string | null) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [currentUserId, dismissedIds]);
+  }, [currentUserId, dismissedIds, followingIds]);
+
+  // Real-time subscription for shouts from followed users
+  useEffect(() => {
+    if (!currentUserId || followingIds.length === 0) return;
+
+    const channel = supabase
+      .channel('notifications-followed-shouts')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'shouts',
+        },
+        async (payload) => {
+          // Only notify for shouts from followed users
+          if (!followingIds.includes(payload.new.user_id)) return;
+
+          const notifId = `followed-shout-${payload.new.id}`;
+          
+          if (dismissedIds.has(notifId)) return;
+
+          const { data: profiles } = await supabase
+            .rpc('get_public_profiles_by_ids', { user_ids: [payload.new.user_id] });
+          
+          const author = profiles?.[0];
+          const contentSnippet = payload.new.content.length > 50 
+            ? payload.new.content.substring(0, 50) + '...' 
+            : payload.new.content;
+
+          const newNotif: Notification = {
+            id: notifId,
+            type: 'followed_shout',
+            title: `${author?.nick || 'Someone'} shouted`,
+            description: `"${contentSnippet}"`,
+            timestamp: payload.new.created_at,
+            read: false,
+            metadata: {
+              shoutId: payload.new.id,
+              userId: payload.new.user_id,
+              lat: payload.new.lat,
+              lng: payload.new.lng,
+            },
+          };
+
+          setNotifications(prev => [newNotif, ...prev]);
+          setUnreadCount(prev => prev + 1);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId, dismissedIds, followingIds]);
 
   // Real-time subscription for new participants in MY spots
   useEffect(() => {
