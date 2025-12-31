@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, isToday } from 'date-fns';
-import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Hourglass, User, MessageCircle, LogOut, MessageCircleOff, UserX, Ban, Unlock } from 'lucide-react';
+import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Hourglass, User, MessageCircle, LogOut, MessageCircleOff, UserX, Ban, Unlock, Share2 } from 'lucide-react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -741,6 +741,45 @@ const QuestLobby = ({
                   );
                 })()}
                 <div className="flex items-center gap-2">
+                  {/* Share button */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full hover:bg-primary/10"
+                    onClick={async () => {
+                      const shareUrl = `${window.location.origin}/?eventId=${quest.id}`;
+                      
+                      // Try native share first (mobile)
+                      if (navigator.share) {
+                        try {
+                          await navigator.share({
+                            title: quest.title,
+                            text: `Check out this spot: ${quest.title}`,
+                            url: shareUrl,
+                          });
+                          return;
+                        } catch (err) {
+                          // User cancelled or share failed, fall back to clipboard
+                          if ((err as Error).name === 'AbortError') return;
+                        }
+                      }
+                      
+                      // Fallback to clipboard
+                      try {
+                        await navigator.clipboard.writeText(shareUrl);
+                        toast({
+                          title: 'Link copied to clipboard!',
+                        });
+                      } catch (err) {
+                        toast({
+                          title: 'Failed to copy link',
+                          variant: 'destructive',
+                        });
+                      }
+                    }}
+                  >
+                    <Share2 className="w-4 h-4 text-muted-foreground" />
+                  </Button>
                   {isHost && (
                     <Badge variant="outline" className="bg-success/20 text-success border-success/40 text-xs">
                       HOST
