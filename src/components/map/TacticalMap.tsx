@@ -2067,7 +2067,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       {/* Custom Map Controls - Vertically centered on right edge */}
       {!isTokenMissing && (
         <div className="absolute top-1/2 -translate-y-1/2 right-4 z-20 flex flex-col gap-2">
-          {/* Center on Base Button - hide for guests */}
+          {/* 1. User Location - Center on Base Button - hide for guests */}
           {!isGuest && (
             <Button
               variant="outline"
@@ -2081,87 +2081,14 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
                   });
                 }
               }}
-              className="w-11 h-11 bg-card/90 backdrop-blur-md border-primary/30 hover:bg-primary/20 hover:border-primary"
+              className="w-11 h-11 bg-card/90 backdrop-blur-md border-border/50 hover:bg-muted"
               title="Center on My Location"
             >
-              <img src="/pin-logo.svg" alt="Center" className="w-6 h-6" />
+              <img src="/pin-logo.svg" alt="Center" className="w-6 h-6" style={{ filter: 'brightness(0)' }} />
             </Button>
           )}
 
-          {/* Compass / View Toggle */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              if (map.current) {
-                if (isTacticalView) {
-                  // Switch to Flat view
-                  map.current.easeTo({
-                    pitch: 0,
-                    bearing: 0,
-                    duration: 500,
-                  });
-                  setIsTacticalView(false);
-                } else {
-                  // Switch to Tactical view
-                  map.current.easeTo({
-                    pitch: 60,
-                    bearing: 0,
-                    duration: 500,
-                  });
-                  setIsTacticalView(true);
-                }
-              }
-            }}
-            className={`w-11 h-11 bg-card/90 backdrop-blur-md border-border/50 hover:bg-muted transition-transform ${
-              isTacticalView ? 'rotate-0' : 'rotate-45'
-            }`}
-            title={isTacticalView ? 'Switch to Flat View' : 'Switch to Tactical View'}
-          >
-            <Compass className={`w-5 h-5 transition-colors ${isTacticalView ? 'text-accent' : 'text-muted-foreground'}`} />
-          </Button>
-
-          {/* Toggle Users Visibility */}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setShowUsers(prev => !prev)}
-            className={`w-11 h-11 backdrop-blur-md border-border/50 transition-all ${
-              showUsers 
-                ? 'bg-card/90 hover:bg-primary/20 hover:border-primary' 
-                : 'bg-muted/60 hover:bg-muted/80'
-            }`}
-            title={showUsers ? 'Hide Users' : 'Show Users'}
-          >
-            {showUsers ? (
-              <Users className="w-5 h-5 text-primary" />
-            ) : (
-              <UsersRound className="w-5 h-5 text-muted-foreground opacity-50" />
-            )}
-          </Button>
-
-          {/* Ghost Mode Toggle - only for logged-in users */}
-          {currentUserId && !isGuest && onGhostModeChange && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => onGhostModeChange(!isGhostMode)}
-              className={`w-11 h-11 backdrop-blur-md border-border/50 transition-all ${
-                isGhostMode
-                  ? 'bg-muted/80 hover:bg-muted border-muted-foreground/50'
-                  : 'bg-card/90 hover:bg-primary/20 hover:border-primary'
-              }`}
-              title={isGhostMode ? 'You are hidden (Ghost Mode)' : 'You are visible to others'}
-            >
-              {isGhostMode ? (
-                <Ghost className="w-5 h-5 text-muted-foreground" />
-              ) : (
-                <Eye className="w-5 h-5 text-primary" />
-              )}
-            </Button>
-          )}
-
-          {/* Calendar Date Filter */}
+          {/* 2. Calendar Date Filter */}
           <Popover>
             <PopoverTrigger asChild>
               <Button
@@ -2170,15 +2097,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
                 className={cn(
                   "w-11 h-11 backdrop-blur-md border-border/50 transition-all relative",
                   selectedDate 
-                    ? 'bg-primary/20 hover:bg-primary/30 border-primary' 
-                    : 'bg-card/90 hover:bg-primary/20 hover:border-primary'
+                    ? 'bg-muted/80 hover:bg-muted' 
+                    : 'bg-card/90 hover:bg-muted'
                 )}
                 title={selectedDate ? `Filtering: ${format(selectedDate, 'MMM d')}` : 'Filter by Date'}
               >
-                <CalendarDays className={cn(
-                  "w-5 h-5",
-                  selectedDate ? "text-primary" : "text-primary"
-                )} />
+                <CalendarDays className="w-5 h-5 text-black" strokeWidth={2} />
                 {selectedDate && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full text-[10px] font-bold text-primary-foreground flex items-center justify-center">
                     {format(selectedDate, 'd')}
@@ -2214,23 +2138,100 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             </PopoverContent>
           </Popover>
 
-          {/* Toggle Shouts Visibility */}
+          {/* 3. Toggle Avatars (Users) Visibility */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setShowUsers(prev => !prev)}
+            className={cn(
+              "w-11 h-11 backdrop-blur-md border-border/50 transition-all",
+              showUsers 
+                ? 'bg-card/90 hover:bg-muted' 
+                : 'bg-muted/60 hover:bg-muted/80'
+            )}
+            title={showUsers ? 'Hide Users' : 'Show Users'}
+          >
+            {showUsers ? (
+              <Users className="w-5 h-5 text-black" strokeWidth={2} />
+            ) : (
+              <UsersRound className="w-5 h-5 text-black opacity-40" strokeWidth={2} />
+            )}
+          </Button>
+
+          {/* 4. Toggle Shouts Visibility */}
           <Button
             variant="outline"
             size="icon"
             onClick={() => setShowShouts(prev => !prev)}
-            className={`w-11 h-11 backdrop-blur-md border-border/50 transition-all ${
+            className={cn(
+              "w-11 h-11 backdrop-blur-md border-border/50 transition-all",
               showShouts 
-                ? 'bg-card/90 hover:bg-primary/20 hover:border-primary' 
+                ? 'bg-card/90 hover:bg-muted' 
                 : 'bg-muted/60 hover:bg-muted/80'
-            }`}
+            )}
             title={showShouts ? 'Hide Shouts' : 'Show Shouts'}
           >
             {showShouts ? (
-              <Megaphone className="w-5 h-5 text-primary" />
+              <Megaphone className="w-5 h-5 text-black" strokeWidth={2} />
             ) : (
-              <MessageSquareOff className="w-5 h-5 text-muted-foreground opacity-50" />
+              <MessageSquareOff className="w-5 h-5 text-black opacity-40" strokeWidth={2} />
             )}
+          </Button>
+
+          {/* 5. Ghost Mode Toggle - only for logged-in users */}
+          {currentUserId && !isGuest && onGhostModeChange && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => onGhostModeChange(!isGhostMode)}
+              className={cn(
+                "w-11 h-11 backdrop-blur-md border-border/50 transition-all",
+                isGhostMode
+                  ? 'bg-muted/80 hover:bg-muted'
+                  : 'bg-card/90 hover:bg-muted'
+              )}
+              title={isGhostMode ? 'You are hidden (Ghost Mode)' : 'You are visible to others'}
+            >
+              {isGhostMode ? (
+                <Ghost className="w-5 h-5 text-black opacity-40" strokeWidth={2} />
+              ) : (
+                <Eye className="w-5 h-5 text-black" strokeWidth={2} />
+              )}
+            </Button>
+          )}
+
+          {/* 6. Map Settings / Compass View Toggle */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => {
+              if (map.current) {
+                if (isTacticalView) {
+                  // Switch to Flat view
+                  map.current.easeTo({
+                    pitch: 0,
+                    bearing: 0,
+                    duration: 500,
+                  });
+                  setIsTacticalView(false);
+                } else {
+                  // Switch to Tactical view
+                  map.current.easeTo({
+                    pitch: 60,
+                    bearing: 0,
+                    duration: 500,
+                  });
+                  setIsTacticalView(true);
+                }
+              }
+            }}
+            className={cn(
+              "w-11 h-11 bg-card/90 backdrop-blur-md border-border/50 hover:bg-muted transition-transform",
+              isTacticalView ? 'rotate-0' : 'rotate-45'
+            )}
+            title={isTacticalView ? 'Switch to Flat View' : 'Switch to Tactical View'}
+          >
+            <Compass className="w-5 h-5 text-black" strokeWidth={2} />
           </Button>
         </div>
       )}
