@@ -842,7 +842,10 @@ const QuestLobby = ({
               <Button 
                 variant="outline"
                 className="w-full border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground min-h-[44px]"
-                onClick={async () => {
+                onClick={async (e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  
                   if (!quest) return;
                   const shareUrl = `${window.location.origin}/?c=${quest.share_code || quest.id}`;
                   
