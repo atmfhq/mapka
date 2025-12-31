@@ -153,10 +153,9 @@ const BubbleChat = ({ currentUserId, isGuest = false, onLocalBubble, onSendMessa
         </span>
         <Button
           size="icon"
-          variant="ghost"
           onClick={handleSend}
           disabled={cooldown || !message.trim()}
-          className="h-9 w-9 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-40"
+          className="h-9 w-9 rounded-full"
         >
           <Send className="w-4 h-4" />
         </Button>

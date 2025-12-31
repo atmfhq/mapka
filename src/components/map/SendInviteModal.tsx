@@ -142,7 +142,7 @@ const SendInviteModal = ({
             <Button
               onClick={handleSend}
               disabled={sending}
-              className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka"
+              className="flex-1 font-fredoka"
             >
               {sending ? (
                 <>

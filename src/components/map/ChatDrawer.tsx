@@ -482,7 +482,7 @@ const ChatDrawer = ({
                     size="icon"
                     onClick={handleSendMessage}
                     disabled={sending || !newMessage.trim()}
-                    className="shrink-0 bg-primary hover:bg-primary/90"
+                    className="shrink-0"
                   >
                     <Send className="w-4 h-4" />
                   </Button>
