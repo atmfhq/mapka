@@ -37,6 +37,8 @@ interface ProfileModalProps {
   onCloseChat?: () => void;
   onNavigate?: (path: string) => void;
   onFlyTo?: (lat: number, lng: number) => void;
+  showBackButton?: boolean;
+  onBack?: () => void;
 }
 
 const ProfileModal = ({
@@ -52,6 +54,8 @@ const ProfileModal = ({
   onCloseChat,
   onNavigate,
   onFlyTo,
+  showBackButton,
+  onBack,
 }: ProfileModalProps) => {
   if (!user) return null;
 
@@ -90,6 +94,8 @@ const ProfileModal = ({
           onNavigate={onNavigate}
           showOnMapEnabled={isUserInViewport()}
           onShowOnMap={handleShowOnMap}
+          showBackButton={showBackButton}
+          onBack={onBack}
         />
       </DialogContent>
     </Dialog>

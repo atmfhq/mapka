@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Zap, MessageCircle, UserX, LogIn, UserPlus, UserCheck, MapPin } from 'lucide-react';
+import { X, Zap, MessageCircle, UserX, LogIn, UserPlus, UserCheck, MapPin, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SendInviteModal from './SendInviteModal';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
@@ -34,6 +34,8 @@ interface UserPopupContentProps {
   onNavigate?: (path: string) => void;
   showOnMapEnabled?: boolean;
   onShowOnMap?: () => void;
+  showBackButton?: boolean;
+  onBack?: () => void;
 }
 
 const UserPopupContent = ({ 
@@ -47,7 +49,9 @@ const UserPopupContent = ({
   onCloseChat,
   onNavigate,
   showOnMapEnabled,
-  onShowOnMap
+  onShowOnMap,
+  showBackButton,
+  onBack
 }: UserPopupContentProps) => {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -104,7 +108,17 @@ const UserPopupContent = ({
           ? 'border-success/50 shadow-[0_0_20px_hsl(var(--success)/0.3)]' 
           : 'border-primary/30 shadow-[0_0_20px_hsl(var(--primary)/0.3)]'
       }`}>
-        {/* Close button */}
+        {/* Back button (when opened from connections) or Close button */}
+        {showBackButton && onBack ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-2 left-2 w-6 h-6"
+            onClick={onBack}
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+        ) : null}
         <Button
           variant="ghost"
           size="icon"
