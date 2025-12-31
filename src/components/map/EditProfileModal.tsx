@@ -4,13 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import InterestSelector from "@/components/InterestSelector";
 import AvatarBuilder from "@/components/avatar/AvatarBuilder";
 import AvatarDisplay from "@/components/avatar/AvatarDisplay";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { ACTIVITIES } from "@/constants/activities";
 import type { Json } from "@/integrations/supabase/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -27,7 +25,6 @@ import {
   Loader2,
   Save,
   Shield,
-  Heart,
   Sparkles,
   AlertTriangle,
   LogOut
@@ -58,7 +55,6 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
   // Form state
   const [nick, setNick] = useState("");
   const [bio, setBio] = useState("");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>({
     skinColor: "cyan",
     shape: "circle",
@@ -84,13 +80,6 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
           mouth: profile.avatar_config.mouth || "smile",
         });
       }
-      
-      // Map tag labels back to IDs
-      const tagIds = (profile.tags || []).map(label => {
-        const activity = ACTIVITIES.find(a => a.label === label);
-        return activity?.id || null;
-      }).filter((id): id is string => id !== null);
-      setSelectedTags(tagIds);
     }
   }, [profile, open]);
 
@@ -108,18 +97,12 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
 
     setLoading(true);
     try {
-      // Map activity IDs to labels
-      const tagLabels = selectedTags.map(
-        (id) => ACTIVITIES.find((a) => a.id === id)?.label || id
-      );
-
       const { error } = await supabase
         .from("profiles")
         .update({
           nick: nick.trim(),
           bio: bio.trim() || null,
           avatar_config: avatarConfig as Json,
-          tags: tagLabels,
         })
         .eq("id", user.id);
 
@@ -212,14 +195,10 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid grid-cols-3 w-full bg-muted/50 mb-4">
+            <TabsList className="grid grid-cols-2 w-full bg-muted/50 mb-4">
               <TabsTrigger value="identity" className="gap-1.5 text-xs">
                 <Shield className="w-4 h-4" />
                 <span className="hidden sm:inline">Identity</span>
-              </TabsTrigger>
-              <TabsTrigger value="interests" className="gap-1.5 text-xs">
-                <Heart className="w-4 h-4" />
-                <span className="hidden sm:inline">Interests</span>
               </TabsTrigger>
               <TabsTrigger value="appearance" className="gap-1.5 text-xs">
                 <Sparkles className="w-4 h-4" />
@@ -296,13 +275,6 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
               </div>
             </TabsContent>
 
-            {/* Interests Tab */}
-            <TabsContent value="interests" className="animate-fade-in max-h-[40vh] overflow-y-auto">
-              <InterestSelector 
-                selected={selectedTags}
-                onChange={setSelectedTags}
-              />
-            </TabsContent>
 
             {/* Appearance Tab */}
             <TabsContent value="appearance" className="animate-fade-in max-h-[40vh] overflow-y-auto">
