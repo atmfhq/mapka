@@ -132,24 +132,6 @@ const UserPopupContent = ({
         </div>
       </div>
 
-      {/* Tags */}
-      {user.tags && user.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 mt-4">
-          {user.tags.slice(0, 6).map((tag, index) => (
-            <span
-              key={index}
-              className="px-2.5 py-1 rounded-full border font-nunito text-xs bg-muted/50 border-border text-muted-foreground"
-            >
-              {tag}
-            </span>
-          ))}
-          {user.tags.length > 6 && (
-            <span className="px-2.5 py-1 font-nunito text-xs text-muted-foreground">
-              +{user.tags.length - 6}
-            </span>
-          )}
-        </div>
-      )}
 
       {/* Action buttons */}
       {!isOwnProfile && (

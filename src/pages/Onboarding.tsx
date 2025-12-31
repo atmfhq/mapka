@@ -5,16 +5,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Json } from "@/integrations/supabase/types";
-import TacticalCard from "@/components/TacticalCard";
 import TacticalStepper from "@/components/TacticalStepper";
-import InterestSelector from "@/components/InterestSelector";
 import AvatarBuilder from "@/components/avatar/AvatarBuilder";
 import LocationSearch from "@/components/LocationSearch";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useKeyboardAvoidance } from "@/hooks/useKeyboardAvoidance";
-import { ACTIVITIES } from "@/constants/activities";
 import { 
   User, 
   MapPin, 
@@ -24,8 +21,7 @@ import {
   ChevronRight,
   ChevronLeft,
   Loader2,
-  Sparkles,
-  Heart
+  Sparkles
 } from "lucide-react";
 import { generateRandomAvatar } from "@/utils/randomAvatar";
 
@@ -43,7 +39,6 @@ const Onboarding = () => {
   // Form state
   const [nick, setNick] = useState("");
   const [bio, setBio] = useState("");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   // Generate a random avatar on component mount
   const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(() => generateRandomAvatar());
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -80,7 +75,6 @@ const Onboarding = () => {
 
   const steps = [
     { label: "Identity", icon: <User className="w-5 h-5" /> },
-    { label: "Interests", icon: <Heart className="w-5 h-5" /> },
     { label: "Appearance", icon: <Sparkles className="w-5 h-5" /> },
     { label: "Base", icon: <MapPin className="w-5 h-5" /> },
   ];
@@ -96,17 +90,6 @@ const Onboarding = () => {
         toast({
           title: "Nickname Required",
           description: "Every operative needs a callsign",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-    
-    if (step === 1) {
-      if (selectedTags.length === 0) {
-        toast({
-          title: "Select Interests",
-          description: "Choose at least one activity you enjoy",
           variant: "destructive",
         });
         return;
@@ -130,18 +113,12 @@ const Onboarding = () => {
 
     setLoading(true);
     try {
-      // Map activity IDs to labels for the tags
-      const tagLabels = selectedTags.map(
-        (id) => ACTIVITIES.find((a) => a.id === id)?.label || id
-      );
-
       const { error } = await supabase
         .from("profiles")
         .update({
           nick: nick.trim(),
           bio: bio.trim() || null,
           avatar_config: avatarConfig as Json,
-          tags: tagLabels,
           location_lat: coords.lat,
           location_lng: coords.lng,
           location_name: locationName || null,
@@ -243,27 +220,8 @@ const Onboarding = () => {
               </div>
             )}
 
-            {/* Step 1: Interests */}
+            {/* Step 1: Appearance */}
             {step === 1 && (
-              <div className="space-y-4 animate-fade-in">
-                <div className="flex items-center gap-2 mb-2">
-                  <Heart className="w-5 h-5 text-accent" />
-                  <h2 className="font-nunito text-lg font-semibold">What Do You Enjoy?</h2>
-                </div>
-                
-                <p className="text-sm text-muted-foreground">
-                  Select activities you're interested in. This helps you find like-minded people.
-                </p>
-
-                <InterestSelector 
-                  selected={selectedTags}
-                  onChange={setSelectedTags}
-                />
-              </div>
-            )}
-
-            {/* Step 2: Appearance */}
-            {step === 2 && (
               <div className="space-y-4 animate-fade-in">
                 <div className="flex items-center gap-2 mb-2">
                   <Sparkles className="w-5 h-5 text-accent" />
@@ -281,8 +239,8 @@ const Onboarding = () => {
               </div>
             )}
 
-            {/* Step 3: Location */}
-            {step === 3 && (
+            {/* Step 2: Location */}
+            {step === 2 && (
               <div className="space-y-4 animate-fade-in">
                 <div className="flex items-center gap-2 mb-2">
                   <MapPin className="w-5 h-5 text-primary" />
@@ -340,7 +298,7 @@ const Onboarding = () => {
               <div />
             )}
 
-            {step < 3 ? (
+            {step < 2 ? (
               <Button variant="default" onClick={handleNextStep}>
                 Continue
                 <ChevronRight className="w-4 h-4" />
