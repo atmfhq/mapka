@@ -1,3 +1,4 @@
+import { useState, useCallback } from 'react';
 import { resolveColor, darkenHexColor, DEFAULT_AVATAR_CONFIG } from "./avatarParts";
 import { AVAILABLE_EYES, AVAILABLE_MOUTHS, getEyeAssetPath, getMouthAssetPath } from "@/config/avatarAssets";
 
@@ -10,24 +11,18 @@ interface AvatarConfig {
 
 // Check if an eye ID corresponds to a PNG asset file
 const isEyeAsset = (eyeId: string): boolean => {
-  const result = AVAILABLE_EYES.includes(eyeId);
-  console.log(`[Avatar] isEyeAsset check: "${eyeId}" -> ${result}`);
-  return result;
+  return AVAILABLE_EYES.includes(eyeId);
 };
 
 // Check if a mouth ID corresponds to a PNG asset file
 const isMouthAsset = (mouthId: string): boolean => {
-  const result = AVAILABLE_MOUTHS.includes(mouthId);
-  console.log(`[Avatar] isMouthAsset check: "${mouthId}" -> ${result}`);
-  return result;
+  return AVAILABLE_MOUTHS.includes(mouthId);
 };
 
 // Get the full path for an eye asset
 const getEyePath = (eyeId: string): string | null => {
   if (AVAILABLE_EYES.includes(eyeId)) {
-    const path = getEyeAssetPath(eyeId);
-    console.log(`[Avatar] Eye path constructed: "${path}"`);
-    return path;
+    return getEyeAssetPath(eyeId);
   }
   return null;
 };
@@ -35,9 +30,7 @@ const getEyePath = (eyeId: string): string | null => {
 // Get the full path for a mouth asset
 const getMouthPath = (mouthId: string): string | null => {
   if (AVAILABLE_MOUTHS.includes(mouthId)) {
-    const path = getMouthAssetPath(mouthId);
-    console.log(`[Avatar] Mouth path constructed: "${path}"`);
-    return path;
+    return getMouthAssetPath(mouthId);
   }
   return null;
 };
@@ -55,6 +48,18 @@ const AvatarDisplay = ({
   className = "",
   showGlow = false 
 }: AvatarDisplayProps) => {
+  // Track loading errors for PNG assets
+  const [eyeImageError, setEyeImageError] = useState(false);
+  const [mouthImageError, setMouthImageError] = useState(false);
+
+  const handleEyeError = useCallback(() => {
+    setEyeImageError(true);
+  }, []);
+
+  const handleMouthError = useCallback(() => {
+    setMouthImageError(true);
+  }, []);
+
   const cfg = {
     skinColor: config?.skinColor || DEFAULT_AVATAR_CONFIG.skinColor,
     shape: config?.shape || DEFAULT_AVATAR_CONFIG.shape,
@@ -107,12 +112,25 @@ const AvatarDisplay = ({
     }
   };
 
+  // Default SVG eyes fallback
+  const renderDefaultEyes = () => {
+    const eyeColor = "#0a0a0a";
+    return (
+      <>
+        <circle cx="40" cy="50" r="8" fill={eyeColor} />
+        <circle cx="80" cy="50" r="8" fill={eyeColor} />
+        <circle cx="42" cy="48" r="3" fill="white" />
+        <circle cx="82" cy="48" r="3" fill="white" />
+      </>
+    );
+  };
+
   // Eyes SVG paths or PNG images
   const renderEyes = () => {
     const eyeColor = "#0a0a0a";
     
-    // Check if this is a PNG asset
-    if (isEyeAsset(cfg.eyes)) {
+    // Check if this is a PNG asset and we haven't had an error loading it
+    if (isEyeAsset(cfg.eyes) && !eyeImageError) {
       const path = getEyePath(cfg.eyes);
       if (path) {
         return (
@@ -123,22 +141,21 @@ const AvatarDisplay = ({
             width="100" 
             height="50" 
             preserveAspectRatio="xMidYMid meet"
+            onError={handleEyeError}
           />
         );
       }
     }
     
+    // If PNG failed, use default eyes
+    if (eyeImageError) {
+      return renderDefaultEyes();
+    }
+    
     // Fallback to SVG eyes
     switch (cfg.eyes) {
       case "normal":
-        return (
-          <>
-            <circle cx="40" cy="50" r="8" fill={eyeColor} />
-            <circle cx="80" cy="50" r="8" fill={eyeColor} />
-            <circle cx="42" cy="48" r="3" fill="white" />
-            <circle cx="82" cy="48" r="3" fill="white" />
-          </>
-        );
+        return renderDefaultEyes();
       case "happy":
         return (
           <>
@@ -186,21 +203,30 @@ const AvatarDisplay = ({
           </>
         );
       default:
-        return (
-          <>
-            <circle cx="40" cy="50" r="8" fill={eyeColor} />
-            <circle cx="80" cy="50" r="8" fill={eyeColor} />
-          </>
-        );
+        return renderDefaultEyes();
     }
+  };
+
+  // Default SVG mouth fallback
+  const renderDefaultMouth = () => {
+    const mouthColor = "#0a0a0a";
+    return (
+      <path 
+        d="M40 78 Q60 95 80 78" 
+        stroke={mouthColor} 
+        strokeWidth="4" 
+        fill="none" 
+        strokeLinecap="round" 
+      />
+    );
   };
 
   // Mouth SVG paths or PNG images
   const renderMouth = () => {
     const mouthColor = "#0a0a0a";
     
-    // Check if this is a PNG asset
-    if (isMouthAsset(cfg.mouth)) {
+    // Check if this is a PNG asset and we haven't had an error loading it
+    if (isMouthAsset(cfg.mouth) && !mouthImageError) {
       const path = getMouthPath(cfg.mouth);
       if (path) {
         return (
@@ -211,23 +237,21 @@ const AvatarDisplay = ({
             width="70" 
             height="40" 
             preserveAspectRatio="xMidYMid meet"
+            onError={handleMouthError}
           />
         );
       }
     }
     
+    // If PNG failed, use default mouth
+    if (mouthImageError) {
+      return renderDefaultMouth();
+    }
+    
     // Fallback to SVG mouths
     switch (cfg.mouth) {
       case "smile":
-        return (
-          <path 
-            d="M40 78 Q60 95 80 78" 
-            stroke={mouthColor} 
-            strokeWidth="4" 
-            fill="none" 
-            strokeLinecap="round" 
-          />
-        );
+        return renderDefaultMouth();
       case "neutral":
         return (
           <line 
@@ -280,15 +304,7 @@ const AvatarDisplay = ({
           </>
         );
       default:
-        return (
-          <path 
-            d="M40 78 Q60 95 80 78" 
-            stroke={mouthColor} 
-            strokeWidth="4" 
-            fill="none" 
-            strokeLinecap="round" 
-          />
-        );
+        return renderDefaultMouth();
     }
   };
 
