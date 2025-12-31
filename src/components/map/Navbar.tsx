@@ -172,26 +172,26 @@ const Navbar = ({
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-50 pointer-events-none safe-area-top">
-        <div className="container mx-auto px-3 sm:px-4 py-3">
+        <div className="px-3 sm:px-4 py-3 md:container md:mx-auto">
           <div className="flex items-center gap-3">
-            {/* Search Bar - Floating in top-left */}
+            {/* Search Bar - Full width on mobile, constrained on desktop */}
             <div 
               ref={searchContainerRef}
-              className="relative flex-1 max-w-md pointer-events-auto"
+              className="relative flex-1 md:max-w-md pointer-events-auto"
             >
-              <div className="flex items-center bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-hard overflow-hidden">
-              <div className="pl-3 text-muted-foreground">
-                {isLoading || isTeleporting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Plane className="w-4 h-4" />
-                )}
+              <div className="flex items-center bg-card border-2 border-border rounded-full shadow-hard overflow-hidden">
+                <div className="pl-4 text-muted-foreground">
+                  {isLoading || isTeleporting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Plane className="w-4 h-4" />
+                  )}
                 </div>
                 <Input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Go to location"
-                  className="border-0 focus-visible:ring-0 font-nunito text-sm bg-transparent h-10"
+                  className="border-0 focus-visible:ring-0 font-nunito text-sm bg-transparent h-11"
                   onFocus={() => results.length > 0 && setShowResults(true)}
                 />
                 {query && (
@@ -199,7 +199,7 @@ const Navbar = ({
                     variant="ghost"
                     size="icon"
                     onClick={clearSearch}
-                    className="mr-1 h-8 w-8 text-muted-foreground hover:text-foreground"
+                    className="mr-2 h-8 w-8 text-muted-foreground hover:text-foreground"
                   >
                     <X className="w-4 h-4" />
                   </Button>
