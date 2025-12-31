@@ -28,7 +28,7 @@ import { useDebouncedLocation } from '@/hooks/useDebouncedLocation';
 import ShoutMarker from './ShoutMarker';
 import MapLoadingSkeleton from './MapLoadingSkeleton';
 import { Button } from '@/components/ui/button';
-import { Crosshair, Plus, Minus, Compass, Users, UsersRound, Eye, Ghost } from 'lucide-react';
+import { Crosshair, Plus, Minus, Compass, Users, UsersRound, Eye, Ghost, Calendar, CalendarOff, Megaphone, MessageSquareOff } from 'lucide-react';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || 'YOUR_MAPBOX_TOKEN_HERE';
 
@@ -272,6 +272,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const lastDbUpdateRef = useRef<number>(0); // Throttle DB updates separately from visual
   const bounceTimestampsRef = useRef<Map<string, string>>(new Map()); // Track last bounce timestamps per user
   const [showUsers, setShowUsers] = useState(true); // Toggle visibility of user avatars on map
+  const [showEvents, setShowEvents] = useState(true); // Toggle visibility of events on map
+  const [showShouts, setShowShouts] = useState(true); // Toggle visibility of shouts on map
   const [activeBubbles, setActiveBubbles] = useState<Map<string, ActiveBubble>>(new Map()); // Speech bubbles per user
   const speechBubbleRootsRef = useRef<Map<string, Root>>(new Map()); // Roots for speech bubble DOM elements
   const bubbleOverlayRef = useRef<HTMLDivElement>(null); // Overlay container for all bubbles
@@ -1542,6 +1544,15 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     // Skip if map style not ready yet
     if (!mapStyleLoaded) return;
 
+    // If showEvents is false, remove all quest markers and skip rendering
+    if (!showEvents) {
+      questMarkersMapRef.current.forEach((marker) => {
+        marker.remove();
+      });
+      questMarkersMapRef.current.clear();
+      return;
+    }
+
     // Build set of current quest IDs
     const currentQuestIds = new Set(filteredQuests.map(q => q.id));
 
@@ -1635,11 +1646,23 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       questMarkersMapRef.current.set(quest.id, marker);
     });
     
-  }, [filteredQuests, currentUserId, joinedQuestIds, mapStyleLoaded]);
+  }, [filteredQuests, currentUserId, joinedQuestIds, mapStyleLoaded, showEvents]);
 
   // Render shout markers on map
   useEffect(() => {
     if (!map.current || !mapStyleLoaded) return;
+
+    // If showShouts is false, remove all shout markers and skip rendering
+    if (!showShouts) {
+      shoutMarkersMapRef.current.forEach(({ marker, root }) => {
+        marker.remove();
+        queueMicrotask(() => {
+          try { root.unmount(); } catch (e) { /* ignore */ }
+        });
+      });
+      shoutMarkersMapRef.current.clear();
+      return;
+    }
 
     const currentShoutIds = new Set(shouts.map(s => s.id));
 
@@ -1744,7 +1767,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       shoutMarkersMapRef.current.set(shout.id, { marker, root });
     });
     
-  }, [shouts, mapStyleLoaded, getShoutCounts, hideShout, currentUserId, isGuest]);
+  }, [shouts, mapStyleLoaded, getShoutCounts, hideShout, currentUserId, isGuest, showShouts]);
 
   // Cleanup markers/React roots on unmount only (prevents re-blooming on data refresh)
   useEffect(() => {
@@ -2202,6 +2225,44 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
               )}
             </Button>
           )}
+
+          {/* Toggle Events Visibility */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setShowEvents(prev => !prev)}
+            className={`w-11 h-11 backdrop-blur-md border-border/50 transition-all ${
+              showEvents 
+                ? 'bg-card/90 hover:bg-primary/20 hover:border-primary' 
+                : 'bg-muted/60 hover:bg-muted/80'
+            }`}
+            title={showEvents ? 'Hide Events' : 'Show Events'}
+          >
+            {showEvents ? (
+              <Calendar className="w-5 h-5 text-primary" />
+            ) : (
+              <CalendarOff className="w-5 h-5 text-muted-foreground opacity-50" />
+            )}
+          </Button>
+
+          {/* Toggle Shouts Visibility */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setShowShouts(prev => !prev)}
+            className={`w-11 h-11 backdrop-blur-md border-border/50 transition-all ${
+              showShouts 
+                ? 'bg-card/90 hover:bg-primary/20 hover:border-primary' 
+                : 'bg-muted/60 hover:bg-muted/80'
+            }`}
+            title={showShouts ? 'Hide Shouts' : 'Show Shouts'}
+          >
+            {showShouts ? (
+              <Megaphone className="w-5 h-5 text-primary" />
+            ) : (
+              <MessageSquareOff className="w-5 h-5 text-muted-foreground opacity-50" />
+            )}
+          </Button>
         </div>
       )}
       
