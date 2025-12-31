@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 
 // Haversine distance formula (returns meters)
 const haversineDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-  const R = 6371000; // Earth's radius in meters
+  const R = 6371000;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLng = (lng2 - lng1) * Math.PI / 180;
   const a = 
@@ -20,12 +20,11 @@ interface DebouncedLocation {
 
 /**
  * Debounces location changes for data fetching optimization.
- * Only updates when:
+ * 
+ * IMMEDIATE on first render for fast initial load.
+ * Subsequent updates wait for:
  * 1. User stops moving for `delayMs` (default 500ms)
  * 2. AND has moved more than `minDistanceMeters` (default 100m)
- * 
- * This prevents excessive API calls when panning the map or when
- * location drifts slightly due to GPS inaccuracy.
  */
 export const useDebouncedLocation = (
   lat: number,
@@ -33,12 +32,14 @@ export const useDebouncedLocation = (
   delayMs: number = 500,
   minDistanceMeters: number = 100
 ): DebouncedLocation => {
+  // Initialize with current values immediately (no delay on first render)
   const [debouncedLocation, setDebouncedLocation] = useState<DebouncedLocation>({ lat, lng });
   const lastUpdateRef = useRef({ lat, lng });
   const isFirstRenderRef = useRef(true);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // On first render, immediately set the location without debouncing
+    // On first render, set immediately without debouncing
     if (isFirstRenderRef.current) {
       isFirstRenderRef.current = false;
       setDebouncedLocation({ lat, lng });
@@ -46,23 +47,32 @@ export const useDebouncedLocation = (
       return;
     }
 
-    const handler = setTimeout(() => {
-      // Calculate distance from last debounced location
-      const distance = haversineDistance(
-        lastUpdateRef.current.lat,
-        lastUpdateRef.current.lng,
-        lat,
-        lng
-      );
+    // Clear any pending timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
 
-      // Only update if moved significantly
-      if (distance >= minDistanceMeters) {
+    // Calculate distance from last debounced location
+    const distance = haversineDistance(
+      lastUpdateRef.current.lat,
+      lastUpdateRef.current.lng,
+      lat,
+      lng
+    );
+
+    // Only set timeout if movement is significant enough to warrant a fetch
+    if (distance >= minDistanceMeters) {
+      timeoutRef.current = setTimeout(() => {
         setDebouncedLocation({ lat, lng });
         lastUpdateRef.current = { lat, lng };
-      }
-    }, delayMs);
+      }, delayMs);
+    }
 
-    return () => clearTimeout(handler);
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
   }, [lat, lng, delayMs, minDistanceMeters]);
 
   return debouncedLocation;

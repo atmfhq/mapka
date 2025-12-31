@@ -430,34 +430,61 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     });
   }, [quests, selectedDate]);
 
-  // Fetch nearby profiles using spatial RPC - uses DEBOUNCED location for performance
-  const fetchProfiles = useCallback(async () => {
-    setIsDataLoading(true);
+  // Track fetch state to prevent duplicate profile requests
+  const isFetchingProfilesRef = useRef(false);
+  const lastProfileFetchLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  // Fetch nearby profiles using spatial RPC - with deduplication
+  const fetchProfiles = useCallback(async (force = false) => {
+    // Skip if already fetching
+    if (isFetchingProfilesRef.current && !force) return;
     
-    const { data, error } = await supabase.rpc('get_nearby_profiles', {
-      p_lat: debouncedLocation.lat,
-      p_lng: debouncedLocation.lng,
-      p_radius_meters: 5000 // 5km radius
-    });
-    
-    if (!error && data) {
-      const mappedProfiles = data.map((p: any) => ({
-        ...p,
-        avatar_config: p.avatar_config as AvatarConfig | null,
-        is_active: p.is_active ?? true,
-        last_bounce_at: p.last_bounce_at ?? null
-      }));
-      setProfiles(mappedProfiles);
-    } else if (error) {
-      console.error('Error fetching nearby profiles:', error);
+    // Skip if location hasn't changed significantly (within 100m) unless forced
+    if (!force && lastProfileFetchLocationRef.current) {
+      const dLat = debouncedLocation.lat - lastProfileFetchLocationRef.current.lat;
+      const dLng = debouncedLocation.lng - lastProfileFetchLocationRef.current.lng;
+      const distance = Math.sqrt(dLat * dLat + dLng * dLng) * 111000;
+      if (distance < 100) return;
     }
     
-    setIsDataLoading(false);
+    isFetchingProfilesRef.current = true;
+    lastProfileFetchLocationRef.current = { lat: debouncedLocation.lat, lng: debouncedLocation.lng };
+    setIsDataLoading(true);
+    
+    try {
+      const { data, error } = await supabase.rpc('get_nearby_profiles', {
+        p_lat: debouncedLocation.lat,
+        p_lng: debouncedLocation.lng,
+        p_radius_meters: 5000
+      });
+      
+      if (!error && data) {
+        const mappedProfiles = data.map((p: any) => ({
+          ...p,
+          avatar_config: p.avatar_config as AvatarConfig | null,
+          is_active: p.is_active ?? true,
+          last_bounce_at: p.last_bounce_at ?? null
+        }));
+        setProfiles(mappedProfiles);
+      } else if (error) {
+        console.error('Error fetching nearby profiles:', error);
+      }
+    } finally {
+      isFetchingProfilesRef.current = false;
+      setIsDataLoading(false);
+    }
   }, [debouncedLocation.lat, debouncedLocation.lng]);
 
+  // Initial fetch on mount
+  useEffect(() => {
+    fetchProfiles(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
+  // Refetch when debounced location changes significantly
   useEffect(() => {
     fetchProfiles();
-  }, [fetchProfiles]);
+  }, [debouncedLocation.lat, debouncedLocation.lng, fetchProfiles]);
 
   // Callback to trigger bounce animation on a specific remote user
   const triggerRemoteUserBounce = useCallback((userId: string, bounceAt: string) => {
@@ -761,22 +788,45 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     }, [currentUserId]),
   });
 
-  // Fetch quests using DEBOUNCED location for performance
-  const fetchQuests = useCallback(async () => {
-    const { data, error } = await supabase.rpc('get_nearby_megaphones', {
-      p_lat: debouncedLocation.lat,
-      p_lng: debouncedLocation.lng,
-      p_radius_meters: 5000 // 5km radius
-    });
+  // Track fetch state to prevent duplicate quest requests
+  const isFetchingQuestsRef = useRef(false);
+  const lastQuestFetchLocationRef = useRef<{ lat: number; lng: number } | null>(null);
+
+  // Fetch quests using DEBOUNCED location with deduplication
+  const fetchQuests = useCallback(async (force = false) => {
+    if (isFetchingQuestsRef.current && !force) return;
     
-    if (!error && data) {
-      setQuests(data);
-    } else if (error) {
-      console.error('Error fetching nearby quests:', error);
+    // Skip if location hasn't changed significantly (within 100m) unless forced
+    if (!force && lastQuestFetchLocationRef.current) {
+      const dLat = debouncedLocation.lat - lastQuestFetchLocationRef.current.lat;
+      const dLng = debouncedLocation.lng - lastQuestFetchLocationRef.current.lng;
+      const distance = Math.sqrt(dLat * dLat + dLng * dLng) * 111000;
+      if (distance < 100) return;
+    }
+    
+    isFetchingQuestsRef.current = true;
+    lastQuestFetchLocationRef.current = { lat: debouncedLocation.lat, lng: debouncedLocation.lng };
+    
+    try {
+      const { data, error } = await supabase.rpc('get_nearby_megaphones', {
+        p_lat: debouncedLocation.lat,
+        p_lng: debouncedLocation.lng,
+        p_radius_meters: 5000
+      });
+      
+      if (!error && data) {
+        setQuests(data);
+      } else if (error) {
+        console.error('Error fetching nearby quests:', error);
+      }
+    } finally {
+      isFetchingQuestsRef.current = false;
     }
   }, [debouncedLocation.lat, debouncedLocation.lng]);
 
-  // Fetch quests the current user has joined (skip for guests)
+  // Fetch quests the current user has joined (skip for guests) - only on mount
+  const joinedQuestsFetchedRef = useRef(false);
+  
   const fetchJoinedQuestIds = useCallback(async () => {
     if (!currentUserId) {
       setJoinedQuestIds(new Set());
@@ -794,10 +844,13 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     }
   }, [currentUserId]);
 
-  // Fetch joined quests on mount and when quests change
+  // Fetch joined quests once on mount (not on every quests change)
   useEffect(() => {
-    fetchJoinedQuestIds();
-  }, [fetchJoinedQuestIds, quests]);
+    if (!joinedQuestsFetchedRef.current) {
+      joinedQuestsFetchedRef.current = true;
+      fetchJoinedQuestIds();
+    }
+  }, [fetchJoinedQuestIds]);
 
   const openMissionById = useCallback(async (missionId: string) => {
     const { data } = await supabase
@@ -838,10 +891,15 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     flyTo,
   }), [fetchQuests, openMissionById, flyTo]);
 
-  // Refetch quests when debounced location changes
+  // Initial quest fetch on mount + refetch when location changes significantly
+  useEffect(() => {
+    fetchQuests(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  
   useEffect(() => {
     fetchQuests();
-  }, [fetchQuests]);
+  }, [debouncedLocation.lat, debouncedLocation.lng, fetchQuests]);
 
   // NOTE: Realtime quest updates are handled by useMegaphonesRealtime hook (lines 712-736)
   // Removed duplicate postgres_changes subscription for megaphones table
