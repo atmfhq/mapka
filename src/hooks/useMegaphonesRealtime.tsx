@@ -10,7 +10,7 @@ interface UseMegaphonesRealtimeOptions {
 
 /**
  * Hook to subscribe to realtime changes on the megaphones table.
- * Enables live map synchronization for quests.
+ * Uses refs to avoid resubscribing when callbacks change.
  */
 export const useMegaphonesRealtime = ({
   enabled = true,
@@ -19,69 +19,60 @@ export const useMegaphonesRealtime = ({
   onDelete,
 }: UseMegaphonesRealtimeOptions) => {
   const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  
+  // Use refs to avoid resubscribing when callbacks change
+  const enabledRef = useRef(enabled);
+  const onInsertRef = useRef(onInsert);
+  const onUpdateRef = useRef(onUpdate);
+  const onDeleteRef = useRef(onDelete);
 
+  // Keep refs in sync
+  useEffect(() => { enabledRef.current = enabled; }, [enabled]);
+  useEffect(() => { onInsertRef.current = onInsert; }, [onInsert]);
+  useEffect(() => { onUpdateRef.current = onUpdate; }, [onUpdate]);
+  useEffect(() => { onDeleteRef.current = onDelete; }, [onDelete]);
+
+  // Subscribe once on mount, clean up on unmount
   useEffect(() => {
-    if (!enabled) {
-      console.log('[Megaphones Realtime] Disabled, skipping subscription');
+    if (!enabledRef.current) {
       return;
     }
-
-    console.log('[Megaphones Realtime] Setting up subscription...');
 
     const channel = supabase
       .channel('megaphones-realtime')
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'megaphones',
-        },
+        { event: 'INSERT', schema: 'public', table: 'megaphones' },
         (payload) => {
-          console.log('[Megaphones Realtime] INSERT received:', payload.new);
-          onInsert?.(payload.new);
+          onInsertRef.current?.(payload.new);
         }
       )
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'megaphones',
-        },
+        { event: 'UPDATE', schema: 'public', table: 'megaphones' },
         (payload) => {
-          console.log('[Megaphones Realtime] UPDATE received:', payload.new);
-          onUpdate?.(payload.new);
+          onUpdateRef.current?.(payload.new);
         }
       )
       .on(
         'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'megaphones',
-        },
+        { event: 'DELETE', schema: 'public', table: 'megaphones' },
         (payload) => {
-          console.log('[Megaphones Realtime] DELETE received:', payload.old);
-          // For DELETE, payload.old contains the deleted row
           const deletedId = (payload.old as any)?.id;
           if (deletedId) {
-            onDelete?.(deletedId);
+            onDeleteRef.current?.(deletedId);
           }
         }
       )
-      .subscribe((status) => {
-        console.log('[Megaphones Realtime] Subscription status:', status);
-      });
+      .subscribe();
 
     channelRef.current = channel;
 
     return () => {
-      console.log('[Megaphones Realtime] Cleaning up subscription');
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };
-  }, [enabled, onInsert, onUpdate, onDelete]);
+  }, []); // Empty deps - subscribe once
 };
