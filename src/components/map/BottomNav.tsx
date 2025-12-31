@@ -26,6 +26,7 @@ interface BottomNavProps {
   onOpenMission?: (missionId: string) => void;
   chatOpenUserId?: string | null;
   onChatOpenChange?: (open: boolean) => void;
+  onOpenChatWithUser?: (userId: string) => void;
   onFlyTo: (lat: number, lng: number) => void;
   viewportBounds?: ViewportBounds | null;
 }
@@ -37,6 +38,7 @@ const BottomNav = ({
   onOpenMission,
   chatOpenUserId,
   onChatOpenChange,
+  onOpenChatWithUser,
   onFlyTo,
   viewportBounds,
 }: BottomNavProps) => {
@@ -64,6 +66,7 @@ const BottomNav = ({
                 currentUserId={currentUserId}
                 viewportBounds={viewportBounds ?? null}
                 onFlyTo={onFlyTo}
+                onOpenChat={onOpenChatWithUser}
               />
             </div>
 
