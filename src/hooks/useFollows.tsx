@@ -180,3 +180,116 @@ export const useFollowerCount = (userId: string | null) => {
 
   return count;
 };
+
+// Hook to get list of users the current user is following
+interface FollowedUser {
+  id: string;
+  nick: string | null;
+  avatar_url: string | null;
+  avatar_config: {
+    skinColor?: string;
+    shape?: string;
+    eyes?: string;
+    mouth?: string;
+  } | null;
+  bio: string | null;
+}
+
+export const useFollowingList = (currentUserId: string | null) => {
+  const [following, setFollowing] = useState<FollowedUser[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchFollowing = useCallback(async () => {
+    if (!currentUserId) {
+      setFollowing([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+
+    // Get the list of user IDs the current user is following
+    const { data: followsData, error: followsError } = await supabase
+      .from('follows')
+      .select('following_id')
+      .eq('follower_id', currentUserId);
+
+    if (followsError || !followsData || followsData.length === 0) {
+      setFollowing([]);
+      setLoading(false);
+      return;
+    }
+
+    const followingIds = followsData.map(f => f.following_id);
+
+    // Fetch profiles for those users
+    const { data: profiles, error: profilesError } = await supabase
+      .rpc('get_public_profiles_by_ids', { user_ids: followingIds });
+
+    if (profilesError) {
+      console.error('Failed to fetch following profiles:', profilesError);
+      setFollowing([]);
+      setLoading(false);
+      return;
+    }
+
+    const followedUsers: FollowedUser[] = (profiles || []).map((p: any) => ({
+      id: p.id,
+      nick: p.nick,
+      avatar_url: p.avatar_url,
+      avatar_config: p.avatar_config,
+      bio: p.bio,
+    }));
+
+    setFollowing(followedUsers);
+    setLoading(false);
+  }, [currentUserId]);
+
+  useEffect(() => {
+    fetchFollowing();
+  }, [fetchFollowing]);
+
+  // Realtime subscription for follows changes
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const channel = supabase
+      .channel(`following-list-${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'follows',
+          filter: `follower_id=eq.${currentUserId}`,
+        },
+        () => fetchFollowing()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId, fetchFollowing]);
+
+  const unfollowUser = async (userIdToUnfollow: string) => {
+    if (!currentUserId) return false;
+
+    const { error } = await supabase
+      .from('follows')
+      .delete()
+      .eq('follower_id', currentUserId)
+      .eq('following_id', userIdToUnfollow);
+
+    if (error) {
+      console.error('Failed to unfollow:', error);
+      return false;
+    }
+
+    // Optimistically remove from list
+    setFollowing(prev => prev.filter(u => u.id !== userIdToUnfollow));
+    return true;
+  };
+
+  return { following, loading, refetch: fetchFollowing, unfollowUser };
+};
