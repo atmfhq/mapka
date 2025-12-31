@@ -312,20 +312,22 @@ const UserListCard = ({ user, onClick, actionButton }: UserListCardProps) => {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border/50 bg-background hover:bg-muted/30 transition-colors text-left"
+      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border/50 bg-background hover:bg-muted/30 transition-colors text-left overflow-hidden"
     >
-      <AvatarDisplay config={user.avatar_config} size={40} showGlow={false} />
-      <div className="flex-1 min-w-0">
+      <div className="shrink-0">
+        <AvatarDisplay config={user.avatar_config} size={40} showGlow={false} />
+      </div>
+      <div className="flex-1 min-w-0 overflow-hidden">
         <p className="font-nunito text-sm font-medium truncate">
           {user.nick || 'Anonymous'}
         </p>
         {user.bio && (
-          <p className="font-nunito text-xs text-muted-foreground truncate overflow-hidden whitespace-nowrap text-ellipsis">
+          <p className="font-nunito text-xs text-muted-foreground truncate">
             {user.bio}
           </p>
         )}
       </div>
-      {actionButton}
+      {actionButton && <div className="shrink-0">{actionButton}</div>}
     </button>
   );
 };
