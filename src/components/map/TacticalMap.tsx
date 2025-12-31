@@ -115,14 +115,30 @@ const CATEGORY_COLORS: Record<string, string> = {
   Other: '270, 70%, 60%',      // Purple fallback
 };
 
-// Get activity icon by label (case insensitive)
+// Check if a string is an emoji (starts with emoji character)
+const isEmoji = (str: string): boolean => {
+  if (!str) return false;
+  const emojiRegex = /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/u;
+  return emojiRegex.test(str);
+};
+
+// Get activity icon - if category is an emoji, return it directly; otherwise lookup from activities
 const getActivityIcon = (label: string): string => {
+  // If the category is already an emoji, use it directly
+  if (isEmoji(label)) {
+    return label;
+  }
+  // Legacy: lookup from ACTIVITIES
   const activity = ACTIVITIES.find(a => a.label.toLowerCase() === label.toLowerCase());
   return activity?.icon || '📍';
 };
 
 // Get category color from activity label
 const getCategoryColor = (label: string): string => {
+  // For emoji-based categories, use a default primary color
+  if (isEmoji(label)) {
+    return '217, 91%, 60%'; // Primary blue
+  }
   const category = getCategoryForActivity(label);
   if (category && CATEGORY_COLORS[category]) {
     return CATEGORY_COLORS[category];
