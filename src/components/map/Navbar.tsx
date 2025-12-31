@@ -44,6 +44,7 @@ interface NavbarProps {
   chatOpenUserId?: string | null;
   chatOpenEventId?: string | null;
   onChatOpenChange?: (open: boolean) => void;
+  onOpenChatWithUser?: (userId: string) => void;
   onFlyTo: (lat: number, lng: number) => void;
   onLocationUpdated?: (lat: number, lng: number, name: string) => void;
   viewportBounds?: ViewportBounds | null;
@@ -60,6 +61,7 @@ const Navbar = ({
   chatOpenUserId,
   chatOpenEventId,
   onChatOpenChange,
+  onOpenChatWithUser,
   onFlyTo,
   onLocationUpdated,
   viewportBounds,
@@ -247,6 +249,7 @@ const Navbar = ({
                   currentUserId={currentUserId}
                   viewportBounds={viewportBounds ?? null}
                   onFlyTo={onFlyTo}
+                  onOpenChat={onOpenChatWithUser}
                 />
               </div>
 

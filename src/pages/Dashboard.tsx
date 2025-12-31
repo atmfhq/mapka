@@ -303,6 +303,7 @@ const Dashboard = () => {
           chatOpenUserId={chatOpenUserId}
           chatOpenEventId={chatOpenEventId}
           onChatOpenChange={handleChatOpenChange}
+          onOpenChatWithUser={handleOpenChatWithUser}
           onFlyTo={handleFlyTo}
           onLocationUpdated={handleLocationUpdated}
           viewportBounds={viewportBounds}
@@ -318,6 +319,7 @@ const Dashboard = () => {
           onOpenMission={handleOpenMission}
           chatOpenUserId={chatOpenUserId}
           onChatOpenChange={handleChatOpenChange}
+          onOpenChatWithUser={handleOpenChatWithUser}
           onFlyTo={handleFlyTo}
           viewportBounds={viewportBounds}
         />

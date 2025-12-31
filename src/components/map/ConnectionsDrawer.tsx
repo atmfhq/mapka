@@ -22,9 +22,10 @@ interface ConnectionsDrawerProps {
   viewportBounds: ViewportBounds | null;
   unreadCount?: number;
   onFlyTo?: (lat: number, lng: number) => void;
+  onOpenChat?: (userId: string) => void;
 }
 
-const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo }: ConnectionsDrawerProps) => {
+const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo, onOpenChat }: ConnectionsDrawerProps) => {
   const { connections, loading, error, refetch } = useConnections(currentUserId);
   const { following, loading: followingLoading, unfollowUser } = useFollowingList(currentUserId);
   const { followers, loading: followersLoading } = useFollowersList(currentUserId);
@@ -122,6 +123,7 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
           invitationId={selectedUser?.invitationId ?? undefined}
           viewportBounds={viewportBounds}
           onFlyTo={onFlyTo}
+          onOpenChat={onOpenChat}
           showBackButton={openedFromConnections}
           onBack={handleBackToConnections}
         />
