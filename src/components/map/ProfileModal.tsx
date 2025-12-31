@@ -1,5 +1,5 @@
 import { createPortal } from 'react-dom';
-import { X, ArrowLeft, User } from 'lucide-react';
+import { X, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import UserPopupContent from './UserPopupContent';
 
@@ -109,13 +109,6 @@ const ProfileModal = ({
                 <ArrowLeft className="w-5 h-5 text-muted-foreground" />
               </Button>
             )}
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-              isConnected 
-                ? 'bg-success/20 border border-success/40' 
-                : 'bg-primary/20 border border-primary/40'
-            }`}>
-              <User className={`w-5 h-5 ${isConnected ? 'text-success' : 'text-primary'}`} />
-            </div>
             <div>
               <h3 className="font-nunito font-bold text-foreground">Profile</h3>
               <p className="text-xs text-muted-foreground">

@@ -463,17 +463,12 @@ const ChatDrawer = ({
                 </button>
               </>
             ) : (
-              <>
-                <div className="w-10 h-10 rounded-xl bg-success/20 border border-success/40 flex items-center justify-center">
-                  <MessageCircle className="w-5 h-5 text-success" />
-                </div>
-                <div>
-                  <h3 className="font-nunito font-bold text-foreground">Messages</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
-                  </p>
-                </div>
-              </>
+              <div>
+                <h3 className="font-nunito font-bold text-foreground">Messages</h3>
+                <p className="text-xs text-muted-foreground">
+                  {conversations.length} conversation{conversations.length !== 1 ? 's' : ''}
+                </p>
+              </div>
             )}
           </div>
           <Button
