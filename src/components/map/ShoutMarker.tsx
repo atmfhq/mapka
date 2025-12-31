@@ -1,4 +1,4 @@
-import { MessageSquare, Heart, MessageCircle, X } from 'lucide-react';
+import { Heart, MessageCircle, X } from 'lucide-react';
 
 interface ShoutMarkerProps {
   content: string;
@@ -34,7 +34,7 @@ const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, on
       {/* Speech bubble container */}
       <div className="relative flex flex-col items-center">
         {/* Main bubble */}
-        <div className="relative bg-card/95 backdrop-blur-sm border-2 border-accent/60 rounded-xl px-3 py-2 shadow-lg max-w-[180px] transform transition-all duration-200 group-hover:scale-105 group-hover:shadow-xl">
+        <div className="relative bg-card/95 backdrop-blur-sm border-2 border-accent/60 rounded-xl px-3 py-2 shadow-lg max-w-[180px] min-w-[80px] transform transition-all duration-200 group-hover:scale-105 group-hover:shadow-xl">
           {/* Hide button */}
           {canHide && (
             <button
@@ -45,16 +45,14 @@ const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, on
               <X className="w-3 h-3 text-muted-foreground hover:text-destructive-foreground" />
             </button>
           )}
-          {/* Icon + Content */}
-          <div className="flex items-start gap-2">
-            <MessageSquare className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-            <p className="text-xs font-nunito text-foreground line-clamp-3 break-words leading-relaxed">
-              {content}
-            </p>
-          </div>
+          
+          {/* Text content only */}
+          <p className="text-xs font-nunito text-foreground line-clamp-3 break-words leading-relaxed">
+            {content}
+          </p>
           
           {/* Social counters */}
-          <div className="mt-2 flex items-center gap-3 text-[10px] text-muted-foreground">
+          <div className="mt-1.5 flex items-center gap-3 text-[10px] text-muted-foreground">
             <div className="flex items-center gap-1">
               <Heart className="w-3 h-3 text-rose-400" />
               <span className="font-medium">{likesCount}</span>
