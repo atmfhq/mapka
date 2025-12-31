@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, isToday } from 'date-fns';
-import { Clock, Users, Trash2, UserPlus, X, Lock, Shield, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Hourglass, LogOut, UserX, Ban, Unlock, Share2 } from 'lucide-react';
+import { Clock, Users, Trash2, UserPlus, X, Lock, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Hourglass, LogOut, Share2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -128,10 +128,9 @@ const QuestLobby = ({
   const [loading, setLoading] = useState(false);
   const [hasJoined, setHasJoined] = useState(false);
   const [showAllParticipants, setShowAllParticipants] = useState(false);
-  const [showBannedUsers, setShowBannedUsers] = useState(false);
   
-  // Spot bans hook
-  const { bannedUsers, banUser, unbanUser, checkIfBanned, loading: banLoading } = useSpotBans(
+  // Spot bans hook - only used for checking ban status on join
+  const { checkIfBanned } = useSpotBans(
     quest?.id || null,
     quest?.host_id === currentUserId
   );
@@ -416,19 +415,6 @@ const QuestLobby = ({
 
   const handleActivitySelect = (activityId: string) => {
     setEditActivity(activityId);
-  };
-
-  const handleBanUser = async (userId: string) => {
-    if (!currentUserId) return;
-    const success = await banUser(userId, currentUserId);
-    if (success) {
-      // Refresh participants list after ban
-      await refreshParticipants();
-    }
-  };
-
-  const handleUnbanUser = async (banId: string) => {
-    await unbanUser(banId);
   };
 
   const handleEditBack = () => {
@@ -1053,7 +1039,7 @@ const QuestLobby = ({
                 </div>
               )}
               
-              {/* All filtered participants with ban button for host */}
+              {/* All filtered participants */}
               {filteredParticipants.map((p) => (
                 <div key={p.id} className="flex items-center gap-3 p-2 rounded-xl hover:bg-primary/10 transition-colors">
                   <button
@@ -1086,72 +1072,9 @@ const QuestLobby = ({
                       {p.profile?.nick || '?'}
                     </span>
                   </button>
-                  {isHost && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="flex-shrink-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                      onClick={() => handleBanUser(p.user_id)}
-                      disabled={banLoading}
-                    >
-                      <UserX className="w-4 h-4" />
-                    </Button>
-                  )}
                 </div>
               ))}
             </div>
-          </ScrollArea>
-        </DialogContent>
-      </Dialog>
-
-      {/* Manage Banned Users Modal */}
-      <Dialog open={showBannedUsers} onOpenChange={setShowBannedUsers}>
-        <DialogContent className="bg-card border-primary/30 max-w-md max-h-[80vh] overflow-hidden">
-          <DialogHeader>
-            <DialogTitle className="font-fredoka text-xl flex items-center gap-2">
-              <Ban className="w-5 h-5 text-destructive" />
-              Banned Users
-            </DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="max-h-[60vh] pr-2">
-            {bannedUsers.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                <Shield className="w-12 h-12 mb-3 opacity-50" />
-                <p className="text-sm">No banned users</p>
-              </div>
-            ) : (
-              <div className="space-y-2 p-2">
-                {bannedUsers.map((ban) => (
-                  <div key={ban.id} className="flex items-center gap-3 p-2 rounded-xl bg-muted/30">
-                    <div className="w-10 h-10 flex-shrink-0">
-                      <AvatarDisplay 
-                        config={ban.profile?.avatar_config} 
-                        size={40} 
-                        showGlow={false}
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium text-foreground truncate block">
-                        {ban.profile?.nick || 'Unknown user'}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        Banned {format(new Date(ban.created_at), 'MMM d, yyyy')}
-                      </span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-shrink-0 border-success/50 text-success hover:bg-success/10"
-                      onClick={() => handleUnbanUser(ban.id)}
-                      disabled={banLoading}
-                    >
-                      <Unlock className="w-4 h-4 mr-1" />
-                      Unban
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
           </ScrollArea>
         </DialogContent>
       </Dialog>
