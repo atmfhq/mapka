@@ -174,19 +174,15 @@ const Onboarding = () => {
   };
 
   return (
-    <div ref={keyboardRef} className="min-h-dvh overflow-y-auto flex items-center justify-center p-4">
-      {/* Background with gradient and subtle pattern */}
-      <div className="fixed inset-0 bg-gradient-to-br from-primary/20 via-background to-accent/20" />
-      <div className="fixed inset-0 opacity-30" style={{ 
-        backgroundImage: `radial-gradient(circle at 25% 25%, hsl(var(--primary) / 0.1) 0%, transparent 50%), 
-                          radial-gradient(circle at 75% 75%, hsl(var(--accent) / 0.1) 0%, transparent 50%)` 
-      }} />
+    <div ref={keyboardRef} className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto">
+      {/* Standard modal backdrop - matches ConnectionsDrawer/Messages */}
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
       
-      {/* Centered Card Modal */}
-      <div className="relative z-10 w-full max-w-lg">
-        <div className="bg-background border-2 border-border rounded-2xl shadow-hard overflow-hidden">
+      {/* Centered Card Modal - exact same styling as app modals */}
+      <div className="relative z-10 w-full max-w-md animate-in slide-in-from-bottom-4 fade-in duration-300">
+        <div className="bg-card border-2 border-border rounded-2xl shadow-hard overflow-hidden">
           {/* Header */}
-          <div className="p-6 border-b border-border/50 text-center">
+          <div className="p-5 border-b border-border text-center">
             <div className="flex items-center justify-center gap-3 mb-3">
               <div className="w-12 h-12 rounded-xl bg-primary/20 border-2 border-primary/40 flex items-center justify-center shadow-hard-sm">
                 <Target className="w-6 h-6 text-primary" />
@@ -201,12 +197,12 @@ const Onboarding = () => {
           </div>
 
           {/* Stepper - Compact */}
-          <div className="px-6 pt-4">
+          <div className="px-5 pt-4">
             <TacticalStepper currentStep={step} steps={steps} />
           </div>
 
           {/* Content */}
-          <div className="p-6 max-h-[50vh] overflow-y-auto">
+          <div className="p-5 max-h-[50vh] overflow-y-auto">
             {/* Step 0: Identity */}
             {step === 0 && (
               <div className="space-y-5 animate-fade-in">
@@ -334,7 +330,7 @@ const Onboarding = () => {
           </div>
 
           {/* Footer - Navigation */}
-          <div className="flex justify-between items-center p-6 border-t border-border/50 bg-muted/30">
+          <div className="flex justify-between items-center p-5 border-t border-border bg-muted/30">
             {step > 0 ? (
               <Button variant="ghost" onClick={() => setStep(step - 1)}>
                 <ChevronLeft className="w-4 h-4" />
