@@ -766,6 +766,17 @@ export type Database = {
           tags: string[]
         }[]
       }
+      get_nearby_shouts: {
+        Args: { p_lat: number; p_lng: number; p_radius_meters?: number }
+        Returns: {
+          content: string
+          created_at: string
+          id: string
+          lat: number
+          lng: number
+          user_id: string
+        }[]
+      }
       get_public_profile: {
         Args: { p_user_id: string }
         Returns: {
