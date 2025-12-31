@@ -44,7 +44,7 @@ const ShoutModal = ({ isOpen, onClose, coords, userId, onShoutCreated }: ShoutMo
 
       toast({
         title: 'Shout posted!',
-        description: 'Your shout will be visible for 30 minutes.',
+        description: 'Your shout will be visible for 24 hours.',
       });
 
       setContent('');
@@ -82,7 +82,7 @@ const ShoutModal = ({ isOpen, onClose, coords, userId, onShoutCreated }: ShoutMo
             </div>
             <div>
               <h3 className="font-nunito font-bold text-foreground">New Shout</h3>
-              <p className="text-xs text-muted-foreground">Visible for 30 minutes</p>
+              <p className="text-xs text-muted-foreground">Visible on the map for 24h</p>
             </div>
           </div>
           <button
