@@ -2122,9 +2122,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         onSendMessage={sendChatMessage}
       />
 
-      {/* Custom Map Controls - Vertically centered on right edge */}
+      {/* Custom Map Controls - Vertically centered on right edge, offset for bottom nav on mobile */}
       {!isTokenMissing && (
-        <div className="absolute top-1/2 -translate-y-1/2 right-4 z-20 flex flex-col gap-2">
+        <div className="absolute top-1/2 -translate-y-1/2 right-4 z-20 flex flex-col gap-2 md:mb-0 mb-8">
           {/* 1. User Location - Center on Base Button - hide for guests */}
           {!isGuest && (
             <Button

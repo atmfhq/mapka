@@ -131,7 +131,7 @@ const BubbleChat = ({ currentUserId, isGuest = false, onLocalBubble, onSendMessa
   }
 
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
+    <div className="absolute bottom-20 md:bottom-4 left-1/2 -translate-x-1/2 z-20">
       <div 
         className={`flex items-center gap-2 bg-card/95 backdrop-blur-md border-2 border-border rounded-full px-4 py-2.5 shadow-hard transition-opacity duration-200 ${
           cooldown ? 'opacity-60' : 'opacity-100'
