@@ -2102,10 +2102,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
                 )}
                 title={selectedDate ? `Filtering: ${format(selectedDate, 'MMM d')}` : 'Filter by Date'}
               >
-                <CalendarDays className={cn(
-                  "w-5 h-5 transition-colors",
-                  selectedDate ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
-                )} />
+                <CalendarDays className="w-5 h-5 text-black" />
                 {selectedDate && (
                   <span className="absolute -top-1 -right-1 w-4 h-4 bg-primary rounded-full text-[10px] font-bold text-primary-foreground flex items-center justify-center">
                     {format(selectedDate, 'd')}
