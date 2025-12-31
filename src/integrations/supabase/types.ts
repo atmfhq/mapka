@@ -243,6 +243,7 @@ export type Database = {
           lat: number
           lng: number
           max_participants: number | null
+          share_code: string
           start_time: string
           title: string
         }
@@ -257,6 +258,7 @@ export type Database = {
           lat: number
           lng: number
           max_participants?: number | null
+          share_code: string
           start_time: string
           title: string
         }
@@ -271,6 +273,7 @@ export type Database = {
           lat?: number
           lng?: number
           max_participants?: number | null
+          share_code?: string
           start_time?: string
           title?: string
         }
@@ -504,6 +507,7 @@ export type Database = {
       }
       cleanup_expired_rate_limits: { Args: never; Returns: undefined }
       delete_user_account: { Args: never; Returns: undefined }
+      generate_share_code: { Args: never; Returns: string }
       get_current_user_location: {
         Args: never
         Returns: {
