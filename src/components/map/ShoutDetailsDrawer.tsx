@@ -37,6 +37,7 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
   const { toast } = useToast();
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [authorProfile, setAuthorProfile] = useState<{ nick: string | null; avatar_config: AvatarConfig | null } | null>(null);
   const [commentProfiles, setCommentProfiles] = useState<Record<string, { nick: string | null; avatar_config: AvatarConfig | null }>>({});
 
@@ -118,7 +119,35 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
     }
   };
 
-  // Calculate remaining time (24 hour lifespan)
+  const handleDeleteShout = async () => {
+    if (!shout || !currentUserId || shout.user_id !== currentUserId) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('shouts')
+        .delete()
+        .eq('id', shout.id)
+        .eq('user_id', currentUserId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Shout deleted',
+        description: 'Your shout has been removed.',
+      });
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: 'Failed to delete shout',
+        description: error.message || 'Something went wrong.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const getRemainingTime = () => {
     if (!shout) return 0;
     const createdTime = new Date(shout.created_at).getTime();
@@ -202,7 +231,7 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
                 />
               </div>
 
-              {/* Like button */}
+              {/* Like button and Delete button */}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => currentUserId && toggleShoutLike(shout.id)}
@@ -216,6 +245,18 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
                   <Heart className={`w-4 h-4 ${shoutLikes.hasLiked ? 'fill-current' : ''}`} />
                   <span className="font-medium">{shoutLikes.count}</span>
                 </button>
+
+                {/* Delete button - only visible to shout author */}
+                {currentUserId && shout.user_id === currentUserId && (
+                  <button
+                    onClick={handleDeleteShout}
+                    disabled={isDeleting}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-colors bg-destructive/10 text-destructive hover:bg-destructive/20 border border-destructive/30"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span className="font-medium">{isDeleting ? 'Deleting...' : 'Delete'}</span>
+                  </button>
+                )}
               </div>
             </div>
 
