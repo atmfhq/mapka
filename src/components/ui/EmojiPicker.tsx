@@ -1,0 +1,170 @@
+import { useState, useMemo } from 'react';
+import { Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
+
+// Common emoji categories with popular emojis
+const EMOJI_CATEGORIES = [
+  {
+    name: 'Activities',
+    emojis: ['⚽', '🏀', '🏈', '⚾', '🎾', '🏐', '🏉', '🎱', '🏓', '🏸', '🏒', '🏑', '🥏', '🏊', '🚴', '🏃', '🎿', '🏂', '⛷️', '🎳', '🥊', '🤼', '🏋️', '🤸', '⛹️', '🧘', '🎯', '🎮', '🎲', '♟️', '🎪', '🎭', '🎨', '🎬', '🎤', '🎧', '🎵', '🎹', '🎸', '🎷', '🎺', '🥁']
+  },
+  {
+    name: 'Food & Drink',
+    emojis: ['🍕', '🍔', '🍟', '🌭', '🍿', '🧂', '🥓', '🥚', '🍳', '🧇', '🥞', '🧈', '🍞', '🥐', '🥖', '🥨', '🧀', '🥗', '🥙', '🌮', '🌯', '🥪', '🍱', '🍣', '🍜', '🍝', '🍛', '🍲', '🍤', '🍚', '🍙', '🍘', '🍥', '🥠', '🥡', '🍦', '🍧', '🍨', '🍩', '🍪', '🎂', '🍰', '🧁', '🥧', '🍫', '🍬', '🍭', '🍮', '🍯', '☕', '🍵', '🧃', '🥤', '🍶', '🍺', '🍻', '🥂', '🍷', '🥃', '🍸', '🍹', '🧉']
+  },
+  {
+    name: 'Nature',
+    emojis: ['🌲', '🌳', '🌴', '🌵', '🌾', '🌿', '🍀', '🍁', '🍂', '🍃', '🌺', '🌻', '🌹', '🌷', '🌸', '💐', '🌼', '🏔️', '⛰️', '🌋', '🏕️', '🏖️', '🏜️', '🏝️', '🌅', '🌄', '🌠', '🌌', '🌈', '⛅', '☀️', '🌙', '⭐', '🔥', '💧', '🌊', '❄️', '☃️', '⛄']
+  },
+  {
+    name: 'Objects',
+    emojis: ['📱', '💻', '🖥️', '🖨️', '⌨️', '🖱️', '📷', '📹', '🎥', '📽️', '📺', '📻', '🎙️', '📀', '💿', '📼', '🔋', '🔌', '💡', '🔦', '🕯️', '📕', '📖', '📚', '🎒', '👓', '🕶️', '👔', '👗', '👠', '👟', '🧢', '👑', '💍', '💎', '🏆', '🎖️', '🏅', '🥇', '🥈', '🥉']
+  },
+  {
+    name: 'Symbols',
+    emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '✨', '⭐', '🌟', '💫', '⚡', '🔥', '💥', '❄️', '🎉', '🎊', '🎈', '🎀', '✅', '❌', '⭕', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫', '⚪', '🟤']
+  },
+  {
+    name: 'People',
+    emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇', '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '🥲', '😋', '😛', '😜', '🤪', '😝', '🤑', '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬', '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕']
+  },
+  {
+    name: 'Animals',
+    emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒', '🦘', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩', '🦮', '🐕‍🦺', '🐈', '🐓', '🦃', '🦚', '🦜', '🦢', '🦩', '🐇', '🦝', '🦨', '🦡', '🦦', '🦥']
+  },
+  {
+    name: 'Travel',
+    emojis: ['🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🛵', '🏍️', '🚲', '🛴', '🚨', '🚔', '🚍', '🚘', '🚖', '✈️', '🛫', '🛬', '🛩️', '🚀', '🛸', '🚁', '🛶', '⛵', '🚤', '🛥️', '🛳️', '⛴️', '🚢', '⚓', '🗼', '🗽', '🗿', '🏰', '🏯', '🏟️', '🎡', '🎢', '🎠', '⛲', '⛱️', '🏖️', '🏕️', '🏔️', '🗻', '🌋', '🏜️', '🏝️']
+  }
+];
+
+interface EmojiPickerProps {
+  value: string | null;
+  onChange: (emoji: string) => void;
+  className?: string;
+}
+
+export const EmojiPicker = ({ value, onChange, className }: EmojiPickerProps) => {
+  const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+
+  // Filter emojis based on search
+  const filteredCategories = useMemo(() => {
+    if (!search.trim()) return EMOJI_CATEGORIES;
+    
+    const searchLower = search.toLowerCase();
+    return EMOJI_CATEGORIES.map(category => ({
+      ...category,
+      emojis: category.emojis.filter(() => 
+        category.name.toLowerCase().includes(searchLower)
+      )
+    })).filter(category => category.emojis.length > 0 || category.name.toLowerCase().includes(searchLower));
+  }, [search]);
+
+  // Get all emojis flat for search
+  const allEmojis = useMemo(() => {
+    return EMOJI_CATEGORIES.flatMap(c => c.emojis);
+  }, []);
+
+  const displayCategories = selectedCategory 
+    ? filteredCategories.filter(c => c.name === selectedCategory)
+    : filteredCategories;
+
+  return (
+    <div className={cn("space-y-3", className)}>
+      {/* Selected emoji display */}
+      {value && (
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/10 border-2 border-primary/40">
+          <span className="text-3xl">{value}</span>
+          <div className="flex-1">
+            <p className="font-semibold text-primary font-nunito">Selected Icon</p>
+            <p className="text-xs text-muted-foreground">Tap below to change</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="text-sm text-muted-foreground hover:text-foreground"
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          placeholder="Search category..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9 bg-muted/50 border-border/50 rounded-xl"
+        />
+      </div>
+
+      {/* Category pills */}
+      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
+        <button
+          type="button"
+          onClick={() => setSelectedCategory(null)}
+          className={cn(
+            "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
+            !selectedCategory 
+              ? "bg-primary text-primary-foreground" 
+              : "bg-muted/50 text-muted-foreground hover:bg-muted"
+          )}
+        >
+          All
+        </button>
+        {EMOJI_CATEGORIES.map(category => (
+          <button
+            key={category.name}
+            type="button"
+            onClick={() => setSelectedCategory(category.name)}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
+              selectedCategory === category.name
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted/50 text-muted-foreground hover:bg-muted"
+            )}
+          >
+            {category.name}
+          </button>
+        ))}
+      </div>
+
+      {/* Emoji grid */}
+      <ScrollArea className="h-[200px] rounded-xl border border-border/50 bg-muted/20 p-2">
+        <div className="space-y-4">
+          {displayCategories.map(category => (
+            <div key={category.name}>
+              {!selectedCategory && (
+                <p className="text-xs font-medium text-muted-foreground mb-2 px-1">
+                  {category.name}
+                </p>
+              )}
+              <div className="grid grid-cols-8 gap-1">
+                {category.emojis.map((emoji, idx) => (
+                  <button
+                    key={`${category.name}-${idx}`}
+                    type="button"
+                    onClick={() => onChange(emoji)}
+                    className={cn(
+                      "w-9 h-9 flex items-center justify-center rounded-lg text-xl transition-all hover:bg-primary/20 hover:scale-110",
+                      value === emoji && "bg-primary/30 ring-2 ring-primary"
+                    )}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+};
+
+export default EmojiPicker;

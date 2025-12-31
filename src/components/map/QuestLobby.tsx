@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, isToday } from 'date-fns';
-import { Clock, Users, Trash2, UserPlus, X, Lock, Pencil, Save, ChevronRight, CalendarIcon, LogIn, Hourglass, LogOut, Share2 } from 'lucide-react';
+import { Clock, Users, Trash2, UserPlus, X, Lock, Pencil, Save, CalendarIcon, LogIn, Hourglass, LogOut, Share2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,10 +16,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
-import { ACTIVITIES, ACTIVITY_CATEGORIES, getActivityById, getActivitiesByCategory, ActivityCategory } from '@/constants/activities';
 import { useSpotBans } from '@/hooks/useSpotBans';
 import { useSpotComments, useSpotCommentLikes } from '@/hooks/useSpotComments';
 import EntityComments from '@/components/map/EntityComments';
+import EmojiPicker from '@/components/ui/EmojiPicker';
 
 interface Quest {
   id: string;
@@ -76,28 +76,11 @@ interface QuestLobbyProps {
   isUserInViewport?: (lat: number, lng: number) => boolean;
 }
 
-const getActivityByLabel = (label: string) => {
-  return ACTIVITIES.find(a => a.label.toLowerCase() === label.toLowerCase());
-};
-
-const getCategoryColorClasses = (category: string): string => {
-  const activityData = getActivityByLabel(category);
-  if (activityData) {
-    switch (activityData.category) {
-      case 'sport': return 'bg-orange-500/20 text-orange-400 border-orange-500/40';
-      case 'tabletop': return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40';
-      case 'social': return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40';
-      case 'outdoor': return 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
-    }
-  }
-  const LEGACY_COLORS: Record<string, string> = {
-    Sport: 'bg-orange-500/20 text-orange-400 border-orange-500/40',
-    Gaming: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40',
-    Food: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40',
-    Party: 'bg-pink-500/20 text-pink-400 border-pink-500/40',
-    Other: 'bg-slate-500/20 text-slate-400 border-slate-500/40',
-  };
-  return LEGACY_COLORS[category] || LEGACY_COLORS.Other;
+// Simple helper to check if a string is an emoji (starts with emoji character)
+const isEmoji = (str: string): boolean => {
+  if (!str) return false;
+  const emojiRegex = /^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\u{1F600}-\u{1F64F}\u{1F680}-\u{1F6FF}]/u;
+  return emojiRegex.test(str);
 };
 
 const getMinTimeForToday = (): string => {
@@ -147,8 +130,7 @@ const QuestLobby = ({
   const [editDate, setEditDate] = useState<Date>();
   const [editTime, setEditTime] = useState('18:00');
   const [editDuration, setEditDuration] = useState(2);
-  const [editCategory, setEditCategory] = useState<ActivityCategory | null>(null);
-  const [editActivity, setEditActivity] = useState<string | null>(null);
+  const [editIcon, setEditIcon] = useState<string>('');
 
   const MAX_VISIBLE_AVATARS = 5;
   const isGuest = !currentUserId;
@@ -160,12 +142,6 @@ const QuestLobby = ({
     return participants.filter(p => p.user_id !== quest.host_id);
   }, [participants, quest]);
 
-  // Get activities for selected category
-  const categoryActivities = useMemo(() => {
-    if (!editCategory) return [];
-    return getActivitiesByCategory(editCategory);
-  }, [editCategory]);
-
   // Calculate min time based on selected date
   const minTime = useMemo(() => {
     if (!editDate) return undefined;
@@ -175,37 +151,25 @@ const QuestLobby = ({
     return undefined;
   }, [editDate]);
 
-  const selectedActivityData = editActivity ? getActivityById(editActivity) : null;
-  const selectedCategoryData = editCategory ? ACTIVITY_CATEGORIES.find(c => c.id === editCategory) : null;
-
   // Initialize edit form when entering edit mode
   const startEditing = () => {
     if (!quest) return;
     
     const startTime = new Date(quest.start_time);
-    const activityData = getActivityByLabel(quest.category);
     
     setEditTitle(quest.title);
     setEditDescription(quest.description || '');
     setEditDate(startTime);
     setEditTime(format(startTime, 'HH:mm'));
     setEditDuration(quest.duration_minutes / 60);
-    
-    if (activityData) {
-      setEditCategory(activityData.category as ActivityCategory);
-      setEditActivity(activityData.id);
-    } else {
-      setEditCategory(null);
-      setEditActivity(null);
-    }
+    setEditIcon(quest.category || '');
     
     setIsEditing(true);
   };
 
   const cancelEditing = () => {
     setIsEditing(false);
-    setEditCategory(null);
-    setEditActivity(null);
+    setEditIcon('');
   };
 
   // Fetch host profile and participants
@@ -409,15 +373,12 @@ const QuestLobby = ({
     const startTime = new Date(editDate);
     startTime.setHours(hours, minutes, 0, 0);
 
-    const activityData = editActivity ? getActivityById(editActivity) : null;
-    const categoryLabel = activityData?.label || quest.category;
-
     const { data, error } = await supabase
       .from('megaphones')
       .update({
         title: editTitle.trim(),
         description: editDescription.trim() || null,
-        category: categoryLabel,
+        category: editIcon || quest.category, // Use selected emoji as category
         start_time: startTime.toISOString(),
         duration_minutes: editDuration * 60,
       })
@@ -439,23 +400,6 @@ const QuestLobby = ({
     toast({ title: "Spot updated!" });
     setIsEditing(false);
     onUpdate?.(data);
-  };
-
-  const handleCategorySelect = (categoryId: ActivityCategory) => {
-    setEditCategory(categoryId);
-    setEditActivity(null);
-  };
-
-  const handleActivitySelect = (activityId: string) => {
-    setEditActivity(activityId);
-  };
-
-  const handleEditBack = () => {
-    if (editActivity) {
-      setEditActivity(null);
-    } else if (editCategory) {
-      setEditCategory(null);
-    }
   };
 
   if (!quest) return null;
@@ -511,74 +455,15 @@ const QuestLobby = ({
               />
             </div>
 
-            {/* Activity Selection */}
+            {/* Icon Selection - Emoji Picker */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="font-nunito text-sm font-medium text-foreground">
-                  Activity
-                </Label>
-                {(editCategory || editActivity) && (
-                  <button
-                    onClick={handleEditBack}
-                    className="text-xs text-primary hover:underline font-nunito font-medium"
-                  >
-                    ← Back
-                  </button>
-                )}
-              </div>
-
-              {selectedActivityData && (
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/40">
-                  <span className="text-2xl">{selectedActivityData.icon}</span>
-                  <div>
-                    <p className="font-semibold text-primary">{selectedActivityData.label}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{selectedActivityData.category}</p>
-                  </div>
-                  <button
-                    onClick={() => setEditActivity(null)}
-                    className="ml-auto text-muted-foreground hover:text-foreground text-sm"
-                  >
-                    Change
-                  </button>
-                </div>
-              )}
-
-              {!editCategory && !selectedActivityData && (
-                <div className="grid grid-cols-2 gap-2">
-                  {ACTIVITY_CATEGORIES.map((category) => (
-                    <button
-                      key={category.id}
-                      onClick={() => handleCategorySelect(category.id)}
-                      className="flex items-center gap-3 p-3 rounded-lg border bg-muted/30 border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-all"
-                    >
-                      <span className="text-2xl">{category.icon}</span>
-                      <span className="font-nunito font-medium">{category.label}</span>
-                      <ChevronRight className="w-4 h-4 ml-auto text-muted-foreground" />
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {editCategory && !selectedActivityData && (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 px-2 py-1 text-sm text-muted-foreground">
-                    <span>{selectedCategoryData?.icon}</span>
-                    <span className="font-nunito">{selectedCategoryData?.label}</span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 max-h-[150px] overflow-y-auto">
-                    {categoryActivities.map((activity) => (
-                      <button
-                        key={activity.id}
-                        onClick={() => handleActivitySelect(activity.id)}
-                        className="flex items-center gap-2 p-2.5 rounded-lg border bg-muted/30 border-border/50 hover:border-primary/50 hover:bg-primary/5 transition-all text-left"
-                      >
-                        <span className="text-lg">{activity.icon}</span>
-                        <span className="font-nunito text-sm truncate">{activity.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <Label className="font-nunito text-sm font-medium text-foreground">
+                Icon
+              </Label>
+              <EmojiPicker 
+                value={editIcon} 
+                onChange={setEditIcon} 
+              />
             </div>
 
             {/* Date and Time */}
@@ -682,18 +567,13 @@ const QuestLobby = ({
             {/* Header with close button */}
             <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
               <div className="flex items-center gap-3">
-                {(() => {
-                  const activityData = getActivityByLabel(quest.category);
-                  return (
-                    <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center">
-                      {activityData ? (
-                        <span className="text-lg">{activityData.icon}</span>
-                      ) : (
-                        <Users className="w-5 h-5 text-primary" />
-                      )}
-                    </div>
-                  );
-                })()}
+                <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center">
+                  {isEmoji(quest.category) ? (
+                    <span className="text-lg">{quest.category}</span>
+                  ) : (
+                    <Users className="w-5 h-5 text-primary" />
+                  )}
+                </div>
                 <div>
                   <h3 className="font-nunito font-bold text-foreground">Spot</h3>
                   <div className="flex items-center gap-2">
@@ -736,21 +616,17 @@ const QuestLobby = ({
                 {quest.title}
               </h2>
               
-              {/* Category badge */}
-              {(() => {
-                const activityData = getActivityByLabel(quest.category);
-                return (
-                  <Badge 
-                    variant="outline" 
-                    className={getCategoryColorClasses(quest.category) + ' mb-4'}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      {activityData && <span>{activityData.icon}</span>}
-                      {quest.category}
-                    </span>
-                  </Badge>
-                );
-              })()}
+              {/* Icon badge */}
+              {isEmoji(quest.category) && (
+                <Badge 
+                  variant="outline" 
+                  className="bg-primary/20 text-primary border-primary/40 mb-4"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <span>{quest.category}</span>
+                  </span>
+                </Badge>
+              )}
 
             {/* 2. PARTICIPANTS - Avatars (organizer first, no clipping) */}
             <div className="mt-4 px-1">
