@@ -741,45 +741,6 @@ const QuestLobby = ({
                   );
                 })()}
                 <div className="flex items-center gap-2">
-                  {/* Share button */}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full hover:bg-primary/10"
-                    onClick={async () => {
-                      const shareUrl = `${window.location.origin}/?eventId=${quest.id}`;
-                      
-                      // Try native share first (mobile)
-                      if (navigator.share) {
-                        try {
-                          await navigator.share({
-                            title: quest.title,
-                            text: `Check out this spot: ${quest.title}`,
-                            url: shareUrl,
-                          });
-                          return;
-                        } catch (err) {
-                          // User cancelled or share failed, fall back to clipboard
-                          if ((err as Error).name === 'AbortError') return;
-                        }
-                      }
-                      
-                      // Fallback to clipboard
-                      try {
-                        await navigator.clipboard.writeText(shareUrl);
-                        toast({
-                          title: 'Link copied to clipboard!',
-                        });
-                      } catch (err) {
-                        toast({
-                          title: 'Failed to copy link',
-                          variant: 'destructive',
-                        });
-                      }
-                    }}
-                  >
-                    <Share2 className="w-4 h-4 text-muted-foreground" />
-                  </Button>
                   {isHost && (
                     <Badge variant="outline" className="bg-success/20 text-success border-success/40 text-xs">
                       HOST
@@ -1076,6 +1037,47 @@ const QuestLobby = ({
                   Join Spot
                 </Button>
               )}
+              
+              {/* Share button - always visible */}
+              <Button 
+                variant="outline"
+                className="w-full border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground min-h-[44px]"
+                onClick={async () => {
+                  if (!quest) return;
+                  const shareUrl = `${window.location.origin}/?eventId=${quest.id}`;
+                  
+                  // Try native share first (mobile)
+                  if (navigator.share) {
+                    try {
+                      await navigator.share({
+                        title: quest.title,
+                        text: `Check out this spot: ${quest.title}`,
+                        url: shareUrl,
+                      });
+                      return;
+                    } catch (err) {
+                      // User cancelled or share failed, fall back to clipboard
+                      if ((err as Error).name === 'AbortError') return;
+                    }
+                  }
+                  
+                  // Fallback to clipboard
+                  try {
+                    await navigator.clipboard.writeText(shareUrl);
+                    toast({
+                      title: 'Link copied to clipboard!',
+                    });
+                  } catch (err) {
+                    toast({
+                      title: 'Failed to copy link',
+                      variant: 'destructive',
+                    });
+                  }
+                }}
+              >
+                <Share2 className="w-4 h-4 mr-2" />
+                Share
+              </Button>
             </div>
           </div>
         )}
