@@ -323,10 +323,11 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
 
 
             {/* Appearance Tab */}
-            <TabsContent value="appearance" className="animate-fade-in max-h-[40vh] overflow-y-auto">
+            <TabsContent value="appearance" className="animate-fade-in">
               <AvatarBuilder 
                 initialConfig={avatarConfig}
                 onChange={setAvatarConfig}
+                compact
               />
             </TabsContent>
           </Tabs>
