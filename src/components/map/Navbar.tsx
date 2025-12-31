@@ -228,8 +228,8 @@ const Navbar = ({
             {/* Spacer */}
             <div className="flex-1 hidden lg:block" />
 
-            {/* User Controls - Social Media Style: Chat | Bell | Avatar */}
-            <div className="flex items-center gap-2 pointer-events-auto flex-shrink-0">
+            {/* User Controls - Hidden on mobile, shown on desktop */}
+            <div className="hidden md:flex items-center gap-2 pointer-events-auto flex-shrink-0">
               {/* Chats (All Conversations) */}
               <div className="bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-hard">
                 <ChatDrawer 

@@ -5,6 +5,7 @@ import { useActiveArea } from "@/hooks/useActiveArea";
 import { supabase } from "@/integrations/supabase/client";
 import TacticalMap, { TacticalMapHandle, ViewportBounds } from "@/components/map/TacticalMap";
 import Navbar from "@/components/map/Navbar";
+import BottomNav from "@/components/map/BottomNav";
 import GuestNavbar from "@/components/map/GuestNavbar";
 import LoadingScreen from "@/components/LoadingScreen";
 import { useToast } from "@/hooks/use-toast";
@@ -304,6 +305,20 @@ const Dashboard = () => {
           onChatOpenChange={handleChatOpenChange}
           onFlyTo={handleFlyTo}
           onLocationUpdated={handleLocationUpdated}
+          viewportBounds={viewportBounds}
+        />
+      )}
+
+      {/* Bottom Navigation - Mobile only, for logged-in users */}
+      {!isGuest && (
+        <BottomNav
+          currentUserId={user.id}
+          avatarConfig={profile?.avatar_config as AvatarConfig | null}
+          onSignOut={handleSignOut}
+          onOpenMission={handleOpenMission}
+          chatOpenUserId={chatOpenUserId}
+          onChatOpenChange={handleChatOpenChange}
+          onFlyTo={handleFlyTo}
           viewportBounds={viewportBounds}
         />
       )}
