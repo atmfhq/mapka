@@ -612,21 +612,9 @@ const QuestLobby = ({
             {/* Content */}
             <div className="flex-1 overflow-y-auto p-4">
               {/* Spot Name - Prominent */}
-              <h2 className="font-fredoka text-2xl text-foreground leading-tight mb-1">
+              <h2 className="font-fredoka text-2xl text-foreground leading-tight mb-4">
                 {quest.title}
               </h2>
-              
-              {/* Icon badge */}
-              {isEmoji(quest.category) && (
-                <Badge 
-                  variant="outline" 
-                  className="bg-primary/20 text-primary border-primary/40 mb-4"
-                >
-                  <span className="flex items-center gap-1.5">
-                    <span>{quest.category}</span>
-                  </span>
-                </Badge>
-              )}
 
             {/* 2. PARTICIPANTS - Avatars (organizer first, no clipping) */}
             <div className="mt-4 px-1">
