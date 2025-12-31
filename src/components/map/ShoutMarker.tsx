@@ -9,13 +9,13 @@ interface ShoutMarkerProps {
 }
 
 const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, onClick }: ShoutMarkerProps) => {
-  // Calculate opacity based on age (fades slightly as shout ages)
+  // Calculate opacity based on age (fades slightly as shout ages over 24 hours)
   const createdTime = new Date(createdAt).getTime();
   const now = Date.now();
   const elapsed = now - createdTime;
-  const thirtyMin = 30 * 60 * 1000;
-  const remaining = Math.max(0, thirtyMin - elapsed);
-  const progress = remaining / thirtyMin;
+  const twentyFourHours = 24 * 60 * 60 * 1000;
+  const remaining = Math.max(0, twentyFourHours - elapsed);
+  const progress = remaining / twentyFourHours;
   const opacity = Math.max(0.7, 0.7 + (progress * 0.3));
 
   return (
