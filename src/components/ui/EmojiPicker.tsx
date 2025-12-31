@@ -1,6 +1,4 @@
-import { useState, useMemo } from 'react';
-import { Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 
@@ -47,33 +45,14 @@ interface EmojiPickerProps {
 }
 
 export const EmojiPicker = ({ value, onChange, className }: EmojiPickerProps) => {
-  const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  // Filter emojis based on search
-  const filteredCategories = useMemo(() => {
-    if (!search.trim()) return EMOJI_CATEGORIES;
-    
-    const searchLower = search.toLowerCase();
-    return EMOJI_CATEGORIES.map(category => ({
-      ...category,
-      emojis: category.emojis.filter(() => 
-        category.name.toLowerCase().includes(searchLower)
-      )
-    })).filter(category => category.emojis.length > 0 || category.name.toLowerCase().includes(searchLower));
-  }, [search]);
-
-  // Get all emojis flat for search
-  const allEmojis = useMemo(() => {
-    return EMOJI_CATEGORIES.flatMap(c => c.emojis);
-  }, []);
-
   const displayCategories = selectedCategory 
-    ? filteredCategories.filter(c => c.name === selectedCategory)
-    : filteredCategories;
+    ? EMOJI_CATEGORIES.filter(c => c.name === selectedCategory)
+    : EMOJI_CATEGORIES;
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("space-y-2", className)}>
       {/* Selected emoji display */}
       {value && (
         <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/10 border-2 border-primary/40">
@@ -91,17 +70,6 @@ export const EmojiPicker = ({ value, onChange, className }: EmojiPickerProps) =>
           </button>
         </div>
       )}
-
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search category..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-9 bg-muted/50 border-border/50 rounded-xl"
-        />
-      </div>
 
       {/* Category pills */}
       <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
