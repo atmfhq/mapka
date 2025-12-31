@@ -150,9 +150,9 @@ const Onboarding = () => {
   // Mobile: Full-screen flow
   if (isMobile) {
     return (
-      <div ref={keyboardRef} className="fixed inset-0 z-50 w-screen h-dvh bg-background flex flex-col overflow-hidden">
+      <div ref={keyboardRef} className="fixed inset-0 z-50 w-screen h-dvh bg-card flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex-shrink-0 p-5 border-b border-border text-center bg-background">
+        <div className="flex-shrink-0 p-5 border-b border-border text-center bg-card">
           <div className="flex items-center justify-center gap-3 mb-3">
             <div className="w-12 h-12 rounded-xl bg-primary/20 border-2 border-primary/40 flex items-center justify-center shadow-hard-sm">
               <Target className="w-6 h-6 text-primary" />
@@ -276,7 +276,7 @@ const Onboarding = () => {
         </div>
 
         {/* Footer - Navigation */}
-        <div className="flex-shrink-0 flex justify-between items-center p-5 border-t border-border bg-background safe-area-inset-bottom">
+        <div className="flex-shrink-0 flex justify-between items-center p-5 border-t border-border bg-card safe-area-inset-bottom">
           {step > 0 ? (
             <Button variant="ghost" onClick={() => setStep(step - 1)}>
               <ChevronLeft className="w-4 h-4" />
