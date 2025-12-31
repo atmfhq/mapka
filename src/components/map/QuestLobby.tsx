@@ -291,9 +291,8 @@ const QuestLobby = ({
       chat_active: true,
     });
 
-    setLoading(false);
-
     if (error) {
+      setLoading(false);
       toast({
         title: "Failed to join",
         description: error.message,
@@ -302,7 +301,41 @@ const QuestLobby = ({
       return;
     }
 
-    toast({ title: "Spot joined!", description: "You're now part of the group." });
+    // Auto-follow the event host if not already following
+    let followedHost = false;
+    if (quest.host_id !== currentUserId) {
+      // Check if already following
+      const { data: existingFollow } = await supabase
+        .from('follows')
+        .select('id')
+        .eq('follower_id', currentUserId)
+        .eq('following_id', quest.host_id)
+        .maybeSingle();
+
+      if (!existingFollow) {
+        // Auto-follow the host
+        const { error: followError } = await supabase
+          .from('follows')
+          .insert({ follower_id: currentUserId, following_id: quest.host_id });
+
+        if (!followError) {
+          followedHost = true;
+        }
+      }
+    }
+
+    setLoading(false);
+
+    // Show appropriate toast based on follow status
+    if (followedHost && host?.nick) {
+      toast({ 
+        title: "Spot joined!", 
+        description: `You joined the event and are now following ${host.nick} for updates.` 
+      });
+    } else {
+      toast({ title: "Spot joined!", description: "You're now part of the group." });
+    }
+    
     setHasJoined(true);
     onJoin?.(quest.id);
     await refreshParticipants();
