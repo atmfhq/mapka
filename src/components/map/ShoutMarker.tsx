@@ -1,30 +1,21 @@
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Heart, MessageCircle } from 'lucide-react';
 
 interface ShoutMarkerProps {
   content: string;
   createdAt: string;
+  likesCount?: number;
+  commentsCount?: number;
   onClick?: () => void;
 }
 
-const ShoutMarker = ({ content, createdAt, onClick }: ShoutMarkerProps) => {
-  // Calculate remaining time (30 min lifecycle)
+const ShoutMarker = ({ content, createdAt, likesCount = 0, commentsCount = 0, onClick }: ShoutMarkerProps) => {
+  // Calculate opacity based on age (fades slightly as shout ages)
   const createdTime = new Date(createdAt).getTime();
   const now = Date.now();
   const elapsed = now - createdTime;
   const thirtyMin = 30 * 60 * 1000;
   const remaining = Math.max(0, thirtyMin - elapsed);
-  
-  // Progress from 0 to 1 (1 = full/fresh, 0 = expired)
   const progress = remaining / thirtyMin;
-  
-  // Color based on urgency: green (>66%) → yellow (33-66%) → red (<33%)
-  const getBarColor = () => {
-    if (progress > 0.66) return 'bg-emerald-500';
-    if (progress > 0.33) return 'bg-amber-500';
-    return 'bg-red-500';
-  };
-  
-  // Opacity fades slightly as shout ages (but not too much for readability)
   const opacity = Math.max(0.7, 0.7 + (progress * 0.3));
 
   return (
@@ -45,12 +36,16 @@ const ShoutMarker = ({ content, createdAt, onClick }: ShoutMarkerProps) => {
             </p>
           </div>
           
-          {/* Progress bar */}
-          <div className="mt-2 h-1.5 w-full bg-muted/50 rounded-full overflow-hidden">
-            <div 
-              className={`h-full rounded-full transition-all duration-1000 ${getBarColor()}`}
-              style={{ width: `${progress * 100}%` }}
-            />
+          {/* Social counters */}
+          <div className="mt-2 flex items-center gap-3 text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Heart className="w-3 h-3 text-rose-400" />
+              <span className="font-medium">{likesCount}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <MessageCircle className="w-3 h-3 text-accent" />
+              <span className="font-medium">{commentsCount}</span>
+            </div>
           </div>
         </div>
         

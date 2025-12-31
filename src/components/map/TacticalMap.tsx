@@ -22,6 +22,7 @@ import { useProfilesRealtime, broadcastCurrentUserUpdate } from '@/hooks/useProf
 import { useMegaphonesRealtime } from '@/hooks/useMegaphonesRealtime';
 import { useParticipantsRealtime } from '@/hooks/useParticipantsRealtime';
 import { useShoutsRealtime } from '@/hooks/useShoutsRealtime';
+import { useShoutCounts } from '@/hooks/useShoutCounts';
 import ShoutMarker from './ShoutMarker';
 import { Button } from '@/components/ui/button';
 import { Crosshair, Plus, Minus, Compass, Users, UsersRound, Eye, Ghost } from 'lucide-react';
@@ -285,6 +286,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
   // Get shouts for the map
   const { shouts, refetch: refetchShouts } = useShoutsRealtime(locationLat ?? userLat, locationLng ?? userLng);
+
+  // Get counts (likes/comments) for all shouts
+  const shoutIds = useMemo(() => shouts.map(s => s.id), [shouts]);
+  const { getCounts: getShoutCounts } = useShoutCounts(shoutIds);
 
   // Get active activity labels for filtering
   const activeActivityLabels = useMemo(() => 
@@ -1653,18 +1658,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       }
     });
 
-    // 2. ADD new markers (only for shouts not already on map)
+    // 2. ADD or UPDATE markers
     shouts.forEach(shout => {
-      if (shoutMarkersMapRef.current.has(shout.id)) {
-        // Already exists - update position if needed
-        const existing = shoutMarkersMapRef.current.get(shout.id)!;
-        existing.marker.setLngLat([shout.lng, shout.lat]);
-        return;
-      }
-
-      // Create new marker element
-      const el = document.createElement('div');
-      el.className = 'shout-marker-container';
+      const counts = getShoutCounts(shout.id);
       
       // Create a click handler for this shout
       const handleShoutClick = () => {
@@ -1679,11 +1675,33 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         setShoutDetailsOpen(true);
       };
       
+      if (shoutMarkersMapRef.current.has(shout.id)) {
+        // Already exists - update position and re-render with new counts
+        const existing = shoutMarkersMapRef.current.get(shout.id)!;
+        existing.marker.setLngLat([shout.lng, shout.lat]);
+        existing.root.render(
+          <ShoutMarker
+            content={shout.content}
+            createdAt={shout.created_at}
+            likesCount={counts.likesCount}
+            commentsCount={counts.commentsCount}
+            onClick={handleShoutClick}
+          />
+        );
+        return;
+      }
+
+      // Create new marker element
+      const el = document.createElement('div');
+      el.className = 'shout-marker-container';
+      
       const root = createRoot(el);
       root.render(
         <ShoutMarker
           content={shout.content}
           createdAt={shout.created_at}
+          likesCount={counts.likesCount}
+          commentsCount={counts.commentsCount}
           onClick={handleShoutClick}
         />
       );
@@ -1695,7 +1713,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       shoutMarkersMapRef.current.set(shout.id, { marker, root });
     });
     
-  }, [shouts, mapStyleLoaded]);
+  }, [shouts, mapStyleLoaded, getShoutCounts]);
 
   // Cleanup markers/React roots on unmount only (prevents re-blooming on data refresh)
   useEffect(() => {
