@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { Bell, MapPin, UserPlus, Radio, CheckCheck, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useInvitationRealtime } from '@/hooks/useInvitationRealtime';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface NotificationsDropdownProps {
   currentUserId: string;
@@ -102,6 +104,7 @@ const NotificationsDropdown = ({
   onOpenMission,
 }: NotificationsDropdownProps) => {
   const [open, setOpen] = useState(false);
+  const isMobile = useIsMobile();
   const { notifications, unreadCount, markAllAsRead, markAsRead, clearNotifications, dismissNotification } = useNotifications(currentUserId);
   const { pendingInvitations, pendingCount } = useInvitationRealtime(currentUserId);
 
@@ -126,6 +129,10 @@ const NotificationsDropdown = ({
     markAllAsRead();
   };
 
+  const handleClose = () => {
+    setOpen(false);
+  };
+
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'new_spot':
@@ -141,21 +148,196 @@ const NotificationsDropdown = ({
     }
   };
 
+  const triggerButton = (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="relative min-w-[44px] min-h-[44px] text-muted-foreground hover:text-foreground"
+      onClick={() => isMobile && setOpen(true)}
+    >
+      <Bell className="w-5 h-5" />
+      {totalBadgeCount > 0 && (
+        <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-pulse">
+          {totalBadgeCount > 99 ? '99+' : totalBadgeCount}
+        </span>
+      )}
+    </Button>
+  );
+
+  const notificationsContent = (
+    <>
+      {notifications.length === 0 && pendingCount === 0 ? (
+        <div className="flex flex-col items-center justify-center py-8 text-center">
+          <Bell className="w-10 h-10 text-muted-foreground/30 mb-3" />
+          <p className="text-sm text-muted-foreground">No notifications yet</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">
+            We'll notify you about nearby spots and activity
+          </p>
+        </div>
+      ) : (
+        <div className="py-1">
+          {/* Pending invitations first (non-swipeable) */}
+          {pendingInvitations.map((inv) => (
+            <div
+              key={inv.id}
+              className="flex items-start gap-3 p-3 cursor-pointer hover:bg-warning/10"
+            >
+              <div className="w-8 h-8 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
+                <Radio className="w-4 h-4 text-warning" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">New Invitation</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {inv.sender?.nick || 'Someone'} wants to connect
+                </p>
+                <p className="text-[10px] text-warning mt-1">
+                  {formatDistanceToNow(new Date(inv.created_at), { addSuffix: true })}
+                </p>
+              </div>
+              <div className="w-2 h-2 rounded-full bg-warning flex-shrink-0 mt-1" />
+            </div>
+          ))}
+          
+          {/* Swipeable notifications */}
+          {notifications.map((notif) => (
+            <SwipeableNotification
+              key={notif.id}
+              id={notif.id}
+              onDismiss={() => dismissNotification(notif.id)}
+              onClick={() => handleNotificationClick(notif)}
+            >
+              <div
+                className={`group relative flex items-start gap-3 p-3 cursor-pointer ${
+                  !notif.read ? 'bg-primary/5' : ''
+                } hover:bg-muted/50`}
+              >
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  notif.type === 'new_spot' ? 'bg-primary/20' :
+                  notif.type === 'user_joined' ? 'bg-success/20' :
+                  'bg-muted'
+                }`}>
+                  {getNotificationIcon(notif.type)}
+                </div>
+                <div className="flex-1 min-w-0 pr-6">
+                  <p className="text-sm font-medium truncate">{notif.title}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {notif.description}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground/70 mt-1">
+                    {formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true })}
+                  </p>
+                </div>
+                {!notif.read && (
+                  <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />
+                )}
+                {/* Desktop dismiss button */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dismissNotification(notif.id);
+                  }}
+                  className="absolute top-2 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-destructive/20 transition-opacity hidden md:flex items-center justify-center"
+                  aria-label="Dismiss notification"
+                >
+                  <X className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+                </button>
+              </div>
+            </SwipeableNotification>
+          ))}
+          
+          {/* Swipe hint for mobile */}
+          {notifications.length > 0 && (
+            <p className="text-[10px] text-muted-foreground/50 text-center py-2 md:hidden">
+              Swipe left to dismiss
+            </p>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  // Mobile: Full-screen modal
+  if (isMobile) {
+    if (!open) {
+      return triggerButton;
+    }
+
+    const mobileModalContent = (
+      <div className="fixed inset-0 z-[9999] flex flex-col" style={{ isolation: 'isolate' }}>
+        {/* Full-screen modal */}
+        <div className="bg-card w-screen h-dvh flex flex-col animate-in slide-in-from-bottom-4 duration-300">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+            <div className="flex items-center gap-2">
+              <Bell className="w-5 h-5 text-warning" />
+              <div>
+                <h3 className="font-nunito font-bold text-foreground">Notifications</h3>
+                <p className="text-xs text-muted-foreground">
+                  {totalBadgeCount > 0 ? `${totalBadgeCount} new` : 'All caught up'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                  onClick={handleMarkAllRead}
+                >
+                  <CheckCheck className="w-3 h-3 mr-1" />
+                  Mark all read
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleClose}
+                className="rounded-lg hover:bg-muted"
+              >
+                <X className="w-5 h-5 text-muted-foreground" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Content */}
+          <ScrollArea className="flex-1 overflow-auto">
+            <div className="p-4">
+              {notificationsContent}
+            </div>
+          </ScrollArea>
+
+          {/* Footer */}
+          {notifications.length > 0 && (
+            <div className="p-4 border-t border-border shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full text-xs text-muted-foreground hover:text-destructive"
+                onClick={clearNotifications}
+              >
+                <Trash2 className="w-3 h-3 mr-1" />
+                Clear all
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+
+    return (
+      <>
+        {triggerButton}
+        {createPortal(mobileModalContent, document.body)}
+      </>
+    );
+  }
+
+  // Desktop: Dropdown menu
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative min-w-[44px] min-h-[44px] text-muted-foreground hover:text-foreground"
-        >
-          <Bell className="w-5 h-5" />
-          {totalBadgeCount > 0 && (
-            <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-pulse">
-              {totalBadgeCount > 99 ? '99+' : totalBadgeCount}
-            </span>
-          )}
-        </Button>
+        {triggerButton}
       </DropdownMenuTrigger>
       <DropdownMenuContent 
         align="end" 
@@ -185,93 +367,7 @@ const NotificationsDropdown = ({
         <DropdownMenuSeparator />
         
         <ScrollArea className="h-[300px]">
-          {notifications.length === 0 && pendingCount === 0 ? (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <Bell className="w-10 h-10 text-muted-foreground/30 mb-3" />
-              <p className="text-sm text-muted-foreground">No notifications yet</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">
-                We'll notify you about nearby spots and activity
-              </p>
-            </div>
-          ) : (
-            <div className="py-1">
-              {/* Pending invitations first (non-swipeable) */}
-              {pendingInvitations.map((inv) => (
-                <div
-                  key={inv.id}
-                  className="flex items-start gap-3 p-3 cursor-pointer hover:bg-warning/10"
-                >
-                  <div className="w-8 h-8 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
-                    <Radio className="w-4 h-4 text-warning" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">New Invitation</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {inv.sender?.nick || 'Someone'} wants to connect
-                    </p>
-                    <p className="text-[10px] text-warning mt-1">
-                      {formatDistanceToNow(new Date(inv.created_at), { addSuffix: true })}
-                    </p>
-                  </div>
-                  <div className="w-2 h-2 rounded-full bg-warning flex-shrink-0 mt-1" />
-                </div>
-              ))}
-              
-              {/* Swipeable notifications */}
-              {notifications.map((notif) => (
-                <SwipeableNotification
-                  key={notif.id}
-                  id={notif.id}
-                  onDismiss={() => dismissNotification(notif.id)}
-                  onClick={() => handleNotificationClick(notif)}
-                >
-                  <div
-                    className={`group relative flex items-start gap-3 p-3 cursor-pointer ${
-                      !notif.read ? 'bg-primary/5' : ''
-                    } hover:bg-muted/50`}
-                  >
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      notif.type === 'new_spot' ? 'bg-primary/20' :
-                      notif.type === 'user_joined' ? 'bg-success/20' :
-                      'bg-muted'
-                    }`}>
-                      {getNotificationIcon(notif.type)}
-                    </div>
-                    <div className="flex-1 min-w-0 pr-6">
-                      <p className="text-sm font-medium truncate">{notif.title}</p>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {notif.description}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground/70 mt-1">
-                        {formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true })}
-                      </p>
-                    </div>
-                    {!notif.read && (
-                      <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />
-                    )}
-                    {/* Desktop dismiss button */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        dismissNotification(notif.id);
-                      }}
-                      className="absolute top-2 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-destructive/20 transition-opacity hidden md:flex items-center justify-center"
-                      aria-label="Dismiss notification"
-                    >
-                      <X className="w-3 h-3 text-muted-foreground hover:text-destructive" />
-                    </button>
-                  </div>
-                </SwipeableNotification>
-              ))}
-              
-              {/* Swipe hint for mobile */}
-              {notifications.length > 0 && (
-                <p className="text-[10px] text-muted-foreground/50 text-center py-2 md:hidden">
-                  Swipe left to dismiss
-                </p>
-              )}
-            </div>
-          )}
+          {notificationsContent}
         </ScrollArea>
 
         {notifications.length > 0 && (
