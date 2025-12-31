@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MapPin, Megaphone, X } from 'lucide-react';
+import { MapPin, Megaphone, MessageCircle, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { broadcastCurrentUserUpdate } from '@/hooks/useProfilesRealtime';
@@ -11,6 +11,7 @@ interface MapContextMenuProps {
   onClose: () => void;
   onMoveComplete: (lat: number, lng: number) => void;
   onAddEvent: (lat: number, lng: number) => void;
+  onAddShout: (lat: number, lng: number) => void;
 }
 
 const MapContextMenu = ({
@@ -20,6 +21,7 @@ const MapContextMenu = ({
   onClose,
   onMoveComplete,
   onAddEvent,
+  onAddShout,
 }: MapContextMenuProps) => {
   const { toast } = useToast();
   const [isMoving, setIsMoving] = useState(false);
@@ -113,6 +115,11 @@ const MapContextMenu = ({
     onClose();
   };
 
+  const handleAddShout = () => {
+    onAddShout(coords.lat, coords.lng);
+    onClose();
+  };
+
   return (
     <div
       ref={menuRef}
@@ -157,6 +164,16 @@ const MapContextMenu = ({
               <Megaphone className="w-4 h-4 text-warning" />
             </div>
             <span className="font-nunito text-sm font-medium">Add event</span>
+          </button>
+
+          <button
+            onClick={handleAddShout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-accent/10 transition-colors text-left"
+          >
+            <div className="w-8 h-8 rounded-lg bg-accent/20 border border-accent/40 flex items-center justify-center">
+              <MessageCircle className="w-4 h-4 text-accent" />
+            </div>
+            <span className="font-nunito text-sm font-medium">Add shout</span>
           </button>
         </div>
       </div>

@@ -10,6 +10,7 @@ import QuestLobby from './QuestLobby';
 import GuestPromptModal from './GuestPromptModal';
 import GuestSpawnTooltip from './GuestSpawnTooltip';
 import MapContextMenu from './MapContextMenu';
+import ShoutModal from './ShoutModal';
 import FloatingParticles from './FloatingParticles';
 import BubbleChat, { ActiveBubble } from './BubbleChat';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
@@ -19,6 +20,8 @@ import { useConnectedUsers } from '@/hooks/useConnectedUsers';
 import { useProfilesRealtime, broadcastCurrentUserUpdate } from '@/hooks/useProfilesRealtime';
 import { useMegaphonesRealtime } from '@/hooks/useMegaphonesRealtime';
 import { useParticipantsRealtime } from '@/hooks/useParticipantsRealtime';
+import { useShoutsRealtime } from '@/hooks/useShoutsRealtime';
+import ShoutMarker from './ShoutMarker';
 import { Button } from '@/components/ui/button';
 import { Crosshair, Plus, Minus, Compass, Users, UsersRound, Eye, Ghost } from 'lucide-react';
 
@@ -237,6 +240,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   // Use Maps keyed by ID for incremental marker updates (no re-blooming)
   const userMarkersMapRef = useRef<Map<string, { marker: mapboxgl.Marker; root: Root; element: HTMLDivElement }>>(new Map());
   const questMarkersMapRef = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  const shoutMarkersMapRef = useRef<Map<string, { marker: mapboxgl.Marker; root: Root }>>(new Map());
   const myMarkerRef = useRef<mapboxgl.Marker | null>(null);
   const myMarkerRootRef = useRef<Root | null>(null);
   
@@ -268,11 +272,16 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [activeBubbles, setActiveBubbles] = useState<Map<string, ActiveBubble>>(new Map()); // Speech bubbles per user
   const speechBubbleRootsRef = useRef<Map<string, Root>>(new Map()); // Roots for speech bubble DOM elements
   const bubbleOverlayRef = useRef<HTMLDivElement>(null); // Overlay container for all bubbles
+  const [shoutModalOpen, setShoutModalOpen] = useState(false); // Shout modal state
+  const [shoutCoords, setShoutCoords] = useState<{ lat: number; lng: number } | null>(null); // Shout coordinates
   
   const navigate = useNavigate();
 
   // Get connected users (skip for guests)
   const { connectedUserIds, getInvitationIdForUser, refetch: refetchConnections } = useConnectedUsers(currentUserId ?? '');
+
+  // Get shouts for the map
+  const { shouts, refetch: refetchShouts } = useShoutsRealtime(locationLat ?? userLat, locationLng ?? userLng);
 
   // Get active activity labels for filtering
   const activeActivityLabels = useMemo(() => 
@@ -1624,6 +1633,53 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     
   }, [filteredQuests, currentUserId, joinedQuestIds, mapStyleLoaded]);
 
+  // Render shout markers on map
+  useEffect(() => {
+    if (!map.current || !mapStyleLoaded) return;
+
+    const currentShoutIds = new Set(shouts.map(s => s.id));
+
+    // 1. REMOVE markers for shouts no longer in the data
+    shoutMarkersMapRef.current.forEach(({ marker, root }, id) => {
+      if (!currentShoutIds.has(id)) {
+        marker.remove();
+        queueMicrotask(() => {
+          try { root.unmount(); } catch (e) { /* ignore */ }
+        });
+        shoutMarkersMapRef.current.delete(id);
+      }
+    });
+
+    // 2. ADD new markers (only for shouts not already on map)
+    shouts.forEach(shout => {
+      if (shoutMarkersMapRef.current.has(shout.id)) {
+        // Already exists - update position if needed
+        const existing = shoutMarkersMapRef.current.get(shout.id)!;
+        existing.marker.setLngLat([shout.lng, shout.lat]);
+        return;
+      }
+
+      // Create new marker element
+      const el = document.createElement('div');
+      el.className = 'shout-marker-container';
+      
+      const root = createRoot(el);
+      root.render(
+        <ShoutMarker
+          content={shout.content}
+          createdAt={shout.created_at}
+        />
+      );
+
+      const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([shout.lng, shout.lat])
+        .addTo(map.current!);
+
+      shoutMarkersMapRef.current.set(shout.id, { marker, root });
+    });
+    
+  }, [shouts, mapStyleLoaded]);
+
   // Cleanup markers/React roots on unmount only (prevents re-blooming on data refresh)
   useEffect(() => {
     return () => {
@@ -1639,6 +1695,15 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       // Quest markers
       questMarkersMapRef.current.forEach(marker => marker.remove());
       questMarkersMapRef.current.clear();
+
+      // Shout markers
+      shoutMarkersMapRef.current.forEach(({ marker, root }) => {
+        marker.remove();
+        queueMicrotask(() => {
+          try { root.unmount(); } catch (e) { /* ignore */ }
+        });
+      });
+      shoutMarkersMapRef.current.clear();
 
       // My marker root
       myMarkerRef.current?.remove();
@@ -2229,6 +2294,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             setClickedCoords({ lat, lng });
             setDeployModalOpen(true);
           }}
+          onAddShout={(lat, lng) => {
+            setShoutCoords({ lat, lng });
+            setShoutModalOpen(true);
+          }}
         />
       )}
 
@@ -2244,6 +2313,20 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           onSuccess={(newQuest) => {
             setQuests(prev => [...prev, newQuest]);
           }}
+        />
+      )}
+
+      {/* Shout Modal - for logged-in users */}
+      {currentUserId && shoutCoords && (
+        <ShoutModal
+          isOpen={shoutModalOpen}
+          onClose={() => {
+            setShoutModalOpen(false);
+            setShoutCoords(null);
+          }}
+          coords={shoutCoords}
+          userId={currentUserId}
+          onShoutCreated={refetchShouts}
         />
       )}
 
