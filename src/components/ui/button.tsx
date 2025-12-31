@@ -5,36 +5,29 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-base font-nunito font-bold tracking-wide ring-offset-background transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-5 [&_svg]:shrink-0 border-2 border-border",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-base font-nunito font-bold tracking-wide ring-offset-background transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-5 [&_svg]:shrink-0 border-2",
   {
     variants: {
       variant: {
-        // Primary - RPG Green block button with visible dark bottom stroke
+        // Primary - Green for positive actions (Join, Connect, Create, Save, Send)
         default:
-          "bg-primary text-primary-foreground border-border shadow-[0_4px_0_0_hsl(122_39%_30%)] hover:bg-primary/90 active:translate-y-1 active:shadow-none",
-        // Destructive - Red block button
+          "bg-success text-success-foreground border-border shadow-[0_4px_0_0_hsl(142_50%_30%)] hover:bg-success/90 active:translate-y-1 active:shadow-none",
+        // Destructive - Red for danger actions (Leave, Delete, Block, Reject)
         destructive:
           "bg-destructive text-destructive-foreground border-border shadow-[0_4px_0_0_hsl(0_50%_35%)] hover:bg-destructive/90 active:translate-y-1 active:shadow-none",
-        // Outline - Parchment style
+        // Outline - White/Card with visible border for secondary actions (Cancel, Edit, Back, Close)
         outline:
           "bg-card text-foreground border-border shadow-hard hover:bg-secondary active:translate-y-1 active:shadow-none",
-        // Secondary - Stone/Wood style  
+        // Secondary - Similar to outline but slightly different styling
         secondary:
-          "bg-secondary text-secondary-foreground border-border shadow-[0_4px_0_0_hsl(30_20%_55%)] hover:bg-secondary/80 active:translate-y-1 active:shadow-none",
-        // Ghost - Minimal
+          "bg-card text-foreground border-border shadow-hard hover:bg-muted active:translate-y-1 active:shadow-none",
+        // Ghost - Minimal, no background
         ghost:
           "border-transparent hover:bg-muted hover:text-foreground shadow-none",
         // Link - Text only
         link:
           "text-primary underline-offset-4 hover:underline border-transparent shadow-none",
-        // Adventure variants - Colorful candy buttons with dark bottom strokes
-        gold:
-          "bg-accent text-accent-foreground border-border shadow-[0_4px_0_0_hsl(45_80%_35%)] hover:bg-accent/90 active:translate-y-1 active:shadow-none",
-        forest:
-          "bg-success text-success-foreground border-border shadow-[0_4px_0_0_hsl(142_50%_30%)] hover:bg-success/90 active:translate-y-1 active:shadow-none",
-        warning:
-          "bg-warning text-warning-foreground border-border shadow-[0_4px_0_0_hsl(35_70%_35%)] hover:bg-warning/90 active:translate-y-1 active:shadow-none",
-        // HUD style - Floating inventory bar look
+        // HUD style - Floating inventory bar look (for map controls)
         hud:
           "bg-card/95 backdrop-blur-sm border-2 text-foreground hover:bg-card shadow-hard active:translate-y-1 active:shadow-none",
       },

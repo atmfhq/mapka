@@ -308,7 +308,6 @@ const Onboarding = () => {
                 variant="default"
                 onClick={handleSubmit}
                 disabled={loading || !coords}
-                className="bg-success hover:bg-success/90 text-success-foreground"
               >
                 {loading ? (
                   <>

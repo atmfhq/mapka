@@ -552,7 +552,7 @@ const QuestLobby = ({
                 Cancel
               </Button>
               <Button
-                className="flex-1 bg-primary hover:bg-primary/90 min-h-[48px]"
+                className="flex-1 min-h-[48px]"
                 onClick={handleSaveEdit}
                 disabled={loading}
               >
@@ -785,7 +785,7 @@ const QuestLobby = ({
             <div className="p-4 border-t border-border/50 space-y-3 shrink-0">
               {isGuest ? (
                 <Button 
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-fredoka min-h-[52px] text-base"
+                  className="w-full font-fredoka min-h-[52px] text-base"
                   onClick={() => {
                     onOpenChange(false);
                     navigate('/auth');
@@ -798,7 +798,7 @@ const QuestLobby = ({
                 <div className="flex gap-2">
                   <Button 
                     variant="outline" 
-                    className="flex-1 border-primary/50 text-primary hover:bg-primary/10 min-h-[48px]"
+                    className="flex-1 min-h-[48px]"
                     onClick={startEditing}
                     disabled={loading}
                   >
@@ -806,8 +806,8 @@ const QuestLobby = ({
                     Edit
                   </Button>
                   <Button 
-                    variant="outline" 
-                    className="flex-1 border-destructive/50 text-destructive hover:bg-destructive/10 min-h-[48px]"
+                    variant="destructive"
+                    className="flex-1 min-h-[48px]"
                     onClick={handleDelete}
                     disabled={loading}
                   >
@@ -818,8 +818,8 @@ const QuestLobby = ({
               ) : hasJoined ? (
                 /* Participant actions: Leave Spot */
                 <Button 
-                  variant="outline"
-                  className="w-full border-destructive/50 text-destructive hover:bg-destructive/10 min-h-[48px]"
+                  variant="destructive"
+                  className="w-full min-h-[48px]"
                   onClick={handleLeaveSpot}
                   disabled={loading}
                 >
@@ -829,7 +829,7 @@ const QuestLobby = ({
               ) : (
                 /* Not joined: Show Join Spot button */
                 <Button 
-                  className="w-full bg-success hover:bg-success/90 text-success-foreground font-fredoka min-h-[52px] text-base"
+                  className="w-full font-fredoka min-h-[52px] text-base"
                   onClick={handleJoin}
                   disabled={loading}
                 >

@@ -374,7 +374,6 @@ const DeployQuestModal = ({
           <Button 
             onClick={handleSubmit}
             disabled={loading || !selectedIcon || isOutOfRange}
-            variant="warning"
             className={cn(
               "w-full min-h-[52px]",
               isOutOfRange && "bg-muted text-muted-foreground cursor-not-allowed"

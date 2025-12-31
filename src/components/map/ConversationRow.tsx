@@ -86,7 +86,7 @@ const ConversationRow = ({
           <div className="flex gap-2 mt-2">
             <Button
               size="sm"
-              className="flex-1 h-8 bg-success hover:bg-success/90 text-success-foreground"
+              className="flex-1 h-8"
               onClick={(e) => {
                 e.stopPropagation();
                 onAcceptInvite(item.invitationId!, item.senderId!, item.activityType!);
@@ -96,8 +96,8 @@ const ConversationRow = ({
             </Button>
             <Button
               size="sm"
-              variant="outline"
-              className="flex-1 h-8 border-destructive/50 text-destructive hover:bg-destructive/10"
+              variant="destructive"
+              className="flex-1 h-8"
               onClick={(e) => {
                 e.stopPropagation();
                 onDeclineInvite(item.invitationId!);

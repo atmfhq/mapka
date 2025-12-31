@@ -154,7 +154,7 @@ const UserPopupContent = ({
                   onClose();
                   onNavigate?.('/auth');
                 }}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-nunito"
+                className="w-full font-nunito"
                 size="default"
               >
                 <LogIn className="w-4 h-4 mr-2" />
@@ -204,7 +204,7 @@ const UserPopupContent = ({
                       onOpenChat?.(user.id);
                       onClose();
                     }}
-                    className="w-full bg-success hover:bg-success/90 text-success-foreground font-nunito"
+                    className="w-full font-nunito"
                     size="default"
                   >
                     <MessageCircle className="w-4 h-4 mr-2" />
@@ -213,8 +213,8 @@ const UserPopupContent = ({
                   <Button
                     onClick={handleDisconnect}
                     disabled={disconnecting}
-                    variant="outline"
-                    className="w-full border-destructive/50 text-destructive hover:bg-destructive/10 font-nunito"
+                    variant="destructive"
+                    className="w-full font-nunito"
                     size="default"
                   >
                     <UserX className="w-4 h-4 mr-2" />
@@ -224,7 +224,7 @@ const UserPopupContent = ({
               ) : (
                 <Button
                   onClick={() => setInviteModalOpen(true)}
-                  className="w-full bg-warning hover:bg-warning/90 text-warning-foreground font-nunito"
+                  className="w-full font-nunito"
                   size="default"
                 >
                   <Zap className="w-4 h-4 mr-2" />
