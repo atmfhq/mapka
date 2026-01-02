@@ -276,45 +276,60 @@ export type Database = {
       megaphones: {
         Row: {
           category: string
+          cover_image_url: string | null
           created_at: string | null
           description: string | null
           duration_minutes: number
+          external_link: string | null
           host_id: string
           id: string
+          is_official: boolean
           is_private: boolean
           lat: number
           lng: number
+          location_details: string | null
           max_participants: number | null
+          organizer_display_name: string | null
           share_code: string
           start_time: string
           title: string
         }
         Insert: {
           category: string
+          cover_image_url?: string | null
           created_at?: string | null
           description?: string | null
           duration_minutes?: number
+          external_link?: string | null
           host_id: string
           id?: string
+          is_official?: boolean
           is_private?: boolean
           lat: number
           lng: number
+          location_details?: string | null
           max_participants?: number | null
+          organizer_display_name?: string | null
           share_code: string
           start_time: string
           title: string
         }
         Update: {
           category?: string
+          cover_image_url?: string | null
           created_at?: string | null
           description?: string | null
           duration_minutes?: number
+          external_link?: string | null
           host_id?: string
           id?: string
+          is_official?: boolean
           is_private?: boolean
           lat?: number
           lng?: number
+          location_details?: string | null
           max_participants?: number | null
+          organizer_display_name?: string | null
           share_code?: string
           start_time?: string
           title?: string
@@ -682,6 +697,27 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -828,6 +864,13 @@ export type Database = {
         }[]
       }
       get_unread_message_count: { Args: { p_user_id: string }; Returns: number }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       is_banned_from_event: {
         Args: { p_event_id: string; p_user_id: string }
         Returns: boolean
@@ -861,7 +904,7 @@ export type Database = {
       sanitize_text_input: { Args: { input_text: string }; Returns: string }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -988,6 +1031,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
