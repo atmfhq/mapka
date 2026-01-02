@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { MessageSquare, Heart, X, Send, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { MessageSquare, Heart, X, Send, Trash2, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -36,11 +37,38 @@ interface ShoutDetailsDrawerProps {
 
 const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDetailsDrawerProps) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [authorProfile, setAuthorProfile] = useState<{ nick: string | null; avatar_config: AvatarConfig | null } | null>(null);
   const [commentProfiles, setCommentProfiles] = useState<Record<string, { nick: string | null; avatar_config: AvatarConfig | null }>>({});
+
+  // Handle share functionality
+  const handleShare = async () => {
+    if (!shout) return;
+    
+    const shareUrl = `${window.location.origin}/?shoutId=${shout.id}`;
+    
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast({
+        title: 'Link copied!',
+        description: 'Share this link with others to show them this shout.',
+      });
+    } catch (error) {
+      // Fallback for older browsers
+      toast({
+        title: 'Share link',
+        description: shareUrl,
+      });
+    }
+  };
+
+  // Handle guest login prompt
+  const handleGuestAction = () => {
+    navigate('/auth');
+  };
 
   // Hooks for likes and comments
   const shoutIds = useMemo(() => shout ? [shout.id] : [], [shout?.id]);
@@ -192,17 +220,28 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
               </p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
-            className="rounded-lg hover:bg-muted"
-          >
-            <X className="w-5 h-5 text-muted-foreground" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleShare}
+              className="rounded-lg hover:bg-muted"
+              title="Share shout"
+            >
+              <Share2 className="w-5 h-5 text-muted-foreground" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="rounded-lg hover:bg-muted"
+            >
+              <X className="w-5 h-5 text-muted-foreground" />
+            </Button>
+          </div>
         </div>
 
         {/* Content */}
@@ -226,18 +265,27 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
 
               {/* Like button and Delete button */}
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => currentUserId && toggleShoutLike(shout.id)}
-                  disabled={!currentUserId}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-colors ${
-                    shoutLikes.hasLiked
-                      ? 'bg-red-500/20 text-red-500 border border-red-500/40'
-                      : 'bg-muted/60 text-muted-foreground hover:bg-muted border border-border/50'
-                  }`}
-                >
-                  <Heart className={`w-4 h-4 ${shoutLikes.hasLiked ? 'fill-current' : ''}`} />
-                  <span className="font-medium">{shoutLikes.count}</span>
-                </button>
+                {currentUserId ? (
+                  <button
+                    onClick={() => toggleShoutLike(shout.id)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-colors ${
+                      shoutLikes.hasLiked
+                        ? 'bg-red-500/20 text-red-500 border border-red-500/40'
+                        : 'bg-muted/60 text-muted-foreground hover:bg-muted border border-border/50'
+                    }`}
+                  >
+                    <Heart className={`w-4 h-4 ${shoutLikes.hasLiked ? 'fill-current' : ''}`} />
+                    <span className="font-medium">{shoutLikes.count}</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleGuestAction}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm transition-colors bg-muted/60 text-muted-foreground hover:bg-muted border border-border/50"
+                  >
+                    <Heart className="w-4 h-4" />
+                    <span className="font-medium">{shoutLikes.count}</span>
+                  </button>
+                )}
 
                 {/* Delete button - only visible to shout author */}
                 {currentUserId && shout.user_id === currentUserId && (
@@ -317,7 +365,7 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
         </ScrollArea>
 
         {/* Comment input */}
-        {currentUserId && (
+        {currentUserId ? (
           <div className="p-4 border-t border-border shrink-0">
             <div className="flex gap-2">
               <Textarea
@@ -341,6 +389,15 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
                 <Send className="w-4 h-4" />
               </Button>
             </div>
+          </div>
+        ) : (
+          <div className="p-4 border-t border-border shrink-0">
+            <Button
+              onClick={handleGuestAction}
+              className="w-full bg-primary hover:bg-primary/90"
+            >
+              Login to join the conversation
+            </Button>
           </div>
         )}
       </div>
