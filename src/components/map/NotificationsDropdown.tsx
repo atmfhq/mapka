@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { Bell, MapPin, UserPlus, Radio, CheckCheck, Trash2, X } from 'lucide-react';
+import { Bell, MapPin, UserPlus, MessageCircle, Megaphone, CheckCheck, Trash2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,8 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useNotifications } from '@/hooks/useNotifications';
-import { useInvitationRealtime } from '@/hooks/useInvitationRealtime';
+import { useDbNotifications } from '@/hooks/useDbNotifications';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface NotificationsDropdownProps {
@@ -47,7 +46,6 @@ const SwipeableNotification = ({ id, children, onDismiss, onClick }: SwipeableNo
     if (!isDragging) return;
     currentXRef.current = e.touches[0].clientX;
     const diff = currentXRef.current - startXRef.current;
-    // Only allow swiping left (negative values)
     if (diff < 0) {
       setOffsetX(diff);
     }
@@ -56,19 +54,16 @@ const SwipeableNotification = ({ id, children, onDismiss, onClick }: SwipeableNo
   const handleTouchEnd = () => {
     setIsDragging(false);
     if (offsetX < -SWIPE_THRESHOLD) {
-      // Animate out and dismiss
       setIsRemoving(true);
       setTimeout(() => {
         onDismiss();
       }, 200);
     } else {
-      // Snap back
       setOffsetX(0);
     }
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    // Only trigger click if not swiping
     if (Math.abs(offsetX) < 10) {
       onClick();
     }
@@ -78,12 +73,10 @@ const SwipeableNotification = ({ id, children, onDismiss, onClick }: SwipeableNo
     <div 
       className={`relative overflow-hidden transition-all duration-200 ${isRemoving ? 'h-0 opacity-0' : ''}`}
     >
-      {/* Delete background */}
       <div className="absolute inset-0 bg-destructive flex items-center justify-end px-4">
         <Trash2 className="w-5 h-5 text-destructive-foreground" />
       </div>
       
-      {/* Swipeable content */}
       <div
         className={`relative bg-card ${isDragging ? '' : 'transition-transform duration-200'}`}
         style={{ transform: `translateX(${offsetX}px)` }}
@@ -105,47 +98,80 @@ const NotificationsDropdown = ({
 }: NotificationsDropdownProps) => {
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
-  const { notifications, unreadCount, markAllAsRead, markAsRead, clearNotifications, dismissNotification } = useNotifications(currentUserId);
-  const { pendingInvitations, pendingCount } = useInvitationRealtime(currentUserId);
+  const { 
+    notifications, 
+    hasUnread, 
+    markAsRead, 
+    markAllAsRead, 
+    clearAll, 
+    getResourceInfo 
+  } = useDbNotifications(currentUserId);
 
-  // Total badge count = notifications + pending invitations
-  const totalBadgeCount = unreadCount + pendingCount;
-
-  const handleNotificationClick = (notif: typeof notifications[0]) => {
-    markAsRead(notif.id);
+  const handleNotificationClick = async (notif: typeof notifications[0]) => {
+    // Mark as read in DB
+    await markAsRead(notif.id);
     
-    if (notif.metadata?.lat && notif.metadata?.lng) {
-      onFlyToSpot?.(notif.metadata.lat, notif.metadata.lng);
+    // Get resource info for flying to location
+    const resource = getResourceInfo(notif.resource_id);
+    
+    if (resource?.lat && resource?.lng) {
+      onFlyToSpot?.(resource.lat, resource.lng);
     }
     
-    if (notif.metadata?.spotId) {
-      onOpenMission?.(notif.metadata.spotId);
+    // Open the mission/shout based on type
+    if (notif.type === 'friend_event' || notif.type === 'new_participant') {
+      onOpenMission?.(notif.resource_id);
+    } else if (notif.type === 'new_comment') {
+      // Comments can be on events or shouts - check resource type
+      onOpenMission?.(notif.resource_id);
+    } else if (notif.type === 'friend_shout') {
+      // For shouts, just fly to location (shout details via marker click)
+      // The fly action is already handled above
     }
     
-    setOpen(false);
-  };
-
-  const handleMarkAllRead = () => {
-    markAllAsRead();
-  };
-
-  const handleClose = () => {
     setOpen(false);
   };
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
-      case 'new_spot':
+      case 'friend_event':
         return <MapPin className="w-4 h-4 text-primary" />;
-      case 'invitation_received':
-        return <Radio className="w-4 h-4 text-warning" />;
-      case 'invitation_accepted':
-        return <Radio className="w-4 h-4 text-success" />;
-      case 'user_joined':
+      case 'friend_shout':
+        return <Megaphone className="w-4 h-4 text-warning" />;
+      case 'new_participant':
         return <UserPlus className="w-4 h-4 text-success" />;
+      case 'new_comment':
+        return <MessageCircle className="w-4 h-4 text-info" />;
       default:
         return <Bell className="w-4 h-4 text-muted-foreground" />;
     }
+  };
+
+  const getNotificationTitle = (notif: typeof notifications[0]) => {
+    const userName = notif.trigger_user?.nick || 'Someone';
+    switch (notif.type) {
+      case 'friend_event':
+        return `${userName} created an event`;
+      case 'friend_shout':
+        return `${userName} shouted`;
+      case 'new_participant':
+        return `${userName} joined your event`;
+      case 'new_comment':
+        return `${userName} commented`;
+      default:
+        return 'New notification';
+    }
+  };
+
+  const getNotificationDescription = (notif: typeof notifications[0]) => {
+    const resource = getResourceInfo(notif.resource_id);
+    if (resource?.title) {
+      return `"${resource.title}"`;
+    }
+    if (resource?.content) {
+      return `"${resource.content}"`;
+    }
+    return '';
   };
 
   const triggerButton = (
@@ -156,96 +182,74 @@ const NotificationsDropdown = ({
       onClick={() => isMobile && setOpen(true)}
     >
       <Bell className="w-5 h-5" />
-      {totalBadgeCount > 0 && (
-        <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center animate-pulse">
-          {totalBadgeCount > 99 ? '99+' : totalBadgeCount}
-        </span>
+      {hasUnread && (
+        <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-destructive" />
       )}
     </Button>
   );
 
   const notificationsContent = (
     <>
-      {notifications.length === 0 && pendingCount === 0 ? (
+      {notifications.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-center">
           <Bell className="w-10 h-10 text-muted-foreground/30 mb-3" />
           <p className="text-sm text-muted-foreground">No notifications yet</p>
           <p className="text-xs text-muted-foreground/60 mt-1">
-            We'll notify you about nearby spots and activity
+            You'll be notified when friends create events or join yours
           </p>
         </div>
       ) : (
         <div className="py-1">
-          {/* Pending invitations first (non-swipeable) */}
-          {pendingInvitations.map((inv) => (
-            <div
-              key={inv.id}
-              className="flex items-start gap-3 p-3 cursor-pointer hover:bg-warning/10"
-            >
-              <div className="w-8 h-8 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
-                <Radio className="w-4 h-4 text-warning" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">New Invitation</p>
-                <p className="text-xs text-muted-foreground truncate">
-                  {inv.sender?.nick || 'Someone'} wants to connect
-                </p>
-                <p className="text-[10px] text-warning mt-1">
-                  {formatDistanceToNow(new Date(inv.created_at), { addSuffix: true })}
-                </p>
-              </div>
-              <div className="w-2 h-2 rounded-full bg-warning flex-shrink-0 mt-1" />
-            </div>
-          ))}
-          
-          {/* Swipeable notifications */}
           {notifications.map((notif) => (
             <SwipeableNotification
               key={notif.id}
               id={notif.id}
-              onDismiss={() => dismissNotification(notif.id)}
+              onDismiss={async () => {
+                // Delete notification on swipe
+                await markAsRead(notif.id);
+              }}
               onClick={() => handleNotificationClick(notif)}
             >
               <div
                 className={`group relative flex items-start gap-3 p-3 cursor-pointer ${
-                  !notif.read ? 'bg-primary/5' : ''
+                  !notif.is_read ? 'bg-primary/5' : ''
                 } hover:bg-muted/50`}
               >
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  notif.type === 'new_spot' ? 'bg-primary/20' :
-                  notif.type === 'user_joined' ? 'bg-success/20' :
+                  notif.type === 'friend_event' ? 'bg-primary/20' :
+                  notif.type === 'friend_shout' ? 'bg-warning/20' :
+                  notif.type === 'new_participant' ? 'bg-success/20' :
+                  notif.type === 'new_comment' ? 'bg-info/20' :
                   'bg-muted'
                 }`}>
                   {getNotificationIcon(notif.type)}
                 </div>
                 <div className="flex-1 min-w-0 pr-6">
-                  <p className="text-sm font-medium truncate">{notif.title}</p>
+                  <p className="text-sm font-medium truncate">{getNotificationTitle(notif)}</p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {notif.description}
+                    {getNotificationDescription(notif)}
                   </p>
                   <p className="text-[10px] text-muted-foreground/70 mt-1">
-                    {formatDistanceToNow(new Date(notif.timestamp), { addSuffix: true })}
+                    {formatDistanceToNow(new Date(notif.created_at), { addSuffix: true })}
                   </p>
                 </div>
-                {!notif.read && (
-                  <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1" />
+                {!notif.is_read && (
+                  <div className="w-2 h-2 rounded-full bg-destructive flex-shrink-0 mt-1" />
                 )}
-                {/* Desktop dismiss button */}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    dismissNotification(notif.id);
+                    markAsRead(notif.id);
                   }}
-                  className="absolute top-2 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-destructive/20 transition-opacity hidden md:flex items-center justify-center"
-                  aria-label="Dismiss notification"
+                  className="absolute top-2 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-muted transition-opacity hidden md:flex items-center justify-center"
+                  aria-label="Mark as read"
                 >
-                  <X className="w-3 h-3 text-muted-foreground hover:text-destructive" />
+                  <X className="w-3 h-3 text-muted-foreground" />
                 </button>
               </div>
             </SwipeableNotification>
           ))}
           
-          {/* Swipe hint for mobile */}
           {notifications.length > 0 && (
             <p className="text-[10px] text-muted-foreground/50 text-center py-2 md:hidden">
               Swipe left to dismiss
@@ -264,26 +268,24 @@ const NotificationsDropdown = ({
 
     const mobileModalContent = (
       <div className="fixed inset-0 z-[9999] flex flex-col" style={{ isolation: 'isolate' }}>
-        {/* Full-screen modal */}
         <div className="bg-card w-screen h-dvh flex flex-col animate-in slide-in-from-bottom-4 duration-300">
-          {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
             <div className="flex items-center gap-2">
               <Bell className="w-5 h-5 text-warning" />
               <div>
                 <h3 className="font-nunito font-bold text-foreground">Notifications</h3>
                 <p className="text-xs text-muted-foreground">
-                  {totalBadgeCount > 0 ? `${totalBadgeCount} new` : 'All caught up'}
+                  {hasUnread ? 'New notifications' : 'All caught up'}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {unreadCount > 0 && (
+              {hasUnread && (
                 <Button
                   variant="ghost"
                   size="sm"
                   className="h-8 text-xs text-muted-foreground hover:text-foreground"
-                  onClick={handleMarkAllRead}
+                  onClick={markAllAsRead}
                 >
                   <CheckCheck className="w-3 h-3 mr-1" />
                   Mark all read
@@ -292,7 +294,7 @@ const NotificationsDropdown = ({
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={handleClose}
+                onClick={() => setOpen(false)}
                 className="rounded-lg hover:bg-muted"
               >
                 <X className="w-5 h-5 text-muted-foreground" />
@@ -300,21 +302,19 @@ const NotificationsDropdown = ({
             </div>
           </div>
 
-          {/* Content */}
           <ScrollArea className="flex-1 overflow-auto">
             <div className="p-4">
               {notificationsContent}
             </div>
           </ScrollArea>
 
-          {/* Footer */}
           {notifications.length > 0 && (
             <div className="p-4 border-t border-border shrink-0">
               <Button
                 variant="ghost"
                 size="sm"
                 className="w-full text-xs text-muted-foreground hover:text-destructive"
-                onClick={clearNotifications}
+                onClick={clearAll}
               >
                 <Trash2 className="w-3 h-3 mr-1" />
                 Clear all
@@ -349,14 +349,14 @@ const NotificationsDropdown = ({
             <Bell className="w-4 h-4 text-warning" />
             Notifications
           </span>
-          {unreadCount > 0 && (
+          {hasUnread && (
             <Button
               variant="ghost"
               size="sm"
               className="h-7 text-xs text-muted-foreground hover:text-foreground"
               onClick={(e) => {
                 e.preventDefault();
-                handleMarkAllRead();
+                markAllAsRead();
               }}
             >
               <CheckCheck className="w-3 h-3 mr-1" />
@@ -380,7 +380,7 @@ const NotificationsDropdown = ({
                 className="w-full text-xs text-muted-foreground hover:text-destructive"
                 onClick={(e) => {
                   e.preventDefault();
-                  clearNotifications();
+                  clearAll();
                 }}
               >
                 <Trash2 className="w-3 h-3 mr-1" />
