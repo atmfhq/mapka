@@ -101,8 +101,8 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
       return;
     }
     
-    // Fetch the profile if not cached
-    const { data } = await supabase.rpc('get_public_profile', { p_user_id: userId });
+    // Fetch the profile if not cached (use anonymous-friendly function)
+    const { data } = await supabase.rpc('get_profile_display', { p_user_id: userId });
     if (data && data[0]) {
       const profile: Profile = {
         id: data[0].id,
@@ -111,8 +111,6 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
         avatar_config: data[0].avatar_config as AvatarConfig,
         tags: data[0].tags,
         bio: data[0].bio,
-        location_lat: data[0].location_lat,
-        location_lng: data[0].location_lng,
       };
       setSelectedProfile(profile);
       setProfileModalOpen(true);
@@ -127,12 +125,12 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
   const commentIds = useMemo(() => comments.map(c => c.id), [comments]);
   const { getLikes: getCommentLikes, toggleLike: toggleCommentLike } = useShoutCommentLikes(commentIds, currentUserId);
 
-  // Fetch author profile
+  // Fetch author profile (using anonymous-friendly function)
   useEffect(() => {
     if (!shout) return;
 
     const fetchAuthor = async () => {
-      const { data } = await supabase.rpc('get_public_profile', { p_user_id: shout.user_id });
+      const { data } = await supabase.rpc('get_profile_display', { p_user_id: shout.user_id });
       if (data && data[0]) {
         setAuthorProfile({
           id: data[0].id,
@@ -141,8 +139,6 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
           avatar_config: data[0].avatar_config as AvatarConfig,
           tags: data[0].tags,
           bio: data[0].bio,
-          location_lat: data[0].location_lat,
-          location_lng: data[0].location_lng,
         });
       }
     };
@@ -150,14 +146,14 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
     fetchAuthor();
   }, [shout?.user_id]);
 
-  // Fetch comment author profiles
+  // Fetch comment author profiles (using anonymous-friendly function)
   useEffect(() => {
     if (comments.length === 0) return;
 
     const uniqueUserIds = [...new Set(comments.map(c => c.user_id))];
     
     const fetchProfiles = async () => {
-      const { data } = await supabase.rpc('get_public_profiles_by_ids', { user_ids: uniqueUserIds });
+      const { data } = await supabase.rpc('get_profiles_display', { user_ids: uniqueUserIds });
       if (data) {
         const profilesMap: Record<string, Profile> = {};
         data.forEach((p: any) => {
@@ -168,8 +164,6 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
             avatar_config: p.avatar_config as AvatarConfig,
             tags: p.tags,
             bio: p.bio,
-            location_lat: p.location_lat,
-            location_lng: p.location_lng,
           };
         });
         setCommentProfiles(profilesMap);

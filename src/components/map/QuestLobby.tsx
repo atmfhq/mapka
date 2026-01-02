@@ -51,8 +51,8 @@ interface Profile {
   avatar_config: AvatarConfig | null;
   bio: string;
   tags: string[];
-  location_lat: number;
-  location_lng: number;
+  location_lat?: number | null;
+  location_lng?: number | null;
 }
 
 interface Participant {
@@ -183,7 +183,7 @@ const QuestLobby = ({
     setEditIcon('');
   };
 
-  // Fetch host profile and participants
+  // Fetch host profile and participants (using anonymous-friendly function)
   useEffect(() => {
     if (!quest) return;
     
@@ -191,7 +191,7 @@ const QuestLobby = ({
 
     const fetchData = async () => {
       const { data: hostProfiles } = await supabase
-        .rpc('get_public_profiles_by_ids', { user_ids: [quest.host_id] });
+        .rpc('get_profiles_display', { user_ids: [quest.host_id] });
       
       const hostData = hostProfiles?.[0];
       
@@ -205,7 +205,7 @@ const QuestLobby = ({
       if (participantsData) {
         const userIds = participantsData.map(p => p.user_id);
         const { data: profiles } = await supabase
-          .rpc('get_public_profiles_by_ids', { user_ids: userIds });
+          .rpc('get_profiles_display', { user_ids: userIds });
 
         const participantsWithProfiles = participantsData.map(p => ({
           ...p,
@@ -232,7 +232,7 @@ const QuestLobby = ({
     if (data) {
       const userIds = data.map(p => p.user_id);
       const { data: profiles } = await supabase
-        .rpc('get_public_profiles_by_ids', { user_ids: userIds });
+        .rpc('get_profiles_display', { user_ids: userIds });
 
       const participantsWithProfiles = data.map(p => ({
         ...p,

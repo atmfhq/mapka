@@ -60,14 +60,14 @@ const EntityComments = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [commentProfiles, setCommentProfiles] = useState<Record<string, Profile>>({});
 
-  // Fetch comment author profiles
+  // Fetch comment author profiles (using anonymous-friendly function)
   useEffect(() => {
     if (comments.length === 0) return;
 
     const uniqueUserIds = [...new Set(comments.map(c => c.user_id))];
     
     const fetchProfiles = async () => {
-      const { data } = await supabase.rpc('get_public_profiles_by_ids', { user_ids: uniqueUserIds });
+      const { data } = await supabase.rpc('get_profiles_display', { user_ids: uniqueUserIds });
       if (data) {
         const profilesMap: Record<string, Profile> = {};
         data.forEach((p: any) => {
@@ -78,8 +78,6 @@ const EntityComments = ({
             avatar_config: p.avatar_config as AvatarConfig,
             tags: p.tags,
             bio: p.bio,
-            location_lat: p.location_lat,
-            location_lng: p.location_lng,
           };
         });
         setCommentProfiles(profilesMap);
