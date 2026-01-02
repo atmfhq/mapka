@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export const REACTION_EMOJIS = ['❤️', '👍', '😂'] as const;
@@ -17,6 +17,10 @@ interface ReactionsMap {
 export const useDmMessageReactions = (messageIds: string[], userId: string | null) => {
   const [reactionsMap, setReactionsMap] = useState<ReactionsMap>({});
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Use ref to avoid stale closure issues in toggleReaction
+  const reactionsMapRef = useRef<ReactionsMap>({});
+  reactionsMapRef.current = reactionsMap;
 
   const fetchReactions = useCallback(async () => {
     if (messageIds.length === 0) {
@@ -100,7 +104,8 @@ export const useDmMessageReactions = (messageIds: string[], userId: string | nul
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!userId) return;
 
-    const currentReactions = reactionsMap[messageId] || [];
+    // Use ref for current state to avoid stale closure
+    const currentReactions = reactionsMapRef.current[messageId] || [];
     const existingReaction = currentReactions.find(r => r.emoji === emoji);
     const hasReacted = existingReaction?.hasReacted || false;
 
@@ -165,7 +170,7 @@ export const useDmMessageReactions = (messageIds: string[], userId: string | nul
       // Revert on error
       fetchReactions();
     }
-  }, [userId, reactionsMap, fetchReactions]);
+  }, [userId, fetchReactions]);
 
   const getReactions = useCallback((messageId: string): Reaction[] => {
     return reactionsMap[messageId] || [];
