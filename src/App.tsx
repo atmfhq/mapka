@@ -3,29 +3,11 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider, useAuth } from "@/hooks/useAuth";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import LoadingScreen from "@/components/LoadingScreen";
+import { AuthProvider } from "@/hooks/useAuth";
 
-import Auth from "./pages/Auth";
-import Onboarding from "./pages/Onboarding";
 import Dashboard from "./pages/Dashboard";
 
 const queryClient = new QueryClient();
-
-// Wrapper to handle onboarding redirects on protected routes
-const OnboardingGuard = ({ children }: { children: React.ReactNode }) => {
-  const { profile, loading } = useAuth();
-  
-  if (loading) return <LoadingScreen />;
-  
-  // If not onboarded, redirect to onboarding
-  if (profile && !profile.is_onboarded) {
-    return <Navigate to="/onboarding" replace />;
-  }
-  
-  return <>{children}</>;
-};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -35,18 +17,11 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Map is now the default - accessible to guests */}
+            {/* Map is the only route - all auth is modal-based */}
             <Route path="/" element={<Dashboard />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route
-              path="/onboarding"
-              element={
-                <ProtectedRoute requireOnboarding={false}>
-                  <Onboarding />
-                </ProtectedRoute>
-              }
-            />
             {/* Legacy route redirects */}
+            <Route path="/auth" element={<Navigate to="/" replace />} />
+            <Route path="/onboarding" element={<Navigate to="/" replace />} />
             <Route path="/dashboard" element={<Navigate to="/" replace />} />
             <Route path="/profile/edit" element={<Navigate to="/" replace />} />
             {/* Catch-all: redirect any unknown routes to map */}

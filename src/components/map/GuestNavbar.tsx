@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { LogIn, Plane, X, Loader2, MapPin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,16 +13,16 @@ interface SearchResult {
 
 interface GuestNavbarProps {
   onFlyTo: (lat: number, lng: number) => void;
+  onOpenAuthModal: () => void;
 }
 
-const GuestNavbar = ({ onFlyTo }: GuestNavbarProps) => {
+const GuestNavbar = ({ onFlyTo, onOpenAuthModal }: GuestNavbarProps) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const navigate = useNavigate();
 
   // Debounced geocoding search
   const searchLocation = useCallback(async (searchQuery: string) => {
@@ -156,16 +155,15 @@ const GuestNavbar = ({ onFlyTo }: GuestNavbarProps) => {
 
           {/* Guest Controls - Single Join Button */}
           <div className="flex items-center pointer-events-auto flex-shrink-0">
-            <Link to="/auth">
-              <Button
-                size="sm"
-                className="gap-2 font-nunito h-10 shadow-hard"
-              >
-                <LogIn className="w-4 h-4" />
-                <span className="hidden sm:inline">Join / Login</span>
-                <span className="sm:hidden">Join</span>
-              </Button>
-            </Link>
+            <Button
+              size="sm"
+              className="gap-2 font-nunito h-10 shadow-hard"
+              onClick={onOpenAuthModal}
+            >
+              <LogIn className="w-4 h-4" />
+              <span className="hidden sm:inline">Join / Login</span>
+              <span className="sm:hidden">Join</span>
+            </Button>
           </div>
         </div>
       </div>

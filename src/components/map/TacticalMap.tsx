@@ -106,6 +106,7 @@ interface TacticalMapProps {
   onCloseChat?: () => void;
   onLocationUpdated?: (lat: number, lng: number) => void;
   onViewportChange?: (bounds: ViewportBounds) => void;
+  onOpenAuthModal?: () => void;
 }
 
 export interface TacticalMapHandle {
@@ -267,7 +268,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   onOpenSpotChat,
   onCloseChat,
   onLocationUpdated,
-  onViewportChange
+  onViewportChange,
+  onOpenAuthModal
 }, ref) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -2619,6 +2621,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         open={guestPromptOpen}
         onOpenChange={setGuestPromptOpen}
         variant={guestPromptVariant}
+        onOpenAuthModal={onOpenAuthModal}
       />
 
       {/* Quest Lobby - allow guests to view (restrictions inside) */}
