@@ -69,7 +69,7 @@ const ImageCropper = ({
   onOpenChange,
   imageSrc,
   onCropComplete,
-  aspectRatio = 1, // Default to 1:1 square
+  aspectRatio = 4/3, // Default to 4:3 landscape
 }: ImageCropperProps) => {
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
@@ -105,7 +105,7 @@ const ImageCropper = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card border-primary/30 max-w-md w-[calc(100vw-2rem)] p-0 overflow-hidden">
         <DialogHeader className="p-4 pb-0">
-          <DialogTitle className="font-fredoka text-lg">Crop Image (1:1)</DialogTitle>
+          <DialogTitle className="font-fredoka text-lg">Crop Image (4:3)</DialogTitle>
           <p className="text-xs text-muted-foreground font-nunito">
             Drag to position, scroll or use slider to zoom
           </p>
