@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useActiveArea } from "@/hooks/useActiveArea";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +8,8 @@ import Navbar from "@/components/map/Navbar";
 import BottomNav from "@/components/map/BottomNav";
 import GuestNavbar from "@/components/map/GuestNavbar";
 import LoadingScreen from "@/components/LoadingScreen";
+import AuthModal from "@/components/map/AuthModal";
+import OnboardingModal from "@/components/map/OnboardingModal";
 import { useToast } from "@/hooks/use-toast";
 
 interface AvatarConfig {
@@ -20,7 +22,6 @@ interface AvatarConfig {
 const Dashboard = () => {
   const { user, profile, loading, signOut, refreshProfile } = useAuth();
   const { lat: activeAreaLat, lng: activeAreaLng, loading: activeAreaLoading } = useActiveArea();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -36,6 +37,10 @@ const Dashboard = () => {
   const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
   const mapRef = useRef<TacticalMapHandle | null>(null);
   const deepLinkHandledRef = useRef(false);
+  
+  // Auth modal state
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showOnboardingModal, setShowOnboardingModal] = useState(false);
   
   // Pre-fetched deep link spot data (for initializing map at correct location)
   const [deepLinkSpot, setDeepLinkSpot] = useState<{ id: string; lat: number; lng: number } | null>(null);
@@ -121,12 +126,12 @@ const Dashboard = () => {
     }
   }, [profile]);
 
-  // Redirect logged-in but not onboarded users to onboarding
+  // Show onboarding modal for logged-in but not onboarded users
   useEffect(() => {
     if (!loading && user && profile && !profile.is_onboarded) {
-      navigate("/onboarding");
+      setShowOnboardingModal(true);
     }
-  }, [loading, user, profile, navigate]);
+  }, [loading, user, profile]);
 
   // Handle deep link after map is ready - teleport user and open spot/shout modal
   useEffect(() => {
@@ -306,7 +311,11 @@ const Dashboard = () => {
 
   const handleSignOut = async () => {
     await signOut();
-    navigate("/");
+  };
+
+  // Handler for opening auth modal (called from GuestNavbar or GuestPromptModal)
+  const handleOpenAuthModal = () => {
+    setShowAuthModal(true);
   };
 
   const handleMissionCreated = () => {
@@ -433,12 +442,13 @@ const Dashboard = () => {
           onCloseChat={handleCloseChat}
           onLocationUpdated={handleMapLocationUpdated}
           onViewportChange={handleViewportChange}
+          onOpenAuthModal={handleOpenAuthModal}
         />
       </div>
 
       {/* Navbar - z-50 floating above everything */}
       {isGuest ? (
-        <GuestNavbar onFlyTo={handleFlyTo} />
+        <GuestNavbar onFlyTo={handleFlyTo} onOpenAuthModal={handleOpenAuthModal} />
       ) : (
         <Navbar
           nick={profile?.nick || "Adventurer"}
@@ -487,6 +497,18 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Auth Modal */}
+      <AuthModal 
+        open={showAuthModal} 
+        onOpenChange={setShowAuthModal} 
+      />
+
+      {/* Onboarding Modal */}
+      <OnboardingModal 
+        open={showOnboardingModal} 
+        onOpenChange={setShowOnboardingModal}
+      />
     </div>
   );
 };

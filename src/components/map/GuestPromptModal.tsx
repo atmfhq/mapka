@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import { LogIn, UserPlus, Sparkles } from 'lucide-react';
 import {
   Dialog,
@@ -13,6 +12,7 @@ interface GuestPromptModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   variant: 'join' | 'connect' | 'create' | 'view';
+  onOpenAuthModal?: () => void;
 }
 
 const VARIANT_CONFIG = {
@@ -38,19 +38,16 @@ const VARIANT_CONFIG = {
   },
 };
 
-const GuestPromptModal = ({ open, onOpenChange, variant }: GuestPromptModalProps) => {
-  const navigate = useNavigate();
+const GuestPromptModal = ({ open, onOpenChange, variant, onOpenAuthModal }: GuestPromptModalProps) => {
   const config = VARIANT_CONFIG[variant];
   const Icon = config.icon;
 
-  const handleSignIn = () => {
+  const handleAuth = () => {
     onOpenChange(false);
-    navigate('/auth');
-  };
-
-  const handleSignUp = () => {
-    onOpenChange(false);
-    navigate('/auth');
+    // Small delay to allow modal to close before opening auth modal
+    setTimeout(() => {
+      onOpenAuthModal?.();
+    }, 100);
   };
 
   return (
@@ -70,7 +67,7 @@ const GuestPromptModal = ({ open, onOpenChange, variant }: GuestPromptModalProps
 
         <div className="flex flex-col gap-3 pt-4">
           <Button
-            onClick={handleSignUp}
+            onClick={handleAuth}
             size="lg"
             className="w-full font-fredoka min-h-[52px]"
           >
@@ -78,7 +75,7 @@ const GuestPromptModal = ({ open, onOpenChange, variant }: GuestPromptModalProps
             Create Account
           </Button>
           <Button
-            onClick={handleSignIn}
+            onClick={handleAuth}
             variant="outline"
             size="lg"
             className="w-full font-nunito min-h-[48px]"
