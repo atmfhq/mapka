@@ -608,7 +608,7 @@ const QuestLobby = ({
           </div>
         ) : (
           /* Details View - Single scroll layout */
-          <div className="flex flex-col flex-1 overflow-y-auto">
+          <div className="flex flex-col flex-1 overflow-y-auto overflow-hidden rounded-t-[1.5rem]">
             {/* Cover Image for Official Events - 4:3 Landscape */}
             {quest.is_official && quest.cover_image_url && (
               <div className="relative w-full shrink-0">
@@ -619,6 +619,29 @@ const QuestLobby = ({
                     className="w-full h-full object-cover"
                   />
                 </AspectRatio>
+                {/* Overlay Share Button */}
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="absolute top-3 right-3 w-9 h-9 bg-background/80 backdrop-blur-sm hover:bg-background/90 rounded-full shadow-lg"
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    const shareUrl = `${window.location.origin}/m/${quest.share_code}`;
+                    try {
+                      await navigator.clipboard.writeText(shareUrl);
+                      toast({
+                        title: 'Link copied to clipboard!',
+                      });
+                    } catch (err) {
+                      toast({
+                        title: 'Failed to copy link',
+                        variant: 'destructive',
+                      });
+                    }
+                  }}
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
               </div>
             )}
             
