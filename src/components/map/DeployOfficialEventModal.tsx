@@ -95,7 +95,7 @@ const CoverImageUploader = ({
   return (
     <div className="space-y-2">
       <Label className="font-nunito text-sm font-medium text-foreground flex items-center gap-1">
-        <Image className="w-3 h-3" /> Cover Image (Square)
+        <Image className="w-3 h-3" /> Cover Image (4:3 Landscape)
       </Label>
       
       <input
@@ -108,7 +108,7 @@ const CoverImageUploader = ({
 
       {coverImageUrl ? (
         <div className="relative">
-          <div className="w-full aspect-square rounded-xl overflow-hidden border-2 border-border bg-muted/50">
+          <div className="w-full aspect-[4/3] rounded-xl overflow-hidden border-2 border-border bg-muted/50">
             <img 
               src={coverImageUrl} 
               alt="Cover preview" 
@@ -148,7 +148,7 @@ const CoverImageUploader = ({
             <Upload className="w-6 h-6 text-muted-foreground" />
           </div>
           <span className="text-sm text-muted-foreground">Click to upload image</span>
-          <span className="text-xs text-muted-foreground/60">Will be cropped to 1:1 square</span>
+          <span className="text-xs text-muted-foreground/60">Will be cropped to 4:3 landscape</span>
         </Button>
       )}
       
@@ -166,7 +166,7 @@ const CoverImageUploader = ({
           }}
           imageSrc={tempImageSrc}
           onCropComplete={handleCropComplete}
-          aspectRatio={1}
+          aspectRatio={4/3}
         />
       )}
     </div>

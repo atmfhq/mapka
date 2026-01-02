@@ -609,10 +609,10 @@ const QuestLobby = ({
         ) : (
           /* Details View - Single scroll layout */
           <div className="flex flex-col flex-1 overflow-y-auto">
-            {/* Cover Image for Official Events - 4:3 Portrait */}
+            {/* Cover Image for Official Events - 4:3 Landscape */}
             {quest.is_official && quest.cover_image_url && (
               <div className="relative w-full shrink-0">
-                <AspectRatio ratio={3/4}>
+                <AspectRatio ratio={4/3}>
                   <img 
                     src={quest.cover_image_url} 
                     alt={quest.title}
@@ -676,7 +676,7 @@ const QuestLobby = ({
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="p-4">
               {/* Spot Name - Prominent */}
               <h2 className="font-fredoka text-2xl text-foreground leading-tight mb-4">
                 {quest.title}
