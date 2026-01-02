@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MapPin, Megaphone, MessageCircle, X } from 'lucide-react';
+import { MapPin, Megaphone, MessageCircle, X, Crown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { broadcastCurrentUserUpdate } from '@/hooks/useProfilesRealtime';
@@ -8,20 +8,24 @@ interface MapContextMenuProps {
   coords: { lat: number; lng: number };
   screenPosition: { x: number; y: number };
   currentUserId: string;
+  isAdmin?: boolean;
   onClose: () => void;
   onMoveComplete: (lat: number, lng: number) => void;
   onAddEvent: (lat: number, lng: number) => void;
   onAddShout: (lat: number, lng: number) => void;
+  onAddOfficialEvent?: (lat: number, lng: number) => void;
 }
 
 const MapContextMenu = ({
   coords,
   screenPosition,
   currentUserId,
+  isAdmin = false,
   onClose,
   onMoveComplete,
   onAddEvent,
   onAddShout,
+  onAddOfficialEvent,
 }: MapContextMenuProps) => {
   const { toast } = useToast();
   const [isMoving, setIsMoving] = useState(false);
@@ -120,6 +124,11 @@ const MapContextMenu = ({
     onClose();
   };
 
+  const handleAddOfficialEvent = () => {
+    onAddOfficialEvent?.(coords.lat, coords.lng);
+    onClose();
+  };
+
   return (
     <div
       ref={menuRef}
@@ -175,6 +184,22 @@ const MapContextMenu = ({
             </div>
             <span className="font-nunito text-sm font-medium">Add shout</span>
           </button>
+
+          {/* Official Event - Admin Only */}
+          {isAdmin && onAddOfficialEvent && (
+            <button
+              onClick={handleAddOfficialEvent}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-amber-500/10 transition-colors text-left"
+            >
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-500/20 to-yellow-500/20 border border-amber-500/40 flex items-center justify-center">
+                <Crown className="w-4 h-4 text-amber-500" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-nunito text-sm font-medium">Official Event</span>
+                <span className="text-[10px] text-muted-foreground">Admin only</span>
+              </div>
+            </button>
+          )}
         </div>
       </div>
     </div>
