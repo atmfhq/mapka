@@ -32,7 +32,8 @@ import MapLoadingSkeleton from './MapLoadingSkeleton';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Compass, Users, UsersRound, Eye, Ghost, CalendarDays, X, Megaphone, MessageSquareOff } from 'lucide-react';
+import { Compass, Users, UsersRound, Eye, Ghost, CalendarDays, X, Megaphone, MessageSquareOff, Info } from 'lucide-react';
+import AboutModal from './AboutModal';
 import { format, isSameDay, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -310,6 +311,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [shoutDetailsOpen, setShoutDetailsOpen] = useState(false); // Shout details drawer state
   const [officialEventModalOpen, setOfficialEventModalOpen] = useState(false); // Official event modal state
   const [editingOfficialEvent, setEditingOfficialEvent] = useState<Quest | null>(null); // Quest being edited in official modal
+  const [aboutModalOpen, setAboutModalOpen] = useState(false); // About modal state
   
   const navigate = useNavigate();
 
@@ -2475,6 +2477,17 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           >
             <Compass className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
           </Button>
+
+          {/* 7. Info / About Button */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setAboutModalOpen(true)}
+            className="w-11 h-11 bg-card/90 backdrop-blur-md border-border/50 hover:bg-muted transition-all group"
+            title="About Mapka"
+          >
+            <Info className="w-5 h-5 text-muted-foreground group-hover:text-foreground transition-colors" />
+          </Button>
         </div>
       )}
       
@@ -2678,6 +2691,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         onCloseChat={onCloseChat}
         onNavigate={navigate}
         onFlyTo={flyTo}
+      />
+
+      {/* About Modal */}
+      <AboutModal
+        open={aboutModalOpen}
+        onOpenChange={setAboutModalOpen}
       />
     </>
   );
