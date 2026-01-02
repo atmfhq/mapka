@@ -101,6 +101,7 @@ interface TacticalMapProps {
 export interface TacticalMapHandle {
   fetchQuests: () => void;
   openMissionById: (id: string) => void;
+  openShoutById: (id: string) => Promise<boolean>;
   flyTo: (lat: number, lng: number) => void;
 }
 
@@ -865,6 +866,47 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     }
   }, []);
 
+  // Open shout by ID - used for deep linking
+  const openShoutById = useCallback(async (shoutId: string): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('shouts')
+        .select('*')
+        .eq('id', shoutId)
+        .maybeSingle();
+      
+      if (error || !data) {
+        console.error('Shout not found:', error);
+        return false;
+      }
+      
+      // Check if shout is still active (within 24 hours)
+      const createdTime = new Date(data.created_at).getTime();
+      const now = Date.now();
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+      
+      if (now - createdTime > twentyFourHours) {
+        console.log('Shout has expired');
+        return false;
+      }
+      
+      setSelectedShout({
+        id: data.id,
+        user_id: data.user_id,
+        content: data.content,
+        lat: data.lat,
+        lng: data.lng,
+        created_at: data.created_at,
+      });
+      setShoutDetailsOpen(true);
+      
+      return true;
+    } catch (err) {
+      console.error('Error opening shout:', err);
+      return false;
+    }
+  }, []);
+
   const flyTo = useCallback((lat: number, lng: number) => {
     if (map.current) {
       const currentZoom = map.current.getZoom();
@@ -888,8 +930,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   useImperativeHandle(ref, () => ({
     fetchQuests,
     openMissionById,
+    openShoutById,
     flyTo,
-  }), [fetchQuests, openMissionById, flyTo]);
+  }), [fetchQuests, openMissionById, openShoutById, flyTo]);
 
   // Initial quest fetch on mount + refetch when location changes significantly
   useEffect(() => {

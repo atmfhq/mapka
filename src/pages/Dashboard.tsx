@@ -47,40 +47,60 @@ const Dashboard = () => {
   // Check for deep link params in URL
   const eventId = searchParams.get('eventId');
   const shareCode = searchParams.get('c');
-  const hasDeepLink = !!(eventId || shareCode);
+  const shoutId = searchParams.get('shoutId');
+  const hasEventDeepLink = !!(eventId || shareCode);
+  const hasShoutDeepLink = !!shoutId;
+  const hasDeepLink = hasEventDeepLink || hasShoutDeepLink;
 
-  // Pre-fetch deep link spot coordinates BEFORE map renders (for correct initial center)
+  // Pre-fetch deep link spot/shout coordinates BEFORE map renders (for correct initial center)
   useEffect(() => {
     if (!hasDeepLink || deepLinkFetchedRef.current) return;
     
     deepLinkFetchedRef.current = true;
     setDeepLinkLoading(true);
     
-    const prefetchSpot = async () => {
+    const prefetchDeepLink = async () => {
       try {
-        const { data, error } = await supabase.rpc('resolve_megaphone_link', {
-          p_share_code: shareCode || null,
-          p_id: eventId || null,
-        });
-        
-        const spot = data?.[0];
-        
-        if (!error && spot) {
-          setDeepLinkSpot({ id: spot.id, lat: spot.lat, lng: spot.lng });
-          // For guests, immediately set this as the guest location
-          if (!user) {
-            setGuestLocation({ lat: spot.lat, lng: spot.lng });
+        // Handle shout deep links
+        if (hasShoutDeepLink && shoutId) {
+          const { data, error } = await supabase
+            .from('shouts')
+            .select('id, lat, lng')
+            .eq('id', shoutId)
+            .maybeSingle();
+          
+          if (!error && data) {
+            setDeepLinkSpot({ id: data.id, lat: data.lat, lng: data.lng });
+            if (!user) {
+              setGuestLocation({ lat: data.lat, lng: data.lng });
+            }
+          }
+        } 
+        // Handle event deep links
+        else if (hasEventDeepLink) {
+          const { data, error } = await supabase.rpc('resolve_megaphone_link', {
+            p_share_code: shareCode || null,
+            p_id: eventId || null,
+          });
+          
+          const spot = data?.[0];
+          
+          if (!error && spot) {
+            setDeepLinkSpot({ id: spot.id, lat: spot.lat, lng: spot.lng });
+            if (!user) {
+              setGuestLocation({ lat: spot.lat, lng: spot.lng });
+            }
           }
         }
       } catch (err) {
-        console.error('Error prefetching deep link spot:', err);
+        console.error('Error prefetching deep link:', err);
       } finally {
         setDeepLinkLoading(false);
       }
     };
     
-    prefetchSpot();
-  }, [hasDeepLink, eventId, shareCode, user]);
+    prefetchDeepLink();
+  }, [hasDeepLink, hasShoutDeepLink, hasEventDeepLink, shoutId, eventId, shareCode, user]);
 
   // Set guest location once active area is loaded (only if no deep link)
   useEffect(() => {
@@ -108,7 +128,7 @@ const Dashboard = () => {
     }
   }, [loading, user, profile, navigate]);
 
-  // Handle deep link after map is ready - teleport user and open spot modal
+  // Handle deep link after map is ready - teleport user and open spot/shout modal
   useEffect(() => {
     // Skip if no deep link, already handled, or map not ready
     if (!hasDeepLink || deepLinkHandledRef.current || !mapRef.current) return;
@@ -122,7 +142,83 @@ const Dashboard = () => {
     deepLinkHandledRef.current = true;
     
     const handleDeepLink = async () => {
-      // Use prefetched spot data if available, otherwise fetch again
+      // Handle SHOUT deep links
+      if (hasShoutDeepLink && shoutId) {
+        let spot = deepLinkSpot;
+        
+        if (!spot) {
+          // Fetch shout data if not prefetched
+          const { data, error } = await supabase
+            .from('shouts')
+            .select('id, lat, lng, created_at')
+            .eq('id', shoutId)
+            .maybeSingle();
+          
+          if (error || !data) {
+            toast({
+              title: 'Shout not found',
+              description: 'This shout may have expired or been deleted.',
+              variant: 'destructive',
+            });
+            setSearchParams({}, { replace: true });
+            return;
+          }
+          
+          // Check if shout is expired
+          const createdTime = new Date(data.created_at).getTime();
+          const now = Date.now();
+          const twentyFourHours = 24 * 60 * 60 * 1000;
+          
+          if (now - createdTime > twentyFourHours) {
+            toast({
+              title: 'Shout expired',
+              description: 'This shout is no longer available.',
+              variant: 'destructive',
+            });
+            setSearchParams({}, { replace: true });
+            return;
+          }
+          
+          spot = { id: data.id, lat: data.lat, lng: data.lng };
+        }
+        
+        // For logged-in users: teleport to the shout location
+        if (user && spot) {
+          const { error: updateError } = await supabase
+            .from('profiles')
+            .update({
+              location_lat: spot.lat,
+              location_lng: spot.lng,
+            })
+            .eq('id', user.id);
+          
+          if (!updateError) {
+            setCurrentLocation({ lat: spot.lat, lng: spot.lng, name: null });
+            await refreshProfile();
+          }
+        } else if (spot) {
+          setGuestLocation({ lat: spot.lat, lng: spot.lng });
+        }
+        
+        if (spot) {
+          mapRef.current?.flyTo(spot.lat, spot.lng);
+          
+          // Open the shout details drawer
+          const success = await mapRef.current?.openShoutById(spot.id);
+          if (!success) {
+            toast({
+              title: 'Shout not found',
+              description: 'This shout may have expired or been deleted.',
+              variant: 'destructive',
+            });
+          }
+        }
+        
+        setSearchParams({}, { replace: true });
+        return;
+      }
+      
+      // Handle EVENT deep links (existing logic)
       let spot = deepLinkSpot;
       
       if (!spot) {
@@ -206,7 +302,7 @@ const Dashboard = () => {
     };
     
     handleDeepLink();
-  }, [hasDeepLink, deepLinkLoading, deepLinkSpot, eventId, shareCode, setSearchParams, toast, user, profile, refreshProfile]);
+  }, [hasDeepLink, hasShoutDeepLink, deepLinkLoading, deepLinkSpot, shoutId, eventId, shareCode, setSearchParams, toast, user, profile, refreshProfile]);
 
   const handleSignOut = async () => {
     await signOut();
