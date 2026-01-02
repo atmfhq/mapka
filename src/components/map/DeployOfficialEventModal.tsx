@@ -294,6 +294,42 @@ const DeployOfficialEventModal = ({
 
   const isOutOfRange = distanceToTarget > MAX_RANGE_METERS;
 
+  // Helper function to upload base64 image to storage
+  const uploadImageToStorage = async (base64Data: string): Promise<string | null> => {
+    try {
+      // Convert base64 to blob
+      const response = await fetch(base64Data);
+      const blob = await response.blob();
+      
+      // Generate unique filename
+      const fileExt = blob.type.split('/')[1] || 'png';
+      const fileName = `${userId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      
+      // Upload to storage
+      const { data, error } = await supabase.storage
+        .from('official-event-images')
+        .upload(fileName, blob, {
+          contentType: blob.type,
+          upsert: false
+        });
+      
+      if (error) {
+        console.error('Upload error:', error);
+        return null;
+      }
+      
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('official-event-images')
+        .getPublicUrl(data.path);
+      
+      return urlData.publicUrl;
+    } catch (err) {
+      console.error('Image upload failed:', err);
+      return null;
+    }
+  };
+
   const handleSubmit = async () => {
     if (!title || !selectedIcon || !date || !effectiveCoordinates) {
       toast({
@@ -347,17 +383,23 @@ const DeployOfficialEventModal = ({
       return;
     }
 
-    // Validate cover image URL if provided
-    if (coverImageUrl && !coverImageUrl.match(/^https?:\/\/.+/)) {
-      toast({
-        title: "Invalid image URL",
-        description: "Cover image URL must start with http:// or https://",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
+
+    // Handle image upload if it's a base64 data URL
+    let finalImageUrl = coverImageUrl.trim() || null;
+    if (coverImageUrl && coverImageUrl.startsWith('data:')) {
+      const uploadedUrl = await uploadImageToStorage(coverImageUrl);
+      if (!uploadedUrl) {
+        toast({
+          title: "Image upload failed",
+          description: "Could not upload the cover image. Please try again.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+      finalImageUrl = uploadedUrl;
+    }
     
     const eventData = {
       title,
@@ -365,7 +407,7 @@ const DeployOfficialEventModal = ({
       category: selectedIcon,
       start_time: startTime.toISOString(),
       duration_minutes: duration * 60,
-      cover_image_url: coverImageUrl.trim() || null,
+      cover_image_url: finalImageUrl,
       organizer_display_name: organizerDisplayName.trim() || null,
       external_link: externalLink.trim() || null,
       location_details: locationDetails.trim() || null,
