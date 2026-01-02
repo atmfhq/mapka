@@ -41,6 +41,7 @@ const Dashboard = () => {
   // Auth modal state
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showOnboardingModal, setShowOnboardingModal] = useState(false);
+  const [spawnCoordinates, setSpawnCoordinates] = useState<{ lat: number; lng: number } | null>(null);
   
   // Pre-fetched deep link spot data (for initializing map at correct location)
   const [deepLinkSpot, setDeepLinkSpot] = useState<{ id: string; lat: number; lng: number } | null>(null);
@@ -315,6 +316,17 @@ const Dashboard = () => {
 
   // Handler for opening auth modal (called from GuestNavbar or GuestPromptModal)
   const handleOpenAuthModal = () => {
+    // Capture current map center as spawn coordinates
+    const mapCenter = mapRef.current?.getCenter?.();
+    if (mapCenter) {
+      setSpawnCoordinates({ lat: mapCenter.lat, lng: mapCenter.lng });
+    } else {
+      // Fallback to guest location or active area
+      setSpawnCoordinates({ 
+        lat: guestLocation?.lat ?? activeAreaLat, 
+        lng: guestLocation?.lng ?? activeAreaLng 
+      });
+    }
     setShowAuthModal(true);
   };
 
@@ -501,13 +513,15 @@ const Dashboard = () => {
       {/* Auth Modal */}
       <AuthModal 
         open={showAuthModal} 
-        onOpenChange={setShowAuthModal} 
+        onOpenChange={setShowAuthModal}
+        spawnCoordinates={spawnCoordinates}
       />
 
       {/* Onboarding Modal */}
       <OnboardingModal 
         open={showOnboardingModal} 
         onOpenChange={setShowOnboardingModal}
+        spawnCoordinates={spawnCoordinates}
       />
     </div>
   );
