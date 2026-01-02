@@ -378,6 +378,16 @@ const QuestLobby = ({
       return;
     }
 
+    // Validate max 24 hour duration
+    if (editDuration > 24) {
+      toast({
+        title: "Duration too long",
+        description: "Event cannot last longer than 24 hours.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     const [hours, minutes] = editTime.split(':').map(Number);
@@ -534,9 +544,17 @@ const QuestLobby = ({
                 max={24}
                 step={0.5}
                 value={editDuration}
-                onChange={(e) => setEditDuration(Number(e.target.value))}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setEditDuration(Math.min(val, 24));
+                }}
                 className="bg-muted/50 border-border/50"
               />
+              {editDuration > 24 && (
+                <p className="text-[10px] text-destructive">
+                  Max duration is 24 hours
+                </p>
+              )}
             </div>
 
             {/* Description */}
