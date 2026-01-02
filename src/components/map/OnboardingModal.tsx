@@ -115,16 +115,16 @@ const OnboardingModal = ({ open, onOpenChange, onComplete, spawnCoordinates }: O
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-md border-2 border-border max-h-[85vh] overflow-y-auto">
         <DialogHeader className="text-center">
-          {/* Logo - Pin Icon */}
+          {/* Logo - Orange Pin Icon */}
           <div className="mx-auto mb-4">
             <img 
-              src="/icon.svg" 
+              src="/pin-logo.svg" 
               alt="Mapka" 
               className="w-14 h-14 mx-auto"
             />
           </div>
           
-          {/* Monochrome Logo Text */}
+          {/* Capitalized Logo Text */}
           <DialogTitle className="font-fredoka text-2xl text-center">
             Create Your Profile
           </DialogTitle>
