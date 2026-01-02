@@ -6,6 +6,7 @@ import { createRoot, Root } from 'react-dom/client';
 import { supabase } from '@/integrations/supabase/client';
 import ProfileModal from './ProfileModal';
 import DeployQuestModal from './DeployQuestModal';
+import DeployOfficialEventModal from './DeployOfficialEventModal';
 import QuestLobby from './QuestLobby';
 import GuestPromptModal from './GuestPromptModal';
 import GuestSpawnTooltip from './GuestSpawnTooltip';
@@ -25,6 +26,7 @@ import { useShoutsRealtime, Shout } from '@/hooks/useShoutsRealtime';
 import { useShoutCounts } from '@/hooks/useShoutCounts';
 import { useProximityAlerts, useFollowingIds } from '@/hooks/useProximityAlerts';
 import { useDebouncedLocation } from '@/hooks/useDebouncedLocation';
+import { useIsAdmin } from '@/hooks/useIsAdmin';
 import ShoutMarker from './ShoutMarker';
 import MapLoadingSkeleton from './MapLoadingSkeleton';
 import { Button } from '@/components/ui/button';
@@ -299,8 +301,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [shoutCoords, setShoutCoords] = useState<{ lat: number; lng: number } | null>(null); // Shout coordinates
   const [selectedShout, setSelectedShout] = useState<{ id: string; user_id: string; content: string; lat: number; lng: number; created_at: string } | null>(null); // Selected shout for details drawer
   const [shoutDetailsOpen, setShoutDetailsOpen] = useState(false); // Shout details drawer state
+  const [officialEventModalOpen, setOfficialEventModalOpen] = useState(false); // Official event modal state
   
   const navigate = useNavigate();
+
+  // Check if current user is admin
+  const { isAdmin } = useIsAdmin(currentUserId);
 
   // Get connected users (skip for guests)
   const { connectedUserIds, getInvitationIdForUser, refetch: refetchConnections } = useConnectedUsers(currentUserId ?? '');
@@ -2348,6 +2354,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           coords={contextMenuCoords}
           screenPosition={contextMenuScreenPos}
           currentUserId={currentUserId}
+          isAdmin={isAdmin}
           onClose={() => {
             setContextMenuCoords(null);
             setContextMenuScreenPos(null);
@@ -2377,6 +2384,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             setShoutCoords({ lat, lng });
             setShoutModalOpen(true);
           }}
+          onAddOfficialEvent={(lat, lng) => {
+            setClickedCoords({ lat, lng });
+            setOfficialEventModalOpen(true);
+          }}
         />
       )}
 
@@ -2385,6 +2396,21 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         <DeployQuestModal
           open={deployModalOpen}
           onOpenChange={setDeployModalOpen}
+          coordinates={clickedCoords}
+          userId={currentUserId}
+          userBaseLat={locationLat ?? userLat}
+          userBaseLng={locationLng ?? userLng}
+          onSuccess={(newQuest) => {
+            setQuests(prev => [...prev, newQuest]);
+          }}
+        />
+      )}
+
+      {/* Official Event Modal - Admin only */}
+      {currentUserId && isAdmin && (
+        <DeployOfficialEventModal
+          open={officialEventModalOpen}
+          onOpenChange={setOfficialEventModalOpen}
           coordinates={clickedCoords}
           userId={currentUserId}
           userBaseLat={locationLat ?? userLat}
