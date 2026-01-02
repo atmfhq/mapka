@@ -16,9 +16,11 @@ import { useChatUnreadCounts } from '@/hooks/useChatUnreadCounts';
 import { useMutedChats } from '@/hooks/useMutedChats';
 import { useUnifiedConversations, type ConversationItem } from '@/hooks/useUnifiedConversations';
 import { useDmMessageReactions } from '@/hooks/useDmMessageReactions';
+import { useTypingPresence } from '@/hooks/useTypingPresence';
 import ConversationRow from './ConversationRow';
 import ProfileModal from './ProfileModal';
 import MessageReactions from './MessageReactions';
+import TypingIndicator from './TypingIndicator';
 
 interface ChatMessage {
   id: string;
@@ -119,6 +121,9 @@ const ChatDrawer = ({
   // DM message reactions
   const dmMessageIds = useMemo(() => messages.map(m => m.id), [messages]);
   const { getReactions: getDmReactions, toggleReaction: toggleDmReaction } = useDmMessageReactions(dmMessageIds, currentUserId);
+
+  // Typing presence
+  const { isOtherUserTyping, setTyping } = useTypingPresence(invitationId, currentUserId, selectedUser);
 
   // Fetch messages for direct chat
   const fetchMessages = useCallback(async () => {
@@ -460,6 +465,9 @@ const ChatDrawer = ({
                     );
                   })
                 )}
+                {isOtherUserTyping && (
+                  <TypingIndicator userName={selectedUserData?.nick} />
+                )}
                 <div ref={scrollAnchorRef} />
               </div>
             </ScrollArea>
@@ -471,7 +479,12 @@ const ChatDrawer = ({
                   <Input
                     ref={inputRef}
                     value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value.slice(0, MAX_MESSAGE_LENGTH))}
+                    onChange={(e) => {
+                      const value = e.target.value.slice(0, MAX_MESSAGE_LENGTH);
+                      setNewMessage(value);
+                      setTyping(value.length > 0);
+                    }}
+                    onBlur={() => setTyping(false)}
                     placeholder="Type a message..."
                     className="flex-1 bg-muted/50 border-border"
                     maxLength={MAX_MESSAGE_LENGTH}
