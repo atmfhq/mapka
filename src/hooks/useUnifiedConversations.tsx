@@ -68,14 +68,21 @@ export const useUnifiedConversations = (
 ) => {
   const [dmLastMessages, setDmLastMessages] = useState<Map<string, LastMessageInfo>>(new Map());
   const [loading, setLoading] = useState(true);
+  // Force re-render trigger for when real-time updates happen
+  const [updateTrigger, setUpdateTrigger] = useState(0);
 
   // Use refs to avoid dependency issues with arrays
   const connectedUsersRef = useRef(connectedUsers);
+  const getDmUnreadCountRef = useRef(getDmUnreadCount);
   
   // Update refs when data changes
   useEffect(() => {
     connectedUsersRef.current = connectedUsers;
   }, [connectedUsers]);
+
+  useEffect(() => {
+    getDmUnreadCountRef.current = getDmUnreadCount;
+  }, [getDmUnreadCount]);
 
   // Stable keys for dependency tracking
   const connectedUsersKey = connectedUsers.map(u => u.invitationId).join(',');
@@ -154,12 +161,16 @@ export const useUnifiedConversations = (
     };
   }, [connectedUsersKey, fetchDmLastMessages]);
 
-  // Real-time subscription for DM messages - instant reordering
+  // Real-time subscription for DM messages - instant reordering and preview update
   useEffect(() => {
     if (!currentUserId) return;
 
+    // Use unique channel name with timestamp to prevent collisions
+    const channelName = `conversations-dm-realtime-${currentUserId}-${Date.now()}`;
+    console.log('[UnifiedConversations] Setting up DM realtime channel:', channelName);
+    
     const channel = supabase
-      .channel('conversations-dm-realtime')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -169,7 +180,7 @@ export const useUnifiedConversations = (
         },
         (payload) => {
           const msg = payload.new as { invitation_id: string; content: string; created_at: string; sender_id: string };
-          console.log('[UnifiedConversations] New DM received:', msg.invitation_id);
+          console.log('[UnifiedConversations] New DM received via realtime:', msg.invitation_id, msg.content.slice(0, 20));
           
           // Update the lastMessages map immediately for instant reordering
           setDmLastMessages(prev => {
@@ -182,22 +193,28 @@ export const useUnifiedConversations = (
             });
             return next;
           });
+          
+          // Force a re-render to update the conversation list
+          setUpdateTrigger(prev => prev + 1);
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[UnifiedConversations] DM channel status:', status);
+      });
 
     return () => {
+      console.log('[UnifiedConversations] Cleaning up DM channel:', channelName);
       supabase.removeChannel(channel);
     };
   }, [currentUserId]);
 
   // Real-time subscription for invitation changes - to pick up new connections immediately
-  // Using broad subscription with client-side filtering for reliability
   useEffect(() => {
     if (!currentUserId) return;
 
+    const channelName = `conversations-inv-${currentUserId}-${Date.now()}`;
     const channel = supabase
-      .channel(`conversations-inv-${currentUserId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -210,12 +227,46 @@ export const useUnifiedConversations = (
           // Only process if this invitation involves the current user and was accepted
           if ((updatedInv.sender_id === currentUserId || updatedInv.receiver_id === currentUserId) &&
               updatedInv.status === 'accepted') {
-            console.log('[UnifiedConversations] Invitation accepted, will refetch...');
-            // The parent component's connectedUsers will update which triggers our useMemo
+            console.log('[UnifiedConversations] Invitation accepted, triggering update...');
+            setUpdateTrigger(prev => prev + 1);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[UnifiedConversations] Invitation channel status:', status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUserId]);
+
+  // Real-time subscription for NEW invitations (INSERT) - to pick up new pending invites
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const channelName = `conversations-inv-insert-${currentUserId}-${Date.now()}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'invitations',
+        },
+        (payload) => {
+          const newInv = payload.new as { sender_id: string; receiver_id: string; status: string };
+          // Only process if this invitation is for the current user
+          if (newInv.receiver_id === currentUserId && newInv.status === 'pending') {
+            console.log('[UnifiedConversations] New pending invitation received');
+            setUpdateTrigger(prev => prev + 1);
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('[UnifiedConversations] Invitation INSERT channel status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -223,6 +274,7 @@ export const useUnifiedConversations = (
   }, [currentUserId]);
 
   // Build unified conversation list - DMs only, no spots/events
+  // Include updateTrigger in deps to force rebuild on real-time updates
   const conversations = useMemo((): ConversationItem[] => {
     const items: ConversationItem[] = [];
 
@@ -247,7 +299,8 @@ export const useUnifiedConversations = (
     // Add connected users (DMs only)
     for (const user of connectedUsers) {
       const lastMsg = dmLastMessages.get(user.invitationId);
-      const unread = getDmUnreadCount(user.invitationId);
+      // Use ref to get latest unread count without causing dependency loop
+      const unread = getDmUnreadCountRef.current(user.invitationId);
       
       let subtitle = 'Start a conversation';
       if (lastMsg) {
@@ -280,11 +333,12 @@ export const useUnifiedConversations = (
     connectedUsers,
     dmLastMessages,
     currentUserId,
-    getDmUnreadCount,
+    updateTrigger, // Include trigger to force rebuild on real-time updates
   ]);
 
   const refetch = useCallback(async () => {
     await fetchDmLastMessages();
+    setUpdateTrigger(prev => prev + 1);
   }, [fetchDmLastMessages]);
 
   return {
