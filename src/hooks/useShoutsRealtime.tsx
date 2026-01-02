@@ -10,10 +10,6 @@ export interface Shout {
   created_at: string;
 }
 
-interface UseShoutsRealtimeOptions {
-  onNewItemsInRange?: (newShouts: Shout[], allShouts: Shout[]) => void;
-}
-
 // Simple haversine distance check (meters)
 const getDistanceMeters = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
   const R = 6371000;
@@ -28,8 +24,7 @@ const getDistanceMeters = (lat1: number, lng1: number, lat2: number, lng2: numbe
 export const useShoutsRealtime = (
   centerLat: number, 
   centerLng: number, 
-  userId?: string,
-  options?: UseShoutsRealtimeOptions
+  userId?: string
 ) => {
   const [shouts, setShouts] = useState<Shout[]>([]);
   const [hiddenShoutIds, setHiddenShoutIds] = useState<Set<string>>(new Set());
@@ -38,12 +33,6 @@ export const useShoutsRealtime = (
   const isFetchingRef = useRef(false);
   const lastFetchLocationRef = useRef<{ lat: number; lng: number } | null>(null);
   const previousShoutIdsRef = useRef<Set<string>>(new Set());
-  const optionsRef = useRef(options);
-  
-  // Keep options ref updated
-  useEffect(() => {
-    optionsRef.current = options;
-  }, [options]);
 
   // Stable fetch function that checks for duplicate requests
   const fetchShouts = useCallback(async (lat: number, lng: number, force = false) => {
@@ -78,15 +67,6 @@ export const useShoutsRealtime = (
 
       const newShouts = (data || []) as Shout[];
       const newShoutIds = new Set(newShouts.map(s => s.id));
-      
-      // Detect newly appeared shouts (for proximity alerts)
-      const previousIds = previousShoutIdsRef.current;
-      const newlyAppeared = newShouts.filter(s => !previousIds.has(s.id));
-      
-      // Only trigger callback if there are new items AND we had previous data
-      if (newlyAppeared.length > 0 && previousIds.size > 0 && optionsRef.current?.onNewItemsInRange) {
-        optionsRef.current.onNewItemsInRange(newlyAppeared, newShouts);
-      }
       
       // Update ref
       previousShoutIdsRef.current = newShoutIds;

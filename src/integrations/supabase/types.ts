@@ -415,6 +415,36 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          recipient_id: string
+          resource_id: string
+          trigger_user_id: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          recipient_id: string
+          resource_id: string
+          trigger_user_id: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          recipient_id?: string
+          resource_id?: string
+          trigger_user_id?: string
+          type?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_config: Json | null

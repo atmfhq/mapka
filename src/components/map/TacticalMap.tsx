@@ -24,7 +24,6 @@ import { useMegaphonesRealtime } from '@/hooks/useMegaphonesRealtime';
 import { useParticipantsRealtime } from '@/hooks/useParticipantsRealtime';
 import { useShoutsRealtime, Shout } from '@/hooks/useShoutsRealtime';
 import { useShoutCounts } from '@/hooks/useShoutCounts';
-import { useProximityAlerts, useFollowingIds } from '@/hooks/useProximityAlerts';
 import { useDebouncedLocation } from '@/hooks/useDebouncedLocation';
 import { useIsAdmin } from '@/hooks/useIsAdmin';
 import ShoutMarker from './ShoutMarker';
@@ -324,12 +323,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   // Get connected users (skip for guests)
   const { connectedUserIds, getInvitationIdForUser, refetch: refetchConnections } = useConnectedUsers(currentUserId ?? '');
 
-  // Get list of users we're following (for proximity alerts)
-  const followingIds = useFollowingIds(currentUserId);
-  
-  // Proximity alerts hook
-  const { processNewItems } = useProximityAlerts(currentUserId, followingIds);
-
   // PERFORMANCE: Debounce location changes to reduce API calls
   // Only refetch data when user moves >100m AND stops moving for 500ms
   const debouncedLocation = useDebouncedLocation(
@@ -339,32 +332,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     100   // 100m minimum distance threshold
   );
 
-  // Ref to track previous shout IDs for proximity detection
-  const previousShoutIdsRef = useRef<Set<string>>(new Set());
-
-  // Callback for when new shouts appear in range
-  const handleNewShoutsInRange = useCallback((newShouts: Shout[], allShouts: Shout[]) => {
-    if (!currentUserId || followingIds.length === 0) return;
-    
-    const items = newShouts.map(s => ({
-      id: s.id,
-      user_id: s.user_id,
-      type: 'shout' as const
-    }));
-    
-    processNewItems(items, previousShoutIdsRef.current);
-    
-    // Update previous IDs ref
-    previousShoutIdsRef.current = new Set(allShouts.map(s => s.id));
-  }, [currentUserId, followingIds, processNewItems]);
-
   // Get shouts for the map (with hidden shouts filtered for current user)
   // Uses DEBOUNCED location to prevent excessive fetches during map pan
   const { shouts, refetch: refetchShouts, hideShout } = useShoutsRealtime(
     debouncedLocation.lat, 
     debouncedLocation.lng, 
-    currentUserId ?? undefined,
-    { onNewItemsInRange: handleNewShoutsInRange }
+    currentUserId ?? undefined
   );
 
   // Get counts (likes/comments) for all shouts
