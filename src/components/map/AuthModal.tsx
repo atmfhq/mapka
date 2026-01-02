@@ -16,9 +16,10 @@ import { useToast } from '@/hooks/use-toast';
 interface AuthModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  spawnCoordinates?: { lat: number; lng: number } | null;
 }
 
-const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
+const AuthModal = ({ open, onOpenChange, spawnCoordinates }: AuthModalProps) => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [magicLinkSent, setMagicLinkSent] = useState(false);
@@ -38,6 +39,11 @@ const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
     setLoading(true);
 
     try {
+      // Store spawn coordinates in localStorage for use after auth redirect
+      if (spawnCoordinates) {
+        localStorage.setItem('mapka_spawn_coords', JSON.stringify(spawnCoordinates));
+      }
+
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: {
@@ -67,6 +73,11 @@ const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
     setLoading(true);
 
     try {
+      // Store spawn coordinates in localStorage for use after auth redirect
+      if (spawnCoordinates) {
+        localStorage.setItem('mapka_spawn_coords', JSON.stringify(spawnCoordinates));
+      }
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -103,21 +114,21 @@ const AuthModal = ({ open, onOpenChange }: AuthModalProps) => {
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-md border-2 border-border">
         <DialogHeader className="text-center">
-          {/* Logo - Pin Icon */}
+          {/* Logo - Orange Pin Icon */}
           <div className="mx-auto mb-4">
             <img 
-              src="/icon.svg" 
+              src="/pin-logo.svg" 
               alt="Mapka" 
               className="w-14 h-14 mx-auto"
             />
           </div>
           
-          {/* Monochrome Logo Text */}
+          {/* Capitalized Logo Text */}
           <DialogTitle className="font-fredoka text-2xl text-center">
-            mapka
+            Mapka
           </DialogTitle>
           <DialogDescription className="font-nunito text-center">
-            {magicLinkSent ? 'Check your email' : 'Login or create an account'}
+            {magicLinkSent ? 'Check your email' : 'Connecting the local community'}
           </DialogDescription>
         </DialogHeader>
 

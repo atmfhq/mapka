@@ -114,6 +114,7 @@ export interface TacticalMapHandle {
   openMissionById: (id: string) => void;
   openShoutById: (id: string) => Promise<boolean>;
   flyTo: (lat: number, lng: number) => void;
+  getCenter: () => { lat: number; lng: number } | null;
 }
 
 // Category colors with distinct, vibrant hues (HSL format)
@@ -950,6 +951,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     openMissionById,
     openShoutById,
     flyTo,
+    getCenter: () => {
+      if (!map.current) return null;
+      const center = map.current.getCenter();
+      return { lat: center.lat, lng: center.lng };
+    },
   }), [fetchQuests, openMissionById, openShoutById, flyTo]);
 
   // Initial quest fetch on mount + refetch when location changes significantly

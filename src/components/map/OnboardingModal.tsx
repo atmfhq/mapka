@@ -30,9 +30,10 @@ interface OnboardingModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onComplete?: () => void;
+  spawnCoordinates?: { lat: number; lng: number } | null;
 }
 
-const OnboardingModal = ({ open, onOpenChange, onComplete }: OnboardingModalProps) => {
+const OnboardingModal = ({ open, onOpenChange, onComplete, spawnCoordinates }: OnboardingModalProps) => {
   const [nick, setNick] = useState('');
   const [bio, setBio] = useState('');
   const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(() => generateRandomAvatar());
@@ -56,14 +57,36 @@ const OnboardingModal = ({ open, onOpenChange, onComplete }: OnboardingModalProp
 
     setLoading(true);
     try {
+      // Get spawn coordinates from prop or localStorage (for OAuth redirects)
+      let coords = spawnCoordinates;
+      if (!coords) {
+        const storedCoords = localStorage.getItem('mapka_spawn_coords');
+        if (storedCoords) {
+          try {
+            coords = JSON.parse(storedCoords);
+            localStorage.removeItem('mapka_spawn_coords');
+          } catch (e) {
+            console.error('Failed to parse spawn coords:', e);
+          }
+        }
+      }
+
+      const updateData: Record<string, any> = {
+        nick: nick.trim(),
+        bio: bio.trim() || null,
+        avatar_config: avatarConfig as Json,
+        is_onboarded: true,
+      };
+
+      // Set initial location if we have spawn coordinates
+      if (coords?.lat && coords?.lng) {
+        updateData.location_lat = coords.lat;
+        updateData.location_lng = coords.lng;
+      }
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          nick: nick.trim(),
-          bio: bio.trim() || null,
-          avatar_config: avatarConfig as Json,
-          is_onboarded: true,
-        })
+        .update(updateData)
         .eq('id', user.id);
 
       if (error) throw error;
