@@ -68,7 +68,7 @@ const ShoutModal = ({ isOpen, onClose, coords, userId, onShoutCreated }: ShoutMo
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-transparent"
         onClick={onClose}
       />
 
