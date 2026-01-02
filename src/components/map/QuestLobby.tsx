@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, isToday } from 'date-fns';
 import { Clock, Users, Trash2, UserPlus, X, Lock, Pencil, Save, CalendarIcon, LogIn, Hourglass, LogOut, Share2, ExternalLink, MapPin, Crown, Star } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -608,18 +609,19 @@ const QuestLobby = ({
         ) : (
           /* Details View - Optimized Layout */
           <div className="flex flex-col flex-1 overflow-y-auto">
-            {/* Cover Image for Official Events */}
+            {/* Cover Image for Official Events - Full 1:1 Square */}
             {quest.is_official && quest.cover_image_url && (
-              <div className="relative w-full h-40 shrink-0">
-                <img 
-                  src={quest.cover_image_url} 
-                  alt={quest.title}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
+              <div className="relative w-full shrink-0">
+                <AspectRatio ratio={1}>
+                  <img 
+                    src={quest.cover_image_url} 
+                    alt={quest.title}
+                    className="w-full h-full object-cover"
+                  />
+                </AspectRatio>
                 <Badge 
                   variant="outline" 
-                  className="absolute top-3 left-3 bg-gradient-to-r from-amber-500 to-yellow-400 text-black border-amber-400 font-bold"
+                  className="absolute top-3 left-3 bg-gradient-to-r from-amber-500 to-yellow-400 text-black border-amber-400 font-bold z-10"
                 >
                   <Star className="w-3 h-3 mr-1 fill-current" />
                   Official Event
@@ -701,16 +703,18 @@ const QuestLobby = ({
                 </div>
               )}
 
-              {/* External Link CTA for Official Events */}
+              {/* External Link - Subtle text anchor for Official Events */}
               {quest.is_official && quest.external_link && (
                 <a 
                   href={quest.external_link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full mb-4 py-3 px-4 bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-bold rounded-xl hover:from-amber-600 hover:to-yellow-500 transition-all shadow-lg hover:shadow-xl"
+                  className="inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 hover:underline transition-colors mb-2"
                 >
-                  <ExternalLink className="w-4 h-4" />
-                  Visit Website
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span className="truncate max-w-[200px]">
+                    {quest.external_link.replace(/^https?:\/\//, '').split('/')[0]}
+                  </span>
                 </a>
               )}
 
@@ -906,7 +910,7 @@ const QuestLobby = ({
                   </Button>
                 </div>
               ) : hasJoined ? (
-                /* Participant actions: Leave Spot */
+                /* Participant actions: Leave */
                 <Button 
                   variant="destructive"
                   className="w-full min-h-[48px]"
@@ -914,21 +918,21 @@ const QuestLobby = ({
                   disabled={loading}
                 >
                   <LogOut className="w-4 h-4 mr-2" />
-                  Leave Spot
+                  {quest.is_official ? 'Leave Event' : 'Leave Spot'}
                 </Button>
               ) : (
-                /* Not joined: Show Join Spot button */
+                /* Not joined: Show Join button - PRIMARY ACTION */
                 <Button 
                   className="w-full font-fredoka min-h-[52px] text-base"
                   onClick={handleJoin}
                   disabled={loading}
                 >
                   <UserPlus className="w-5 h-5 mr-2" />
-                  Join Spot
+                  {quest.is_official ? 'Join Event' : 'Join Spot'}
                 </Button>
               )}
               
-              {/* Share button - always visible */}
+              {/* Share button - Secondary action */}
               <Button 
                 variant="outline"
                 className="w-full border-border text-muted-foreground hover:bg-muted/50 hover:text-foreground min-h-[44px]"
@@ -944,7 +948,7 @@ const QuestLobby = ({
                     try {
                       await navigator.share({
                         title: quest.title,
-                        text: `Check out this spot: ${quest.title}`,
+                        text: quest.is_official ? `Check out this event: ${quest.title}` : `Check out this spot: ${quest.title}`,
                         url: shareUrl,
                       });
                       return;
@@ -969,7 +973,7 @@ const QuestLobby = ({
                 }}
               >
                 <Share2 className="w-4 h-4 mr-2" />
-                Share
+                {quest.is_official ? 'Share Event' : 'Share'}
               </Button>
             </div>
           </div>
