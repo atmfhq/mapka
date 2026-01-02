@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Heart, Trash2, Send } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Heart, Trash2, Send, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
@@ -56,9 +57,12 @@ const EntityComments = ({
   onViewUserProfile,
 }: EntityCommentsProps) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [commentProfiles, setCommentProfiles] = useState<Record<string, Profile>>({});
+  
+  const isGuest = !currentUserId;
 
   // Fetch comment author profiles (using anonymous-friendly function)
   useEffect(() => {
@@ -204,8 +208,18 @@ const EntityComments = ({
         </div>
       )}
 
-      {/* Comment input */}
-      {currentUserId && (
+      {/* Comment input - or Login CTA for guests */}
+      {isGuest ? (
+        <div className="pt-2">
+          <Button
+            onClick={() => navigate('/auth')}
+            className="w-full bg-primary hover:bg-primary/90"
+          >
+            <LogIn className="w-4 h-4 mr-2" />
+            Login to join the conversation
+          </Button>
+        </div>
+      ) : (
         <div className="flex gap-2 pt-2">
           <Textarea
             placeholder="Write a comment..."

@@ -1273,13 +1273,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         el.addEventListener('click', (e) => {
           e.stopPropagation();
           
-          // Guest login wall: block detail view for unauthenticated users
-          if (isGuestRef.current) {
-            setGuestPromptVariant('view');
-            setGuestPromptOpen(true);
-            return;
-          }
-          
+          // Allow guests to view profiles (they'll see "Login to Connect" CTAs)
           if (map.current) {
             map.current.flyTo({
               center: [jitteredLng, jitteredLat],
@@ -1750,14 +1744,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       const counts = getShoutCounts(shout.id);
       
       // Create a click handler for this shout
+      // Allow guests to view shout details (they'll see "Login to join the conversation" CTA)
       const handleShoutClick = () => {
-        // Guest login wall: block detail view for unauthenticated users
-        if (isGuestRef.current) {
-          setGuestPromptVariant('view');
-          setGuestPromptOpen(true);
-          return;
-        }
-        
         setSelectedShout({
           id: shout.id,
           user_id: shout.user_id,
