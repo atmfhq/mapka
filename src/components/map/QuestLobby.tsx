@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, isToday } from 'date-fns';
-import { Clock, Users, Trash2, UserPlus, X, Lock, Pencil, Save, CalendarIcon, LogIn, Hourglass, LogOut, Share2, ExternalLink, MapPin, Crown, Star } from 'lucide-react';
+import { Clock, Users, UserPlus, X, Lock, Pencil, Save, CalendarIcon, LogIn, Hourglass, LogOut, Share2, ExternalLink, MapPin, Crown, Star } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import { useSpotComments, useSpotCommentLikes } from '@/hooks/useSpotComments';
 import EntityComments from '@/components/map/EntityComments';
 import EmojiPicker from '@/components/ui/EmojiPicker';
 import ProfileModal from './ProfileModal';
+import DeleteEventConfirmation from './DeleteEventConfirmation';
 
 interface Quest {
   id: string;
@@ -142,6 +143,9 @@ const QuestLobby = ({
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editDate, setEditDate] = useState<Date>();
+  
+  // Delete confirmation state
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [editTime, setEditTime] = useState('18:00');
   const [editDuration, setEditDuration] = useState(2);
   const [editIcon, setEditIcon] = useState<string>('');
@@ -899,26 +903,15 @@ const QuestLobby = ({
                   Login to Join
                 </Button>
               ) : isHost ? (
-                <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    className="flex-1 min-h-[48px]"
-                    onClick={startEditing}
-                    disabled={loading}
-                  >
-                    <Pencil className="w-4 h-4 mr-2" />
-                    Edit
-                  </Button>
-                  <Button 
-                    variant="destructive"
-                    className="flex-1 min-h-[48px]"
-                    onClick={handleDelete}
-                    disabled={loading}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Delete
-                  </Button>
-                </div>
+                <Button 
+                  variant="outline" 
+                  className="w-full min-h-[48px]"
+                  onClick={startEditing}
+                  disabled={loading}
+                >
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
               ) : hasJoined ? (
                 /* Participant actions: Leave */
                 <Button 
@@ -985,6 +978,17 @@ const QuestLobby = ({
                 <Share2 className="w-4 h-4 mr-2" />
                 {quest.is_official ? 'Share Event' : 'Share'}
               </Button>
+
+              {/* Delete link - De-emphasized at the very bottom for hosts only */}
+              {isHost && (
+                <button
+                  onClick={() => setShowDeleteConfirmation(true)}
+                  disabled={loading}
+                  className="w-full text-center text-sm text-destructive hover:underline disabled:opacity-50 pt-2"
+                >
+                  Delete {quest.is_official ? 'Event' : 'Spot'}
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -1077,6 +1081,15 @@ const QuestLobby = ({
           </ScrollArea>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteEventConfirmation
+        open={showDeleteConfirmation}
+        onOpenChange={setShowDeleteConfirmation}
+        onConfirm={handleDelete}
+        isOfficial={quest?.is_official}
+        loading={loading}
+      />
     </>
   );
 };
