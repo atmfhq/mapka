@@ -51,11 +51,9 @@ const ConversationRow = ({
           </div>
         )}
         
-        {/* Unread badge */}
+        {/* Unread dot */}
         {hasUnread && (
-          <div className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
-            {item.unreadCount > 9 ? '9+' : item.unreadCount}
-          </div>
+          <div className="absolute -top-0.5 -right-0.5 z-10 w-3 h-3 rounded-full bg-destructive ring-2 ring-card" />
         )}
       </div>
 
