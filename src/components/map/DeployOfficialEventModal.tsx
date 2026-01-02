@@ -331,7 +331,8 @@ const DeployOfficialEventModal = ({
   };
 
   const handleSubmit = async () => {
-    if (!title || !selectedIcon || !date || !effectiveCoordinates) {
+    // Allow either icon OR cover image for official events
+    if (!title || (!selectedIcon && !coverImageUrl) || !date || !effectiveCoordinates) {
       toast({
         title: "Missing fields",
         description: "Please fill in all required fields.",
@@ -401,10 +402,13 @@ const DeployOfficialEventModal = ({
       finalImageUrl = uploadedUrl;
     }
     
+    // Use a default star emoji if no icon selected but cover image is present
+    const effectiveCategory = selectedIcon || '⭐';
+    
     const eventData = {
       title,
       description: description.trim() || null,
-      category: selectedIcon,
+      category: effectiveCategory,
       start_time: startTime.toISOString(),
       duration_minutes: duration * 60,
       cover_image_url: finalImageUrl,
@@ -538,16 +542,18 @@ const DeployOfficialEventModal = ({
             />
           </div>
 
-          {/* Icon Selection */}
-          <div className="space-y-2">
-            <Label className="font-nunito text-sm font-medium text-foreground">
-              Icon *
-            </Label>
-            <EmojiPicker 
-              value={selectedIcon} 
-              onChange={setSelectedIcon} 
-            />
-          </div>
+          {/* Icon Selection - Hidden when cover image is set */}
+          {!coverImageUrl && (
+            <div className="space-y-2">
+              <Label className="font-nunito text-sm font-medium text-foreground">
+                Icon *
+              </Label>
+              <EmojiPicker 
+                value={selectedIcon} 
+                onChange={setSelectedIcon} 
+              />
+            </div>
+          )}
 
           {/* Organizer Display Name */}
           <div className="space-y-2">
@@ -698,7 +704,7 @@ const DeployOfficialEventModal = ({
           {/* Submit */}
           <Button 
             onClick={handleSubmit}
-            disabled={loading || !selectedIcon || isOutOfRange}
+            disabled={loading || (!selectedIcon && !coverImageUrl) || isOutOfRange}
             className={cn(
               "w-full min-h-[52px] bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white",
               isOutOfRange && "bg-muted text-muted-foreground cursor-not-allowed from-muted to-muted"

@@ -111,13 +111,14 @@ const ImageCropper = ({
           </p>
         </DialogHeader>
 
-        {/* Cropper container */}
-        <div className="relative w-full h-64 bg-black/90">
+        {/* Cropper container - height adjusted for 4:3 aspect ratio */}
+        <div className="relative w-full h-72 bg-black/90">
           <Cropper
             image={imageSrc}
             crop={crop}
             zoom={zoom}
             aspect={aspectRatio}
+            objectFit="contain"
             onCropChange={setCrop}
             onZoomChange={setZoom}
             onCropComplete={onCropAreaChange}
