@@ -294,7 +294,7 @@ const ChatDrawer = ({
     >
       <MessageCircle className="w-5 h-5" />
       {totalBadgeCount > 0 && (
-        <span className={`absolute top-1 right-1 w-5 h-5 rounded-full text-xs font-bold flex items-center justify-center ${
+        <span className={`absolute -top-1 -right-1 z-10 min-w-[20px] h-5 px-1 rounded-full text-xs font-bold flex items-center justify-center ${
           pendingCount > 0 
             ? 'bg-warning text-warning-foreground animate-pulse' 
             : 'bg-destructive text-destructive-foreground'
