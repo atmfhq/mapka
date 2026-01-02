@@ -1652,6 +1652,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       const categoryColor = getCategoryColor(quest.category);
       const isMyQuest = quest.host_id === currentUserId || joinedQuestIds.has(quest.id);
       const isOfficial = quest.is_official === true;
+      const hasCoverImage = isOfficial && quest.cover_image_url;
       
       const now = Date.now();
       const startTime = new Date(quest.start_time).getTime();
@@ -1666,27 +1667,60 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       el.style.alignItems = 'center';
 
       const container = document.createElement('div');
-      container.className = `quest-container marker-pop-in ${isOfficial ? 'official-container' : ''}`;
+      container.className = `quest-container marker-pop-in ${isOfficial ? 'official-container' : ''} ${hasCoverImage ? 'official-image-container' : ''}`;
       container.style.setProperty('--category-color', categoryColor);
       
       const randomDelay = Math.floor(Math.random() * 400);
       container.style.animationDelay = `${randomDelay}ms`;
 
-      // Official events get a special golden pulse
-      if (isOfficial) {
+      // Official events with cover image use the image as marker
+      if (hasCoverImage) {
+        const imageWrapper = document.createElement('div');
+        imageWrapper.className = 'official-image-marker';
+        
+        const img = document.createElement('img');
+        img.src = quest.cover_image_url!;
+        img.alt = quest.title;
+        img.className = 'official-image';
+        img.onerror = () => {
+          // Fallback to star icon if image fails
+          imageWrapper.innerHTML = '';
+          const fallbackIcon = document.createElement('div');
+          fallbackIcon.className = 'official-icon fallback';
+          fallbackIcon.textContent = '⭐';
+          imageWrapper.appendChild(fallbackIcon);
+        };
+        
+        imageWrapper.appendChild(img);
+        container.appendChild(imageWrapper);
+        
+        // Add golden pulse around image
+        const officialPulse = document.createElement('div');
+        officialPulse.className = 'official-image-pulse';
+        container.appendChild(officialPulse);
+      } else if (isOfficial) {
+        // Official without image - use star icon
         const officialPulse = document.createElement('div');
         officialPulse.className = 'official-pulse';
         container.appendChild(officialPulse);
-      } else if (isLiveNow) {
-        const pulse = document.createElement('div');
-        pulse.className = 'live-pulse';
-        container.appendChild(pulse);
-      }
+        
+        const iconDiv = document.createElement('div');
+        iconDiv.className = `quest-icon official-icon`;
+        iconDiv.textContent = '⭐';
+        container.appendChild(iconDiv);
+      } else {
+        // Regular quest
+        if (isLiveNow) {
+          const pulse = document.createElement('div');
+          pulse.className = 'live-pulse';
+          container.appendChild(pulse);
+        }
 
-      const iconDiv = document.createElement('div');
-      iconDiv.className = `quest-icon ${isMyQuest ? 'my-quest-icon' : ''} ${isLiveNow ? 'live-icon' : ''} ${isOfficial ? 'official-icon' : ''}`;
-      iconDiv.textContent = isOfficial ? '⭐' : activityIcon; // Star icon for official events
-      container.appendChild(iconDiv);
+        const iconDiv = document.createElement('div');
+        iconDiv.className = `quest-icon ${isMyQuest ? 'my-quest-icon' : ''} ${isLiveNow ? 'live-icon' : ''}`;
+        iconDiv.textContent = activityIcon;
+        container.appendChild(iconDiv);
+      }
 
       el.appendChild(container);
 
@@ -2090,6 +2124,51 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         .quest-marker.official-event:hover .official-icon {
           transform: scale(1.1);
           box-shadow: 0 0 30px hsl(45, 100%, 50% / 0.8), 0 6px 16px rgba(0, 0, 0, 0.35) !important;
+        }
+        /* Official event with cover image - square marker */
+        .official-image-container {
+          width: 72px;
+          height: 72px;
+        }
+        .official-image-marker {
+          width: 72px;
+          height: 72px;
+          border-radius: 12px;
+          overflow: hidden;
+          background: linear-gradient(135deg, hsl(45, 100%, 50%), hsl(35, 100%, 45%));
+          border: 3px solid hsl(45, 100%, 60%);
+          box-shadow: 0 0 24px hsl(45, 100%, 50% / 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
+          position: relative;
+          z-index: 1;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .official-image {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+        }
+        .official-image-marker .fallback {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 28px;
+        }
+        .official-image-pulse {
+          position: absolute;
+          inset: -6px;
+          border-radius: 16px;
+          background: transparent;
+          border: 2px solid hsl(45, 100%, 55%);
+          box-shadow: 0 0 25px hsl(45, 100%, 50% / 0.7), 0 0 50px hsl(45, 100%, 50% / 0.4);
+          animation: official-pulse-glow 2.5s ease-in-out infinite;
+          z-index: 0;
+        }
+        .quest-marker.official-event:hover .official-image-marker {
+          transform: scale(1.08);
+          box-shadow: 0 0 32px hsl(45, 100%, 50% / 0.8), 0 6px 16px rgba(0, 0, 0, 0.5);
         }
         .official-title {
           background: linear-gradient(135deg, hsl(45, 100%, 50%), hsl(35, 100%, 45%)) !important;

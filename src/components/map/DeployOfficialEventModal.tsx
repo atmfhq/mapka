@@ -1,6 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { format, startOfDay, isToday } from 'date-fns';
-import { CalendarIcon, Clock, MapPin, AlertTriangle, Crown, Link as LinkIcon, Building2, MapPinned, Image } from 'lucide-react';
+import { CalendarIcon, Clock, MapPin, AlertTriangle, Crown, Link as LinkIcon, Building2, MapPinned, Image, Upload } from 'lucide-react';
+import ImageCropper from '@/components/ui/ImageCropper';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +49,129 @@ const calculateDistanceMeters = (
 };
 
 const MAX_RANGE_METERS = 50000; // 50km range for official events (admins get extended range)
+
+// Cover Image Uploader Component with square cropping
+const CoverImageUploader = ({ 
+  coverImageUrl, 
+  onImageChange 
+}: { 
+  coverImageUrl: string; 
+  onImageChange: (url: string) => void;
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [tempImageSrc, setTempImageSrc] = useState<string | null>(null);
+  const [cropperOpen, setCropperOpen] = useState(false);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      return;
+    }
+
+    // Create data URL for cropping
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setTempImageSrc(event.target?.result as string);
+      setCropperOpen(true);
+    };
+    reader.readAsDataURL(file);
+
+    // Reset input so same file can be selected again
+    e.target.value = '';
+  };
+
+  const handleCropComplete = (croppedImageUrl: string) => {
+    onImageChange(croppedImageUrl);
+    setTempImageSrc(null);
+  };
+
+  const handleRemoveImage = () => {
+    onImageChange('');
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className="font-nunito text-sm font-medium text-foreground flex items-center gap-1">
+        <Image className="w-3 h-3" /> Cover Image (Square)
+      </Label>
+      
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
+
+      {coverImageUrl ? (
+        <div className="relative">
+          <div className="w-full aspect-square rounded-xl overflow-hidden border-2 border-border bg-muted/50">
+            <img 
+              src={coverImageUrl} 
+              alt="Cover preview" 
+              className="w-full h-full object-cover"
+            />
+          </div>
+          <div className="absolute top-2 right-2 flex gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              onClick={() => fileInputRef.current?.click()}
+              className="h-8 px-2 bg-background/80 backdrop-blur-sm"
+            >
+              <Upload className="w-3 h-3 mr-1" />
+              Replace
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="destructive"
+              onClick={handleRemoveImage}
+              className="h-8 px-2"
+            >
+              Remove
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => fileInputRef.current?.click()}
+          className="w-full h-32 border-2 border-dashed border-border hover:border-primary flex flex-col items-center justify-center gap-2 bg-muted/30"
+        >
+          <div className="w-12 h-12 rounded-xl bg-muted/50 flex items-center justify-center">
+            <Upload className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <span className="text-sm text-muted-foreground">Click to upload image</span>
+          <span className="text-xs text-muted-foreground/60">Will be cropped to 1:1 square</span>
+        </Button>
+      )}
+      
+      <p className="text-[10px] text-muted-foreground">
+        Image will be displayed on the map marker and event details
+      </p>
+
+      {/* Image Cropper Modal */}
+      {tempImageSrc && (
+        <ImageCropper
+          open={cropperOpen}
+          onOpenChange={(open) => {
+            setCropperOpen(open);
+            if (!open) setTempImageSrc(null);
+          }}
+          imageSrc={tempImageSrc}
+          onCropComplete={handleCropComplete}
+          aspectRatio={1}
+        />
+      )}
+    </div>
+  );
+};
 
 interface Quest {
   id: string;
@@ -399,30 +523,11 @@ const DeployOfficialEventModal = ({
             </p>
           </div>
 
-          {/* Cover Image URL */}
-          <div className="space-y-2">
-            <Label className="font-nunito text-sm font-medium text-foreground flex items-center gap-1">
-              <Image className="w-3 h-3" /> Cover Image URL
-            </Label>
-            <Input
-              placeholder="https://example.com/event-banner.jpg"
-              value={coverImageUrl}
-              onChange={(e) => setCoverImageUrl(e.target.value)}
-              className="bg-muted/50 border-2 border-border focus:border-primary rounded-xl"
-            />
-            {coverImageUrl && coverImageUrl.match(/^https?:\/\/.+/) && (
-              <div className="rounded-lg overflow-hidden border border-border">
-                <img 
-                  src={coverImageUrl} 
-                  alt="Cover preview" 
-                  className="w-full h-32 object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = 'none';
-                  }}
-                />
-              </div>
-            )}
-          </div>
+          {/* Cover Image Upload with Cropping */}
+          <CoverImageUploader 
+            coverImageUrl={coverImageUrl}
+            onImageChange={setCoverImageUrl}
+          />
 
           {/* Date and Time Row */}
           <div className="grid grid-cols-2 gap-3">
