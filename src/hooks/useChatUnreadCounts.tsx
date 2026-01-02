@@ -137,8 +137,9 @@ export const useChatUnreadCounts = (
   useEffect(() => {
     if (!currentUserId) return;
 
+    const channelName = `unread-events-${currentUserId}-${Date.now()}`;
     const channel = supabase
-      .channel('chat-unread-events-binary')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -147,6 +148,7 @@ export const useChatUnreadCounts = (
           table: 'event_chat_messages',
         },
         (payload) => {
+          console.log('[Realtime] New event message:', payload.new);
           if (payload.new.user_id !== currentUserId) {
             const eventId = payload.new.event_id;
             // Only show red dot if: we track this event, it's not currently open, not muted
@@ -155,12 +157,15 @@ export const useChatUnreadCounts = (
               activeEventChatRef.current !== eventId &&
               !mutedEventIdsRef.current.has(eventId)
             ) {
+              console.log('[Realtime] Setting unread for event:', eventId);
               setHasUnreadEvents(prev => ({ ...prev, [eventId]: true }));
             }
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Realtime] Event messages channel status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -171,8 +176,9 @@ export const useChatUnreadCounts = (
   useEffect(() => {
     if (!currentUserId) return;
 
+    const channelName = `unread-dms-${currentUserId}-${Date.now()}`;
     const channel = supabase
-      .channel('chat-unread-dms-binary')
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
@@ -181,6 +187,7 @@ export const useChatUnreadCounts = (
           table: 'direct_messages',
         },
         (payload) => {
+          console.log('[Realtime] New DM:', payload.new);
           if (payload.new.sender_id !== currentUserId) {
             const invitationId = payload.new.invitation_id;
             // Only show red dot if: not currently viewing this chat, not muted
@@ -188,12 +195,15 @@ export const useChatUnreadCounts = (
               activeDmChatRef.current !== invitationId &&
               !mutedInvitationIdsRef.current.has(invitationId)
             ) {
+              console.log('[Realtime] Setting unread for DM:', invitationId);
               setHasUnreadDms(prev => ({ ...prev, [invitationId]: true }));
             }
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[Realtime] DM channel status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
