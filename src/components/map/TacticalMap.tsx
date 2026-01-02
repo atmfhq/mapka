@@ -1694,15 +1694,20 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         imageWrapper.appendChild(img);
         container.appendChild(imageWrapper);
         
-        // Add golden pulse around image
-        const officialPulse = document.createElement('div');
-        officialPulse.className = 'official-image-pulse';
-        container.appendChild(officialPulse);
+        // Add golden pulse around image ONLY if event is live now
+        if (isLiveNow) {
+          const officialPulse = document.createElement('div');
+          officialPulse.className = 'official-image-pulse';
+          container.appendChild(officialPulse);
+        }
       } else if (isOfficial) {
         // Official without image - use star icon
-        const officialPulse = document.createElement('div');
-        officialPulse.className = 'official-pulse';
-        container.appendChild(officialPulse);
+        // Add pulse ONLY if event is live now
+        if (isLiveNow) {
+          const officialPulse = document.createElement('div');
+          officialPulse.className = 'official-pulse';
+          container.appendChild(officialPulse);
+        }
         
         const iconDiv = document.createElement('div');
         iconDiv.className = `quest-icon official-icon`;
