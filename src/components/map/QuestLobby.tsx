@@ -623,7 +623,7 @@ const QuestLobby = ({
                 <Button
                   variant="secondary"
                   size="icon"
-                  className="absolute top-3 right-3 w-9 h-9 bg-background/80 backdrop-blur-sm hover:bg-background/90 rounded-full shadow-lg"
+                  className="absolute top-3 right-3 w-9 h-9 bg-white hover:bg-white/90 text-foreground rounded-full shadow-lg"
                   onClick={async (e) => {
                     e.stopPropagation();
                     const shareUrl = `${window.location.origin}/m/${quest.share_code}`;
