@@ -70,6 +70,13 @@ interface Quest {
   host_id: string;
   is_private?: boolean;
   share_code?: string;
+  // Official event fields
+  is_official?: boolean;
+  cover_image_url?: string | null;
+  organizer_display_name?: string | null;
+  external_link?: string | null;
+  location_details?: string | null;
+  description?: string | null;
 }
 
 export interface ViewportBounds {
@@ -1643,6 +1650,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       const activityIcon = getActivityIcon(quest.category);
       const categoryColor = getCategoryColor(quest.category);
       const isMyQuest = quest.host_id === currentUserId || joinedQuestIds.has(quest.id);
+      const isOfficial = quest.is_official === true;
       
       const now = Date.now();
       const startTime = new Date(quest.start_time).getTime();
@@ -1650,35 +1658,40 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       const isLiveNow = startTime <= now && endTime >= now;
 
       const el = document.createElement('div');
-      el.className = `quest-marker ${isMyQuest ? 'my-quest' : ''} ${isLiveNow ? 'live-now' : ''}`;
-      el.style.zIndex = '20';
+      el.className = `quest-marker ${isMyQuest ? 'my-quest' : ''} ${isLiveNow ? 'live-now' : ''} ${isOfficial ? 'official-event' : ''}`;
+      el.style.zIndex = isOfficial ? '25' : '20'; // Official events slightly higher
       el.style.display = 'flex';
       el.style.flexDirection = 'column';
       el.style.alignItems = 'center';
 
       const container = document.createElement('div');
-      container.className = 'quest-container marker-pop-in';
+      container.className = `quest-container marker-pop-in ${isOfficial ? 'official-container' : ''}`;
       container.style.setProperty('--category-color', categoryColor);
       
       const randomDelay = Math.floor(Math.random() * 400);
       container.style.animationDelay = `${randomDelay}ms`;
 
-      if (isLiveNow) {
+      // Official events get a special golden pulse
+      if (isOfficial) {
+        const officialPulse = document.createElement('div');
+        officialPulse.className = 'official-pulse';
+        container.appendChild(officialPulse);
+      } else if (isLiveNow) {
         const pulse = document.createElement('div');
         pulse.className = 'live-pulse';
         container.appendChild(pulse);
       }
 
       const iconDiv = document.createElement('div');
-      iconDiv.className = `quest-icon ${isMyQuest ? 'my-quest-icon' : ''} ${isLiveNow ? 'live-icon' : ''}`;
-      iconDiv.textContent = activityIcon;
+      iconDiv.className = `quest-icon ${isMyQuest ? 'my-quest-icon' : ''} ${isLiveNow ? 'live-icon' : ''} ${isOfficial ? 'official-icon' : ''}`;
+      iconDiv.textContent = isOfficial ? '⭐' : activityIcon; // Star icon for official events
       container.appendChild(iconDiv);
 
       el.appendChild(container);
 
-      // Add title label below the icon
+      // Add title label below the icon - official events get special styling
       const titleLabel = document.createElement('div');
-      titleLabel.className = 'quest-title-label';
+      titleLabel.className = `quest-title-label ${isOfficial ? 'official-title' : ''}`;
       titleLabel.textContent = quest.title.length > 18 ? quest.title.substring(0, 18) + '...' : quest.title;
       el.appendChild(titleLabel);
 
@@ -2036,6 +2049,53 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         }
         .quest-marker:active .quest-icon {
           transform: scale(1.04);
+        }
+        /* Official Event Styles */
+        .official-container {
+          width: 68px;
+          height: 68px;
+        }
+        .official-icon {
+          width: 68px !important;
+          height: 68px !important;
+          border-radius: 18px !important;
+          background: linear-gradient(135deg, hsl(45, 100%, 50%), hsl(35, 100%, 45%)) !important;
+          border: 3px solid hsl(45, 100%, 60%) !important;
+          box-shadow: 0 0 24px hsl(45, 100%, 50% / 0.6), 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+          font-size: 32px !important;
+        }
+        .official-pulse {
+          position: absolute;
+          inset: -8px;
+          border-radius: 22px;
+          background: transparent;
+          border: 2px solid hsl(45, 100%, 55%);
+          box-shadow: 0 0 25px hsl(45, 100%, 50% / 0.7), 0 0 50px hsl(45, 100%, 50% / 0.4);
+          animation: official-pulse-glow 2.5s ease-in-out infinite;
+          z-index: 0;
+        }
+        @keyframes official-pulse-glow {
+          0%, 100% {
+            opacity: 0.7;
+            transform: scale(1);
+            box-shadow: 0 0 25px hsl(45, 100%, 50% / 0.7), 0 0 50px hsl(45, 100%, 50% / 0.4);
+          }
+          50% {
+            opacity: 1;
+            transform: scale(1.08);
+            box-shadow: 0 0 35px hsl(45, 100%, 50% / 0.9), 0 0 70px hsl(45, 100%, 50% / 0.5);
+          }
+        }
+        .quest-marker.official-event:hover .official-icon {
+          transform: scale(1.1);
+          box-shadow: 0 0 30px hsl(45, 100%, 50% / 0.8), 0 6px 16px rgba(0, 0, 0, 0.35) !important;
+        }
+        .official-title {
+          background: linear-gradient(135deg, hsl(45, 100%, 50%), hsl(35, 100%, 45%)) !important;
+          color: hsl(0, 0%, 10%) !important;
+          font-weight: 700 !important;
+          border: 1px solid hsl(45, 100%, 60%) !important;
+          max-width: 120px !important;
         }
         /* Quest title label */
         .quest-title-label {

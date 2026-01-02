@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, isToday } from 'date-fns';
-import { Clock, Users, Trash2, UserPlus, X, Lock, Pencil, Save, CalendarIcon, LogIn, Hourglass, LogOut, Share2 } from 'lucide-react';
+import { Clock, Users, Trash2, UserPlus, X, Lock, Pencil, Save, CalendarIcon, LogIn, Hourglass, LogOut, Share2, ExternalLink, MapPin, Crown, Star } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +35,12 @@ interface Quest {
   host_id: string;
   is_private?: boolean;
   share_code?: string;
+  // Official event fields
+  is_official?: boolean;
+  cover_image_url?: string | null;
+  organizer_display_name?: string | null;
+  external_link?: string | null;
+  location_details?: string | null;
 }
 
 interface AvatarConfig {
@@ -593,19 +599,52 @@ const QuestLobby = ({
         ) : (
           /* Details View - Optimized Layout */
           <div className="flex flex-col flex-1 overflow-y-auto">
+            {/* Cover Image for Official Events */}
+            {quest.is_official && quest.cover_image_url && (
+              <div className="relative w-full h-40 shrink-0">
+                <img 
+                  src={quest.cover_image_url} 
+                  alt={quest.title}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-card to-transparent" />
+                <Badge 
+                  variant="outline" 
+                  className="absolute top-3 left-3 bg-gradient-to-r from-amber-500 to-yellow-400 text-black border-amber-400 font-bold"
+                >
+                  <Star className="w-3 h-3 mr-1 fill-current" />
+                  Official Event
+                </Badge>
+              </div>
+            )}
+            
             {/* Header with close button */}
             <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/40 flex items-center justify-center">
-                  {isEmoji(quest.category) ? (
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                  quest.is_official 
+                    ? 'bg-gradient-to-br from-amber-500 to-yellow-400' 
+                    : 'bg-primary/20 border border-primary/40'
+                }`}>
+                  {quest.is_official ? (
+                    <Star className="w-5 h-5 text-black fill-current" />
+                  ) : isEmoji(quest.category) ? (
                     <span className="text-lg">{quest.category}</span>
                   ) : (
                     <Users className="w-5 h-5 text-primary" />
                   )}
                 </div>
                 <div>
-                  <h3 className="font-nunito font-bold text-foreground">Spot</h3>
+                  <h3 className="font-nunito font-bold text-foreground">
+                    {quest.is_official ? 'Official Event' : 'Spot'}
+                  </h3>
                   <div className="flex items-center gap-2">
+                    {quest.is_official && !quest.cover_image_url && (
+                      <Badge variant="outline" className="bg-gradient-to-r from-amber-500/20 to-yellow-400/20 text-amber-500 border-amber-400/40 text-[10px] px-1.5 py-0">
+                        <Star className="w-2.5 h-2.5 mr-0.5 fill-current" />
+                        Official
+                      </Badge>
+                    )}
                     {quest.is_private && (
                       <Badge variant="outline" className="bg-warning/20 text-warning border-warning/40 text-[10px] px-1.5 py-0">
                         <Lock className="w-2.5 h-2.5 mr-0.5" />
@@ -645,35 +684,69 @@ const QuestLobby = ({
                 {quest.title}
               </h2>
 
+              {/* Location Details for Official Events */}
+              {quest.is_official && quest.location_details && (
+                <div className="flex items-start gap-2 mb-4 p-3 bg-muted/50 rounded-xl border border-border/50">
+                  <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 shrink-0" />
+                  <span className="text-sm text-muted-foreground">{quest.location_details}</span>
+                </div>
+              )}
+
+              {/* External Link CTA for Official Events */}
+              {quest.is_official && quest.external_link && (
+                <a 
+                  href={quest.external_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full mb-4 py-3 px-4 bg-gradient-to-r from-amber-500 to-yellow-400 text-black font-bold rounded-xl hover:from-amber-600 hover:to-yellow-500 transition-all shadow-lg hover:shadow-xl"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Visit Website
+                </a>
+              )}
+
             {/* 2. PARTICIPANTS - Avatars (organizer first, no clipping) */}
             <div className="mt-4 px-1">
               <div className="flex items-center gap-1 overflow-visible">
-                {/* Organizer avatar - always first with crown indicator */}
-                <button
-                  onClick={() => {
-                    if (host) {
-                      handleViewProfileInModal(host);
-                    }
-                  }}
-                  className="flex flex-col items-center gap-1 p-1.5 rounded-xl hover:bg-primary/10 transition-colors flex-shrink-0"
-                >
-                  <div className="relative">
-                    <div className="w-12 h-12">
-                      <AvatarDisplay 
-                        config={host?.avatar_config} 
-                        size={48} 
-                        showGlow={false}
-                      />
+                {/* Organizer - show display name for official events, avatar for regular */}
+                {quest.is_official && quest.organizer_display_name ? (
+                  // Official Event: Show organizer display name badge
+                  <div className="flex flex-col items-center gap-1 p-1.5 flex-shrink-0">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-400 flex items-center justify-center">
+                      <Crown className="w-6 h-6 text-black" />
                     </div>
-                    {/* Crown indicator for host */}
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-warning rounded-full flex items-center justify-center border-2 border-card">
-                      <span className="text-[10px]">👑</span>
-                    </div>
+                    <span className="text-[10px] font-bold text-amber-500 truncate max-w-[64px]">
+                      {quest.organizer_display_name}
+                    </span>
                   </div>
-                  <span className="text-[10px] font-medium text-warning truncate max-w-[52px]">
-                    {host?.nick || 'Host'}
-                  </span>
-                </button>
+                ) : (
+                  // Regular Spot: Show host avatar with crown indicator
+                  <button
+                    onClick={() => {
+                      if (host) {
+                        handleViewProfileInModal(host);
+                      }
+                    }}
+                    className="flex flex-col items-center gap-1 p-1.5 rounded-xl hover:bg-primary/10 transition-colors flex-shrink-0"
+                  >
+                    <div className="relative">
+                      <div className="w-12 h-12">
+                        <AvatarDisplay 
+                          config={host?.avatar_config} 
+                          size={48} 
+                          showGlow={false}
+                        />
+                      </div>
+                      {/* Crown indicator for host */}
+                      <div className="absolute -top-1 -right-1 w-5 h-5 bg-warning rounded-full flex items-center justify-center border-2 border-card">
+                        <span className="text-[10px]">👑</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-medium text-warning truncate max-w-[52px]">
+                      {host?.nick || 'Host'}
+                    </span>
+                  </button>
+                )}
 
                 {/* Participant avatars - filtered to exclude host */}
                 {filteredParticipants.slice(0, MAX_VISIBLE_AVATARS).map((p) => (
