@@ -977,7 +977,22 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   // Live map movement/reactions are handled via Broadcast + secure RPC re-fetch (useProfilesRealtime).
 
   // Store initial coords in a ref to avoid re-creating map
-  const initialCoordsRef = useRef({ lat: userLat, lng: userLng });
+  // Check localStorage for pending spawn location (from auth flow) for seamless experience
+  const initialCoordsRef = useRef((() => {
+    const storedCoords = localStorage.getItem('mapka_spawn_coords');
+    if (storedCoords) {
+      try {
+        const parsed = JSON.parse(storedCoords);
+        if (parsed?.lat && parsed?.lng) {
+          console.log('[Map] Using spawn coords from localStorage:', parsed);
+          return { lat: parsed.lat, lng: parsed.lng };
+        }
+      } catch (e) {
+        console.error('[Map] Failed to parse spawn coords:', e);
+      }
+    }
+    return { lat: userLat, lng: userLng };
+  })());
   const isGuestRef = useRef(isGuest);
   
   // Keep isGuest ref in sync for use in click handler
