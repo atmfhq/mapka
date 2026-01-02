@@ -775,14 +775,21 @@ export type Database = {
         Args: { p_lat: number; p_lng: number; p_radius_meters?: number }
         Returns: {
           category: string
+          cover_image_url: string
           created_at: string
+          description: string
           duration_minutes: number
+          external_link: string
           host_id: string
           id: string
+          is_official: boolean
           is_private: boolean
           lat: number
           lng: number
+          location_details: string
           max_participants: number
+          organizer_display_name: string
+          share_code: string
           start_time: string
           title: string
         }[]

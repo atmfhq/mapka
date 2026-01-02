@@ -2125,14 +2125,14 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           transform: scale(1.1);
           box-shadow: 0 0 30px hsl(45, 100%, 50% / 0.8), 0 6px 16px rgba(0, 0, 0, 0.35) !important;
         }
-        /* Official event with cover image - square marker */
+        /* Official event with cover image - 4:3 portrait marker */
         .official-image-container {
           width: 72px;
-          height: 72px;
+          height: 96px;
         }
         .official-image-marker {
           width: 72px;
-          height: 72px;
+          height: 96px;
           border-radius: 12px;
           overflow: hidden;
           background: linear-gradient(135deg, hsl(45, 100%, 50%), hsl(35, 100%, 45%));
