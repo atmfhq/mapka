@@ -281,7 +281,8 @@ const ChatDrawer = ({
     refetchPending();
   };
 
-  const totalBadgeCount = pendingCount + getTotalUnreadCount();
+  const hasUnread = getTotalUnreadCount() > 0;
+  const showRedDot = pendingCount > 0 || hasUnread;
   const isLoading = loading || loadingConversations;
 
   // Trigger button (always rendered)
@@ -293,14 +294,12 @@ const ChatDrawer = ({
       onClick={() => setInternalOpen(true)}
     >
       <MessageCircle className="w-5 h-5" />
-      {totalBadgeCount > 0 && (
-        <span className={`absolute -top-1 -right-1 z-10 min-w-[20px] h-5 px-1 rounded-full text-xs font-bold flex items-center justify-center ${
+      {showRedDot && (
+        <span className={`absolute -top-0.5 -right-0.5 z-10 w-3 h-3 rounded-full ${
           pendingCount > 0 
-            ? 'bg-warning text-warning-foreground animate-pulse' 
-            : 'bg-destructive text-destructive-foreground'
-        }`}>
-          {totalBadgeCount > 99 ? '99+' : totalBadgeCount}
-        </span>
+            ? 'bg-warning animate-pulse' 
+            : 'bg-destructive'
+        }`} />
       )}
     </Button>
   );
