@@ -419,7 +419,7 @@ const QuestLobby = ({
     <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center" style={{ isolation: 'isolate' }}>
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-transparent"
         onClick={handleClose}
       />
 

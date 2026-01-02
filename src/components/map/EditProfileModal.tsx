@@ -158,7 +158,7 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
     <div className="fixed inset-0 z-[9999] flex items-center justify-center md:p-4" style={{ isolation: 'isolate' }}>
       {/* Backdrop - hidden on mobile since full-screen */}
       <div 
-        className="absolute inset-0 bg-background/80 backdrop-blur-sm hidden md:block"
+        className="absolute inset-0 bg-transparent hidden md:block"
         onClick={() => onOpenChange(false)}
       />
       

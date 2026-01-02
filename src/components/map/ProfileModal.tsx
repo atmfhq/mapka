@@ -87,9 +87,9 @@ const ProfileModal = ({
 
   const modalContent = (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4" style={{ isolation: 'isolate' }}>
-      {/* Backdrop - Light blue overlay matching design system */}
+      {/* Backdrop - transparent */}
       <div
-        className="absolute inset-0 bg-background/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-transparent"
         onClick={handleClose}
       />
 

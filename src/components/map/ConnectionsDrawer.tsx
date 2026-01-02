@@ -135,7 +135,7 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
     <div className="fixed inset-0 z-[9999] flex items-end md:items-center justify-center" style={{ isolation: 'isolate' }}>
       {/* Backdrop - hidden on mobile since full-screen */}
       <div
-        className="absolute inset-0 bg-background/80 backdrop-blur-sm hidden md:block"
+        className="absolute inset-0 bg-transparent hidden md:block"
         onClick={handleClose}
       />
 
