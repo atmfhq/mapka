@@ -20,6 +20,7 @@ import { useSpotBans } from '@/hooks/useSpotBans';
 import { useSpotComments, useSpotCommentLikes } from '@/hooks/useSpotComments';
 import EntityComments from '@/components/map/EntityComments';
 import EmojiPicker from '@/components/ui/EmojiPicker';
+import ProfileModal from './ProfileModal';
 
 interface Quest {
   id: string;
@@ -112,6 +113,10 @@ const QuestLobby = ({
   const [hasJoined, setHasJoined] = useState(false);
   const [showAllParticipants, setShowAllParticipants] = useState(false);
   
+  // Profile modal state - for viewing profiles on top of this modal
+  const [selectedProfileForModal, setSelectedProfileForModal] = useState<Profile | null>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  
   // Spot bans hook - only used for checking ban status on join
   const { checkIfBanned } = useSpotBans(
     quest?.id || null,
@@ -135,6 +140,12 @@ const QuestLobby = ({
   const MAX_VISIBLE_AVATARS = 5;
   const isGuest = !currentUserId;
   const isHost = quest?.host_id === currentUserId;
+
+  // Handle viewing a profile - opens modal on top without closing quest lobby
+  const handleViewProfileInModal = (profile: Profile) => {
+    setSelectedProfileForModal(profile);
+    setProfileModalOpen(true);
+  };
 
   // Filter out host from participants to avoid duplication
   const filteredParticipants = useMemo(() => {
@@ -623,18 +634,7 @@ const QuestLobby = ({
                 <button
                   onClick={() => {
                     if (host) {
-                      // Check if host is in viewport
-                      if (isUserInViewport && host.location_lat && host.location_lng) {
-                        if (!isUserInViewport(host.location_lat, host.location_lng)) {
-                          toast({
-                            title: "User not visible",
-                            description: "User is currently not visible in this area.",
-                          });
-                          return;
-                        }
-                      }
-                      onOpenChange(false);
-                      onViewUserProfile?.(host);
+                      handleViewProfileInModal(host);
                     }
                   }}
                   className="flex flex-col items-center gap-1 p-1.5 rounded-xl hover:bg-primary/10 transition-colors flex-shrink-0"
@@ -663,18 +663,7 @@ const QuestLobby = ({
                     key={p.id}
                     onClick={() => {
                       if (p.profile) {
-                        // Check if participant is in viewport
-                        if (isUserInViewport && p.profile.location_lat && p.profile.location_lng) {
-                          if (!isUserInViewport(p.profile.location_lat, p.profile.location_lng)) {
-                            toast({
-                              title: "User not visible",
-                              description: "User is currently not visible in this area.",
-                            });
-                            return;
-                          }
-                        }
-                        onOpenChange(false);
-                        onViewUserProfile?.(p.profile);
+                        handleViewProfileInModal(p.profile);
                       }
                     }}
                     className="flex flex-col items-center gap-1 p-1.5 rounded-xl hover:bg-primary/10 transition-colors flex-shrink-0"
@@ -777,6 +766,7 @@ const QuestLobby = ({
                 onDeleteComment={deleteComment}
                 getLikes={getCommentLikes}
                 toggleLike={toggleCommentLike}
+                onViewUserProfile={handleViewProfileInModal}
               />
             </div>
             </div>
@@ -891,7 +881,22 @@ const QuestLobby = ({
   return (
     <>
       {open && createPortal(modalContent, document.body)}
-
+      
+      {/* Profile Modal - renders on top when viewing a profile */}
+      <ProfileModal
+        open={profileModalOpen}
+        onOpenChange={setProfileModalOpen}
+        user={selectedProfileForModal}
+        currentUserId={currentUserId}
+        isConnected={false}
+        showBackButton={true}
+        onBack={() => setProfileModalOpen(false)}
+        onNavigate={(path) => {
+          setProfileModalOpen(false);
+          onOpenChange(false);
+          navigate(path);
+        }}
+      />
       {/* See All Participants Modal */}
       <Dialog open={showAllParticipants} onOpenChange={setShowAllParticipants}>
         <DialogContent className="bg-card border-primary/30 max-w-md max-h-[80vh] overflow-hidden">
@@ -905,18 +910,8 @@ const QuestLobby = ({
                 <div className="flex items-center gap-3 p-2 rounded-xl hover:bg-primary/10 transition-colors">
                   <button
                     onClick={() => {
-                      if (isUserInViewport && host.location_lat && host.location_lng) {
-                        if (!isUserInViewport(host.location_lat, host.location_lng)) {
-                          toast({
-                            title: "User not visible",
-                            description: "User is currently not visible in this area.",
-                          });
-                          return;
-                        }
-                      }
                       setShowAllParticipants(false);
-                      onOpenChange(false);
-                      onViewUserProfile?.(host);
+                      handleViewProfileInModal(host);
                     }}
                     className="flex items-center gap-3 flex-1"
                   >
@@ -945,18 +940,8 @@ const QuestLobby = ({
                   <button
                     onClick={() => {
                       if (p.profile) {
-                        if (isUserInViewport && p.profile.location_lat && p.profile.location_lng) {
-                          if (!isUserInViewport(p.profile.location_lat, p.profile.location_lng)) {
-                            toast({
-                              title: "User not visible",
-                              description: "User is currently not visible in this area.",
-                            });
-                            return;
-                          }
-                        }
                         setShowAllParticipants(false);
-                        onOpenChange(false);
-                        onViewUserProfile?.(p.profile);
+                        handleViewProfileInModal(p.profile);
                       }
                     }}
                     className="flex items-center gap-3 flex-1"

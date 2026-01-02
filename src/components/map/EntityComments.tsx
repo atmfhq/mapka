@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Heart, Trash2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,6 +12,17 @@ interface AvatarConfig {
   shape?: string;
   eyes?: string;
   mouth?: string;
+}
+
+interface Profile {
+  id: string;
+  nick: string | null;
+  avatar_url: string | null;
+  avatar_config: AvatarConfig | null;
+  tags: string[] | null;
+  bio: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
 }
 
 interface Comment {
@@ -30,6 +41,7 @@ interface EntityCommentsProps {
   onDeleteComment: (commentId: string) => Promise<void>;
   getLikes: (commentId: string) => { count: number; hasLiked: boolean };
   toggleLike: (commentId: string) => void;
+  onViewUserProfile?: (profile: Profile) => void;
 }
 
 const EntityComments = ({
@@ -41,11 +53,12 @@ const EntityComments = ({
   onDeleteComment,
   getLikes,
   toggleLike,
+  onViewUserProfile,
 }: EntityCommentsProps) => {
   const { toast } = useToast();
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [commentProfiles, setCommentProfiles] = useState<Record<string, { nick: string | null; avatar_config: AvatarConfig | null }>>({});
+  const [commentProfiles, setCommentProfiles] = useState<Record<string, Profile>>({});
 
   // Fetch comment author profiles
   useEffect(() => {
@@ -56,11 +69,17 @@ const EntityComments = ({
     const fetchProfiles = async () => {
       const { data } = await supabase.rpc('get_public_profiles_by_ids', { user_ids: uniqueUserIds });
       if (data) {
-        const profilesMap: Record<string, { nick: string | null; avatar_config: AvatarConfig | null }> = {};
+        const profilesMap: Record<string, Profile> = {};
         data.forEach((p: any) => {
           profilesMap[p.id] = {
+            id: p.id,
             nick: p.nick,
+            avatar_url: p.avatar_url,
             avatar_config: p.avatar_config as AvatarConfig,
+            tags: p.tags,
+            bio: p.bio,
+            location_lat: p.location_lat,
+            location_lng: p.location_lng,
           };
         });
         setCommentProfiles(profilesMap);
@@ -100,6 +119,14 @@ const EntityComments = ({
     }
   };
 
+  const handleAvatarClick = (userId: string) => {
+    if (!onViewUserProfile) return;
+    const profile = commentProfiles[userId];
+    if (profile) {
+      onViewUserProfile(profile);
+    }
+  };
+
   return (
     <div className="space-y-3">
       <h4 className="font-nunito font-semibold text-sm text-foreground">
@@ -118,12 +145,31 @@ const EntityComments = ({
 
             return (
               <div key={comment.id} className="flex gap-2">
-                <AvatarDisplay config={profile?.avatar_config || null} size={28} />
+                {/* Clickable avatar */}
+                {onViewUserProfile ? (
+                  <button
+                    onClick={() => handleAvatarClick(comment.user_id)}
+                    className="hover:opacity-80 transition-opacity shrink-0"
+                  >
+                    <AvatarDisplay config={profile?.avatar_config || null} size={28} />
+                  </button>
+                ) : (
+                  <AvatarDisplay config={profile?.avatar_config || null} size={28} />
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-nunito text-xs font-medium text-foreground">
-                      {profile?.nick || 'Anonymous'}
-                    </span>
+                    {onViewUserProfile ? (
+                      <button
+                        onClick={() => handleAvatarClick(comment.user_id)}
+                        className="font-nunito text-xs font-medium text-foreground hover:underline"
+                      >
+                        {profile?.nick || 'Anonymous'}
+                      </button>
+                    ) : (
+                      <span className="font-nunito text-xs font-medium text-foreground">
+                        {profile?.nick || 'Anonymous'}
+                      </span>
+                    )}
                     <span className="text-[10px] text-muted-foreground">
                       {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
                     </span>

@@ -11,12 +11,24 @@ import { useShoutLikes, useShoutCommentLikes } from '@/hooks/useShoutLikes';
 import { useShoutComments, type ShoutComment } from '@/hooks/useShoutComments';
 import { formatDistanceToNow } from 'date-fns';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
+import ProfileModal from './ProfileModal';
 
 interface AvatarConfig {
   skinColor?: string;
   shape?: string;
   eyes?: string;
   mouth?: string;
+}
+
+interface Profile {
+  id: string;
+  nick: string | null;
+  avatar_url: string | null;
+  avatar_config: AvatarConfig | null;
+  tags: string[] | null;
+  bio: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
 }
 
 interface Shout {
@@ -41,8 +53,12 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [authorProfile, setAuthorProfile] = useState<{ nick: string | null; avatar_config: AvatarConfig | null } | null>(null);
-  const [commentProfiles, setCommentProfiles] = useState<Record<string, { nick: string | null; avatar_config: AvatarConfig | null }>>({});
+  const [authorProfile, setAuthorProfile] = useState<Profile | null>(null);
+  const [commentProfiles, setCommentProfiles] = useState<Record<string, Profile>>({});
+  
+  // Profile modal state - for viewing profiles on top of this drawer
+  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   // Handle share functionality
   const handleShare = async () => {
@@ -70,6 +86,39 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
     navigate('/auth');
   };
 
+  // Handle viewing a user profile
+  const handleViewProfile = async (userId: string) => {
+    // Check if we already have this profile
+    if (authorProfile?.id === userId) {
+      setSelectedProfile(authorProfile);
+      setProfileModalOpen(true);
+      return;
+    }
+    
+    if (commentProfiles[userId]) {
+      setSelectedProfile(commentProfiles[userId]);
+      setProfileModalOpen(true);
+      return;
+    }
+    
+    // Fetch the profile if not cached
+    const { data } = await supabase.rpc('get_public_profile', { p_user_id: userId });
+    if (data && data[0]) {
+      const profile: Profile = {
+        id: data[0].id,
+        nick: data[0].nick,
+        avatar_url: data[0].avatar_url,
+        avatar_config: data[0].avatar_config as AvatarConfig,
+        tags: data[0].tags,
+        bio: data[0].bio,
+        location_lat: data[0].location_lat,
+        location_lng: data[0].location_lng,
+      };
+      setSelectedProfile(profile);
+      setProfileModalOpen(true);
+    }
+  };
+
   // Hooks for likes and comments
   const shoutIds = useMemo(() => shout ? [shout.id] : [], [shout?.id]);
   const { getLikes: getShoutLikes, toggleLike: toggleShoutLike } = useShoutLikes(shoutIds, currentUserId);
@@ -86,8 +135,14 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
       const { data } = await supabase.rpc('get_public_profile', { p_user_id: shout.user_id });
       if (data && data[0]) {
         setAuthorProfile({
+          id: data[0].id,
           nick: data[0].nick,
+          avatar_url: data[0].avatar_url,
           avatar_config: data[0].avatar_config as AvatarConfig,
+          tags: data[0].tags,
+          bio: data[0].bio,
+          location_lat: data[0].location_lat,
+          location_lng: data[0].location_lng,
         });
       }
     };
@@ -104,11 +159,17 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
     const fetchProfiles = async () => {
       const { data } = await supabase.rpc('get_public_profiles_by_ids', { user_ids: uniqueUserIds });
       if (data) {
-        const profilesMap: Record<string, { nick: string | null; avatar_config: AvatarConfig | null }> = {};
+        const profilesMap: Record<string, Profile> = {};
         data.forEach((p: any) => {
           profilesMap[p.id] = {
+            id: p.id,
             nick: p.nick,
+            avatar_url: p.avatar_url,
             avatar_config: p.avatar_config as AvatarConfig,
+            tags: p.tags,
+            bio: p.bio,
+            location_lat: p.location_lat,
+            location_lng: p.location_lng,
           };
         });
         setCommentProfiles(profilesMap);
@@ -249,13 +310,16 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
           <div className="p-4 space-y-4">
             {/* Main shout */}
             <div className="space-y-3">
-              {/* Author */}
-              <div className="flex items-center gap-2">
+              {/* Author - clickable */}
+              <button 
+                onClick={() => handleViewProfile(shout.user_id)}
+                className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+              >
                 <AvatarDisplay config={authorProfile?.avatar_config || null} size={32} />
                 <span className="font-nunito text-sm font-medium text-foreground">
                   {authorProfile?.nick || 'Anonymous'}
                 </span>
-              </div>
+              </button>
 
               {/* Content */}
               <p className="text-sm text-foreground leading-relaxed">
@@ -319,12 +383,21 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
 
                     return (
                       <div key={comment.id} className="flex gap-2">
-                        <AvatarDisplay config={profile?.avatar_config || null} size={28} />
+                        {/* Clickable avatar */}
+                        <button
+                          onClick={() => handleViewProfile(comment.user_id)}
+                          className="hover:opacity-80 transition-opacity shrink-0"
+                        >
+                          <AvatarDisplay config={profile?.avatar_config || null} size={28} />
+                        </button>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="font-nunito text-xs font-medium text-foreground">
+                            <button
+                              onClick={() => handleViewProfile(comment.user_id)}
+                              className="font-nunito text-xs font-medium text-foreground hover:underline"
+                            >
                               {profile?.nick || 'Anonymous'}
-                            </span>
+                            </button>
                             <span className="text-[10px] text-muted-foreground">
                               {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
                             </span>
@@ -401,6 +474,22 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
           </div>
         )}
       </div>
+
+      {/* Profile Modal - renders on top when viewing a profile */}
+      <ProfileModal
+        open={profileModalOpen}
+        onOpenChange={setProfileModalOpen}
+        user={selectedProfile}
+        currentUserId={currentUserId}
+        isConnected={false}
+        showBackButton={true}
+        onBack={() => setProfileModalOpen(false)}
+        onNavigate={(path) => {
+          setProfileModalOpen(false);
+          onClose();
+          navigate(path);
+        }}
+      />
     </div>
   );
 
