@@ -61,6 +61,11 @@ interface Quest {
   host_id: string;
   is_private?: boolean;
   is_official?: boolean;
+  description?: string | null;
+  cover_image_url?: string | null;
+  organizer_display_name?: string | null;
+  external_link?: string | null;
+  location_details?: string | null;
 }
 
 interface DeployOfficialEventModalProps {
@@ -71,6 +76,7 @@ interface DeployOfficialEventModalProps {
   userBaseLat: number;
   userBaseLng: number;
   onSuccess: (quest: Quest) => void;
+  editQuest?: Quest | null; // For edit mode
 }
 
 const DeployOfficialEventModal = ({ 
@@ -80,8 +86,10 @@ const DeployOfficialEventModal = ({
   userId,
   userBaseLat,
   userBaseLng,
-  onSuccess 
+  onSuccess,
+  editQuest
 }: DeployOfficialEventModalProps) => {
+  const isEditMode = !!editQuest;
   // Standard fields
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -116,16 +124,54 @@ const DeployOfficialEventModal = ({
     }
   }, [date]);
 
-  // Calculate distance from user's base to clicked coordinates
+  // Pre-fill form when editing
+  useEffect(() => {
+    if (editQuest && open) {
+      const startTime = new Date(editQuest.start_time);
+      setTitle(editQuest.title);
+      setDescription(editQuest.description || '');
+      setSelectedIcon(editQuest.category || '');
+      setDate(startTime);
+      setTime(format(startTime, 'HH:mm'));
+      setDuration(editQuest.duration_minutes / 60);
+      setCoverImageUrl(editQuest.cover_image_url || '');
+      setOrganizerDisplayName(editQuest.organizer_display_name || '');
+      setExternalLink(editQuest.external_link || '');
+      setLocationDetails(editQuest.location_details || '');
+    }
+  }, [editQuest, open]);
+
+  // Reset form when modal closes (only if not editing)
+  useEffect(() => {
+    if (!open && !editQuest) {
+      setTitle('');
+      setDescription('');
+      setSelectedIcon('');
+      setDate(undefined);
+      setTime('18:00');
+      setDuration(2);
+      setCoverImageUrl('');
+      setOrganizerDisplayName('');
+      setExternalLink('');
+      setLocationDetails('');
+    }
+  }, [open, editQuest]);
+
+  // For edit mode, use the quest's coordinates; otherwise use clicked coordinates
+  const effectiveCoordinates = isEditMode 
+    ? { lat: editQuest!.lat, lng: editQuest!.lng } 
+    : coordinates;
+
+  // Calculate distance from user's base to target coordinates
   const distanceToTarget = useMemo(() => {
-    if (!coordinates) return 0;
-    return calculateDistanceMeters(userBaseLat, userBaseLng, coordinates.lat, coordinates.lng);
-  }, [coordinates, userBaseLat, userBaseLng]);
+    if (!effectiveCoordinates) return 0;
+    return calculateDistanceMeters(userBaseLat, userBaseLng, effectiveCoordinates.lat, effectiveCoordinates.lng);
+  }, [effectiveCoordinates, userBaseLat, userBaseLng]);
 
   const isOutOfRange = distanceToTarget > MAX_RANGE_METERS;
 
   const handleSubmit = async () => {
-    if (!title || !selectedIcon || !date || !coordinates) {
+    if (!title || !selectedIcon || !date || !effectiveCoordinates) {
       toast({
         title: "Missing fields",
         description: "Please fill in all required fields.",
@@ -148,7 +194,8 @@ const DeployOfficialEventModal = ({
     const startTime = new Date(date);
     startTime.setHours(hours, minutes, 0, 0);
 
-    if (startTime <= new Date()) {
+    // Only validate future time for new events, not edits
+    if (!isEditMode && startTime <= new Date()) {
       toast({
         title: "Invalid time",
         description: "Event start time must be in the future.",
@@ -188,55 +235,81 @@ const DeployOfficialEventModal = ({
 
     setLoading(true);
     
-    const insertData = {
+    const eventData = {
       title,
       description: description.trim() || null,
       category: selectedIcon,
       start_time: startTime.toISOString(),
       duration_minutes: duration * 60,
-      lat: coordinates.lat,
-      lng: coordinates.lng,
-      host_id: userId,
-      is_official: true,
       cover_image_url: coverImageUrl.trim() || null,
       organizer_display_name: organizerDisplayName.trim() || null,
       external_link: externalLink.trim() || null,
       location_details: locationDetails.trim() || null,
     };
-    
-    const { data, error } = await supabase
-      .from('megaphones')
-      .insert(insertData as typeof insertData & { share_code: string })
-      .select()
-      .single();
+
+    let data;
+    let error;
+
+    if (isEditMode) {
+      // Update existing event
+      const result = await supabase
+        .from('megaphones')
+        .update(eventData)
+        .eq('id', editQuest!.id)
+        .select()
+        .single();
+      data = result.data;
+      error = result.error;
+    } else {
+      // Create new event
+      const insertData = {
+        ...eventData,
+        lat: effectiveCoordinates.lat,
+        lng: effectiveCoordinates.lng,
+        host_id: userId,
+        is_official: true,
+      };
+      
+      const result = await supabase
+        .from('megaphones')
+        .insert(insertData as typeof insertData & { share_code: string })
+        .select()
+        .single();
+      data = result.data;
+      error = result.error;
+    }
 
     setLoading(false);
 
     if (error || !data) {
       toast({
-        title: "Deploy failed",
-        description: error?.message || "Failed to create official event",
+        title: isEditMode ? "Update failed" : "Deploy failed",
+        description: error?.message || `Failed to ${isEditMode ? 'update' : 'create'} official event`,
         variant: "destructive",
       });
       return;
     }
 
     toast({
-      title: "Official Event Created!",
-      description: "Your official event is now live on the map.",
+      title: isEditMode ? "Official Event Updated!" : "Official Event Created!",
+      description: isEditMode 
+        ? "Your changes have been saved." 
+        : "Your official event is now live on the map.",
     });
 
-    // Reset form
-    setTitle('');
-    setDescription('');
-    setSelectedIcon('');
-    setDate(undefined);
-    setTime('18:00');
-    setDuration(2);
-    setCoverImageUrl('');
-    setOrganizerDisplayName('');
-    setExternalLink('');
-    setLocationDetails('');
+    // Reset form only if creating new (edit mode handles cleanup differently)
+    if (!isEditMode) {
+      setTitle('');
+      setDescription('');
+      setSelectedIcon('');
+      setDate(undefined);
+      setTime('18:00');
+      setDuration(2);
+      setCoverImageUrl('');
+      setOrganizerDisplayName('');
+      setExternalLink('');
+      setLocationDetails('');
+    }
     
     onSuccess(data);
     onOpenChange(false);
@@ -253,19 +326,19 @@ const DeployOfficialEventModal = ({
             </div>
             <div>
               <DialogTitle className="font-fredoka text-xl flex items-center gap-2">
-                Official Event
+                {isEditMode ? 'Edit Official Event' : 'Official Event'}
                 <span className="px-2 py-0.5 text-xs bg-amber-500/20 text-amber-600 rounded-full border border-amber-500/30">
                   ADMIN
                 </span>
               </DialogTitle>
               <p className="text-xs text-muted-foreground font-nunito mt-1">
-                Create a verified community event
+                {isEditMode ? 'Update your verified event' : 'Create a verified community event'}
               </p>
             </div>
           </div>
           
           {/* Coordinates display */}
-          {coordinates && (
+          {effectiveCoordinates && (
             <div className={cn(
               "flex items-center gap-2 px-3 py-2 rounded border",
               isOutOfRange 
@@ -274,7 +347,7 @@ const DeployOfficialEventModal = ({
             )}>
               <MapPin className={cn("w-4 h-4", isOutOfRange ? "text-destructive" : "text-primary")} />
               <span className={cn("font-nunito text-xs", isOutOfRange ? "text-destructive" : "text-muted-foreground")}>
-                {coordinates.lat.toFixed(4)}, {coordinates.lng.toFixed(4)}
+                {effectiveCoordinates.lat.toFixed(4)}, {effectiveCoordinates.lng.toFixed(4)}
               </span>
               {isOutOfRange && (
                 <span className="ml-auto text-xs font-semibold text-destructive">
@@ -485,7 +558,7 @@ const DeployOfficialEventModal = ({
             )}
           >
             {loading ? (
-              <span className="animate-pulse">CREATING...</span>
+              <span className="animate-pulse">{isEditMode ? 'UPDATING...' : 'CREATING...'}</span>
             ) : isOutOfRange ? (
               <>
                 <AlertTriangle className="w-5 h-5 mr-2" />
@@ -494,7 +567,7 @@ const DeployOfficialEventModal = ({
             ) : (
               <>
                 <Crown className="w-5 h-5 mr-2" />
-                CREATE OFFICIAL EVENT
+                {isEditMode ? 'UPDATE OFFICIAL EVENT' : 'CREATE OFFICIAL EVENT'}
               </>
             )}
           </Button>

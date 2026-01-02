@@ -309,6 +309,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const [selectedShout, setSelectedShout] = useState<{ id: string; user_id: string; content: string; lat: number; lng: number; created_at: string } | null>(null); // Selected shout for details drawer
   const [shoutDetailsOpen, setShoutDetailsOpen] = useState(false); // Shout details drawer state
   const [officialEventModalOpen, setOfficialEventModalOpen] = useState(false); // Official event modal state
+  const [editingOfficialEvent, setEditingOfficialEvent] = useState<Quest | null>(null); // Quest being edited in official modal
   
   const navigate = useNavigate();
 
@@ -2470,13 +2471,23 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
       {currentUserId && isAdmin && (
         <DeployOfficialEventModal
           open={officialEventModalOpen}
-          onOpenChange={setOfficialEventModalOpen}
+          onOpenChange={(open) => {
+            setOfficialEventModalOpen(open);
+            if (!open) setEditingOfficialEvent(null);
+          }}
           coordinates={clickedCoords}
           userId={currentUserId}
           userBaseLat={locationLat ?? userLat}
           userBaseLng={locationLng ?? userLng}
-          onSuccess={(newQuest) => {
-            setQuests(prev => [...prev, newQuest]);
+          editQuest={editingOfficialEvent}
+          onSuccess={(updatedQuest) => {
+            if (editingOfficialEvent) {
+              setQuests(prev => prev.map(q => q.id === updatedQuest.id ? updatedQuest : q));
+              setSelectedQuest(updatedQuest);
+            } else {
+              setQuests(prev => [...prev, updatedQuest]);
+            }
+            setEditingOfficialEvent(null);
           }}
         />
       )}
@@ -2559,6 +2570,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           if (!map.current) return true;
           const bounds = map.current.getBounds();
           return bounds.contains([lng, lat]);
+        }}
+        onEditOfficialEvent={(quest) => {
+          setEditingOfficialEvent(quest);
+          setOfficialEventModalOpen(true);
         }}
       />
 

@@ -81,6 +81,7 @@ interface QuestLobbyProps {
   onUpdate?: (quest: Quest) => void;
   onViewUserProfile?: (user: Profile) => void;
   isUserInViewport?: (lat: number, lng: number) => boolean;
+  onEditOfficialEvent?: (quest: Quest) => void; // Callback for editing official events
 }
 
 // Simple helper to check if a string is an emoji (starts with emoji character)
@@ -110,7 +111,8 @@ const QuestLobby = ({
   onLeave,
   onUpdate,
   onViewUserProfile,
-  isUserInViewport
+  isUserInViewport,
+  onEditOfficialEvent
 }: QuestLobbyProps) => {
   const navigate = useNavigate();
   const [host, setHost] = useState<Profile | null>(null);
@@ -171,6 +173,13 @@ const QuestLobby = ({
   // Initialize edit form when entering edit mode
   const startEditing = () => {
     if (!quest) return;
+    
+    // For official events, use the dedicated modal
+    if (quest.is_official && onEditOfficialEvent) {
+      onOpenChange(false); // Close the lobby
+      onEditOfficialEvent(quest); // Open the official event edit modal
+      return;
+    }
     
     const startTime = new Date(quest.start_time);
     
