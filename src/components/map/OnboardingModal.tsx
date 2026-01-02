@@ -10,7 +10,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import AvatarBuilder from '@/components/avatar/AvatarBuilder';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { useAuth } from '@/hooks/useAuth';
@@ -35,7 +34,6 @@ interface OnboardingModalProps {
 
 const OnboardingModal = ({ open, onOpenChange, onComplete, spawnCoordinates }: OnboardingModalProps) => {
   const [nick, setNick] = useState('');
-  const [bio, setBio] = useState('');
   const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(() => generateRandomAvatar());
   const [loading, setLoading] = useState(false);
   const [showAvatarBuilder, setShowAvatarBuilder] = useState(false);
@@ -73,7 +71,6 @@ const OnboardingModal = ({ open, onOpenChange, onComplete, spawnCoordinates }: O
 
       const updateData: Record<string, any> = {
         nick: nick.trim(),
-        bio: bio.trim() || null,
         avatar_config: avatarConfig as Json,
         is_onboarded: true,
       };
@@ -146,21 +143,6 @@ const OnboardingModal = ({ open, onOpenChange, onComplete, spawnCoordinates }: O
               placeholder="Enter your name"
               maxLength={30}
               className="bg-muted/50 border-2 border-border focus:border-primary font-nunito rounded-xl"
-            />
-          </div>
-
-          {/* Bio */}
-          <div className="space-y-2">
-            <Label htmlFor="bio" className="font-nunito text-sm font-medium text-foreground">
-              Bio ({bio.length}/150)
-            </Label>
-            <Textarea
-              id="bio"
-              value={bio}
-              onChange={(e) => setBio(e.target.value.slice(0, 150))}
-              placeholder="Tell us about yourself..."
-              rows={2}
-              className="bg-muted/50 border-2 border-border focus:border-primary font-nunito rounded-xl resize-none"
             />
           </div>
 
