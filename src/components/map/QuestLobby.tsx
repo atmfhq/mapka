@@ -607,25 +607,18 @@ const QuestLobby = ({
             </div>
           </div>
         ) : (
-          /* Details View - Optimized Layout */
+          /* Details View - Single scroll layout */
           <div className="flex flex-col flex-1 overflow-y-auto">
-            {/* Cover Image for Official Events - Full 1:1 Square */}
+            {/* Cover Image for Official Events - 4:3 Portrait */}
             {quest.is_official && quest.cover_image_url && (
               <div className="relative w-full shrink-0">
-                <AspectRatio ratio={1}>
+                <AspectRatio ratio={3/4}>
                   <img 
                     src={quest.cover_image_url} 
                     alt={quest.title}
                     className="w-full h-full object-cover"
                   />
                 </AspectRatio>
-                <Badge 
-                  variant="outline" 
-                  className="absolute top-3 left-3 bg-gradient-to-r from-amber-500 to-yellow-400 text-black border-amber-400 font-bold z-10"
-                >
-                  <Star className="w-3 h-3 mr-1 fill-current" />
-                  Official Event
-                </Badge>
               </div>
             )}
             
@@ -647,15 +640,9 @@ const QuestLobby = ({
                 </div>
                 <div>
                   <h3 className="font-nunito font-bold text-foreground">
-                    {quest.is_official ? 'Official Event' : 'Spot'}
+                    {quest.is_official ? 'Event' : 'Spot'}
                   </h3>
                   <div className="flex items-center gap-2">
-                    {quest.is_official && !quest.cover_image_url && (
-                      <Badge variant="outline" className="bg-gradient-to-r from-amber-500/20 to-yellow-400/20 text-amber-500 border-amber-400/40 text-[10px] px-1.5 py-0">
-                        <Star className="w-2.5 h-2.5 mr-0.5 fill-current" />
-                        Official
-                      </Badge>
-                    )}
                     {quest.is_private && (
                       <Badge variant="outline" className="bg-warning/20 text-warning border-warning/40 text-[10px] px-1.5 py-0">
                         <Lock className="w-2.5 h-2.5 mr-0.5" />
