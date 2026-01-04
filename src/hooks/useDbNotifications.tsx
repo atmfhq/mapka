@@ -117,7 +117,8 @@ export const useDbNotifications = (currentUserId: string | null) => {
 
       setResourceMap(resources);
       setNotifications(notifs as DbNotification[]);
-      setHasUnread(notifs.some(n => !n.is_read));
+      // Preserve realtime-set true state, or set based on data if currently false
+      setHasUnread(prev => prev || notifs.some(n => !n.is_read));
     } catch (error) {
       console.error('[Notifications] Error:', error);
     }
@@ -131,147 +132,174 @@ export const useDbNotifications = (currentUserId: string | null) => {
   }, [fetchNotifications]);
 
   // Real-time subscription for new notifications
+  // Using server-side filtering with REPLICA IDENTITY FULL (database is now configured)
   useEffect(() => {
     if (!currentUserId) return;
 
+    const channelName = 'notif-' + currentUserId;
+    console.log('[Notifications] Setting up realtime subscription:', channelName);
+    
     const channel = supabase
-      .channel(`notifications-${currentUserId}`)
+      .channel(channelName)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'notifications',
-          filter: `recipient_id=eq.${currentUserId}`,
+          filter: 'recipient_id=eq.' + currentUserId,
         },
-        async (payload) => {
-          console.log('[Notifications] New notification:', payload.new);
+        (payload) => {
+          const newNotif = payload.new as DbNotification;
           
-          // Fetch the trigger user profile
-          const { data: profiles } = await supabase
-            .rpc('get_profiles_display', { user_ids: [payload.new.trigger_user_id] });
+          console.log('🔔 Realtime notification incoming:', payload);
           
-          const newNotif: DbNotification = {
-            ...(payload.new as DbNotification),
-            trigger_user: profiles?.[0] ? {
-              nick: profiles[0].nick,
-              avatar_url: profiles[0].avatar_url,
-              avatar_config: profiles[0].avatar_config,
-            } : undefined,
-          };
-
-          // Fetch resource info for the new notification
-          const resourceId = payload.new.resource_id;
-          const type = payload.new.type;
-          
-          if (type === 'friend_event' || type === 'new_participant' || type === 'new_comment') {
-            const { data: events } = await supabase
-              .from('megaphones')
-              .select('id, title, lat, lng')
-              .eq('id', resourceId)
-              .single();
-            
-            if (events) {
-              setResourceMap(prev => ({
-                ...prev,
-                [events.id]: { title: events.title, lat: events.lat, lng: events.lng }
-              }));
-            }
-          } else if (type === 'friend_shout') {
-            const { data: shout } = await supabase
-              .from('shouts')
-              .select('id, content, lat, lng')
-              .eq('id', resourceId)
-              .single();
-            
-            if (shout) {
-              setResourceMap(prev => ({
-                ...prev,
-                [shout.id]: { 
-                  content: shout.content.length > 50 ? shout.content.substring(0, 50) + '...' : shout.content, 
-                  lat: shout.lat, 
-                  lng: shout.lng 
-                }
-              }));
-            }
-          }
-
-          setNotifications(prev => [newNotif, ...prev]);
+          // CRITICAL: Set hasUnread to true FIRST (before any state updates)
+          // This ensures the red dot appears instantly, even if notification list update is delayed
           setHasUnread(true);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `recipient_id=eq.${currentUserId}`,
-        },
-        (payload) => {
-          setNotifications(prev => 
-            prev.map(n => n.id === payload.new.id ? { ...n, ...payload.new } : n)
-          );
-          // Recalculate hasUnread
+          
+          // Add to state immediately (prepend to array)
           setNotifications(prev => {
-            setHasUnread(prev.some(n => !n.is_read));
-            return prev;
+            // Check for duplicates
+            if (prev.some(n => n.id === newNotif.id)) {
+              return prev;
+            }
+            return [newNotif, ...prev];
           });
+          
+          // Fetch additional data in background (non-blocking)
+          (async () => {
+            try {
+              // Fetch trigger user profile
+              const { data: profiles } = await supabase
+                .rpc('get_profiles_display', { user_ids: [newNotif.trigger_user_id] });
+              
+              if (profiles?.[0]) {
+                setNotifications(prev => 
+                  prev.map(n => 
+                    n.id === newNotif.id 
+                      ? { 
+                          ...n, 
+                          trigger_user: {
+                            nick: profiles[0].nick,
+                            avatar_url: profiles[0].avatar_url,
+                            avatar_config: profiles[0].avatar_config,
+                          }
+                        }
+                      : n
+                  )
+                );
+              }
+
+              // Fetch resource info
+              const resourceId = newNotif.resource_id;
+              const type = newNotif.type;
+              
+              if (type === 'friend_event' || type === 'new_participant' || type === 'new_comment') {
+                const { data: events } = await supabase
+                  .from('megaphones')
+                  .select('id, title, lat, lng')
+                  .eq('id', resourceId)
+                  .single();
+                
+                if (events) {
+                  setResourceMap(prev => ({
+                    ...prev,
+                    [events.id]: { title: events.title, lat: events.lat, lng: events.lng }
+                  }));
+                }
+              } else if (type === 'friend_shout') {
+                const { data: shout } = await supabase
+                  .from('shouts')
+                  .select('id, content, lat, lng')
+                  .eq('id', resourceId)
+                  .single();
+                
+                if (shout) {
+                  setResourceMap(prev => ({
+                    ...prev,
+                    [shout.id]: { 
+                      content: shout.content.length > 50 ? shout.content.substring(0, 50) + '...' : shout.content, 
+                      lat: shout.lat, 
+                      lng: shout.lng 
+                    }
+                  }));
+                }
+              }
+            } catch (error) {
+              console.error('[Notifications] Error fetching additional data:', error);
+            }
+          })();
         }
       )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `recipient_id=eq.${currentUserId}`,
-        },
-        (payload) => {
-          setNotifications(prev => prev.filter(n => n.id !== payload.old.id));
+      .subscribe((status) => {
+        console.log('[Notifications] Subscription status:', status);
+        if (status === 'CHANNEL_ERROR') {
+          console.error('[Notifications] Channel error - subscription failed');
         }
-      )
-      .subscribe();
+      });
 
     return () => {
+      console.log('[Notifications] Cleaning up subscription:', channelName);
       supabase.removeChannel(channel);
     };
   }, [currentUserId]);
 
-  // Mark single notification as read
+  // Mark single notification as read (Optimistic UI)
   const markAsRead = useCallback(async (notificationId: string) => {
     if (!currentUserId) return;
 
+    // Optimistic update: update state immediately
+    let previousNotifications: DbNotification[] = [];
+    
+    setNotifications(prev => {
+      previousNotifications = prev;
+      const updated = prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n);
+      const newHasUnread = updated.some(n => !n.is_read);
+      setHasUnread(newHasUnread);
+      return updated;
+    });
+
+    // Update DB (if it fails, rollback)
     const { error } = await supabase
       .from('notifications')
       .update({ is_read: true })
       .eq('id', notificationId)
       .eq('recipient_id', currentUserId);
 
-    if (!error) {
-      setNotifications(prev => 
-        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
-      );
-      setNotifications(prev => {
-        setHasUnread(prev.some(n => !n.is_read));
-        return prev;
-      });
+    if (error) {
+      // Rollback on error - recalculate hasUnread from previous state
+      console.error('[Notifications] Mark as read failed:', error);
+      setNotifications(previousNotifications);
+      setHasUnread(previousNotifications.some(n => !n.is_read));
     }
   }, [currentUserId]);
 
-  // Mark all as read
+  // Mark all as read (Optimistic UI)
   const markAllAsRead = useCallback(async () => {
     if (!currentUserId) return;
 
+    // Optimistic update: update state immediately
+    let previousNotifications: DbNotification[] = [];
+    
+    setNotifications(prev => {
+      previousNotifications = prev;
+      return prev.map(n => ({ ...n, is_read: true }));
+    });
+    setHasUnread(false);
+
+    // Update DB (if it fails, rollback)
     const { error } = await supabase
       .from('notifications')
       .update({ is_read: true })
       .eq('recipient_id', currentUserId)
       .eq('is_read', false);
 
-    if (!error) {
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
-      setHasUnread(false);
+    if (error) {
+      // Rollback on error
+      console.error('[Notifications] Mark all as read failed:', error);
+      setNotifications(previousNotifications);
+      setHasUnread(previousNotifications.some(n => !n.is_read));
     }
   }, [currentUserId]);
 
