@@ -10,6 +10,8 @@ import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { broadcastCurrentUserUpdate } from '@/hooks/useProfilesRealtime';
+import { useUnreadMessages } from '@/hooks/useUnreadMessages';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
 
@@ -41,6 +43,7 @@ interface NavbarProps {
   onSignOut: () => void;
   onMissionCreated?: () => void;
   onOpenMission?: (missionId: string) => void;
+  onOpenShout?: (shoutId: string) => void;
   chatOpenUserId?: string | null;
   chatOpenEventId?: string | null;
   onChatOpenChange?: (open: boolean) => void;
@@ -58,6 +61,7 @@ const Navbar = ({
   onSignOut,
   onMissionCreated,
   onOpenMission,
+  onOpenShout,
   chatOpenUserId,
   chatOpenEventId,
   onChatOpenChange,
@@ -75,6 +79,10 @@ const Navbar = ({
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { toast } = useToast();
+  const isMobile = useIsMobile();
+  
+  // Global unread messages listener - tracks messages even when chat is closed
+  useUnreadMessages(currentUserId);
 
   // Debounced geocoding search
   const searchLocation = useCallback(async (searchQuery: string) => {
@@ -174,8 +182,8 @@ const Navbar = ({
   return (
     <>
       <header className="fixed top-0 left-0 right-0 z-50 pointer-events-none safe-area-top">
-        <div className="px-3 sm:px-4 py-3 md:container md:mx-auto">
-          <div className="flex items-center gap-3">
+        <div className="w-full px-3 sm:px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
             {/* Search Bar - Full width on mobile, constrained on desktop */}
             <div 
               ref={searchContainerRef}
@@ -227,10 +235,8 @@ const Navbar = ({
               )}
             </div>
 
-            {/* Spacer */}
-            <div className="flex-1 hidden lg:block" />
-
-            {/* User Controls - Hidden on mobile, shown on desktop */}
+            {/* User Controls - Desktop only (IMPORTANT: don't mount on mobile to avoid duplicate realtime subscriptions) */}
+            {!isMobile && (
             <div className="hidden md:flex items-center gap-2 pointer-events-auto flex-shrink-0">
               {/* Chats (All Conversations) */}
               <div className="bg-card/95 backdrop-blur-md border-2 border-border rounded-xl shadow-hard">
@@ -259,6 +265,7 @@ const Navbar = ({
                   currentUserId={currentUserId}
                   onFlyToSpot={onFlyTo}
                   onOpenMission={onOpenMission}
+                  onOpenShout={onOpenShout}
                 />
               </div>
 
@@ -270,6 +277,7 @@ const Navbar = ({
                 <AvatarDisplay config={avatarConfig} size={52} showGlow={false} />
               </button>
             </div>
+            )}
           </div>
         </div>
       </header>

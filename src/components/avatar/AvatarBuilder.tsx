@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import AvatarDisplay from "./AvatarDisplay";
 import { 
-  PRESET_COLORS,
   SHAPES, 
   EYES, 
   MOUTHS,
@@ -19,7 +18,9 @@ import {
   AVAILABLE_MOUTHS, 
   getAssetDisplayName 
 } from "@/config/avatarAssets";
-import { Palette, Shapes, Eye, Smile, Pipette } from "lucide-react";
+import { Dices, Eye, Palette, Pipette, Shapes, Smile } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { randomHexColor } from "@/utils/randomAvatar";
 
 interface AvatarConfig {
   skinColor?: string;
@@ -32,9 +33,10 @@ interface AvatarBuilderProps {
   initialConfig?: AvatarConfig | null;
   onChange: (config: AvatarConfig) => void;
   compact?: boolean;
+  showPreviewLabel?: boolean;
 }
 
-const AvatarBuilder = ({ initialConfig, onChange, compact = false }: AvatarBuilderProps) => {
+const AvatarBuilder = ({ initialConfig, onChange, compact = false, showPreviewLabel = true }: AvatarBuilderProps) => {
   const [config, setConfig] = useState<AvatarConfig>({
     skinColor: resolveColor(initialConfig?.skinColor) || DEFAULT_AVATAR_CONFIG.skinColor,
     shape: initialConfig?.shape || DEFAULT_AVATAR_CONFIG.shape,
@@ -43,6 +45,19 @@ const AvatarBuilder = ({ initialConfig, onChange, compact = false }: AvatarBuild
   });
 
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+
+  // Generate random "Quick Presets" on each mount (new values, not just reordered).
+  const presetColors = useMemo(() => {
+    const unique = new Set<string>();
+    const presets: { hex: string; label: string }[] = [];
+    while (presets.length < 8) {
+      const hex = randomHexColor();
+      if (unique.has(hex)) continue;
+      unique.add(hex);
+      presets.push({ hex, label: hex });
+    }
+    return presets;
+  }, []);
 
   useEffect(() => {
     if (initialConfig) {
@@ -63,6 +78,20 @@ const AvatarBuilder = ({ initialConfig, onChange, compact = false }: AvatarBuild
 
   const handleColorChange = (hex: string) => {
     updateConfig("skinColor", hex.toUpperCase());
+  };
+
+  const handleRandomize = () => {
+    const randomFrom = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
+    const newConfig: AvatarConfig = {
+      skinColor: randomHexColor(),
+      shape: randomFrom(SHAPES).id,
+      eyes: randomFrom(AVAILABLE_EYES),
+      mouth: randomFrom(AVAILABLE_MOUTHS),
+    };
+
+    setConfig(newConfig);
+    onChange(newConfig);
   };
 
   const OptionButton = ({ 
@@ -104,11 +133,33 @@ const AvatarBuilder = ({ initialConfig, onChange, compact = false }: AvatarBuild
     <div className={compact ? "space-y-4" : "space-y-6"}>
       {/* Avatar Preview */}
       <div className={`flex justify-center ${compact ? "py-3" : "py-6"}`}>
-        <div className="relative">
-          <AvatarDisplay config={config} size={compact ? 120 : 160} showGlow />
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-card border-2 border-border font-nunito text-xs text-muted-foreground shadow-hard-sm">
-            Preview
+        <div className="flex flex-col items-center gap-3">
+          <div className="relative">
+            <AvatarDisplay config={config} size={compact ? 120 : 160} showGlow />
+            {showPreviewLabel && (
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-card border-2 border-border font-nunito text-xs text-muted-foreground shadow-hard-sm">
+                Preview
+              </div>
+            )}
           </div>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleRandomize}
+                  className="h-9 w-9 rounded-full bg-card/80 backdrop-blur-sm border border-border shadow-hard-sm hover:bg-muted/60"
+                  aria-label="Losuj ponownie"
+                >
+                  <Dices className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Losuj ponownie</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
@@ -211,7 +262,7 @@ const AvatarBuilder = ({ initialConfig, onChange, compact = false }: AvatarBuild
               Quick Presets
             </Label>
             <div className="grid grid-cols-8 gap-2">
-              {PRESET_COLORS.map((c) => (
+              {presetColors.map((c) => (
                 <button
                   key={c.hex}
                   type="button"

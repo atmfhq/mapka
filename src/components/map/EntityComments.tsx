@@ -43,6 +43,7 @@ interface EntityCommentsProps {
   getLikes: (commentId: string) => { count: number; hasLiked: boolean };
   toggleLike: (commentId: string) => void;
   onViewUserProfile?: (profile: Profile) => void;
+  onOpenAuthModal?: () => void;
 }
 
 const EntityComments = ({
@@ -55,6 +56,7 @@ const EntityComments = ({
   getLikes,
   toggleLike,
   onViewUserProfile,
+  onOpenAuthModal,
 }: EntityCommentsProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -210,15 +212,9 @@ const EntityComments = ({
 
       {/* Comment input - or Login CTA for guests */}
       {isGuest ? (
-        <div className="pt-2">
-          <Button
-            onClick={() => navigate('/auth')}
-            className="w-full bg-primary hover:bg-primary/90"
-          >
-            <LogIn className="w-4 h-4 mr-2" />
-            Login to join the conversation
-          </Button>
-        </div>
+        // Guests already see the primary "Login to Join" CTA in the parent drawer.
+        // Keep this area clean to avoid duplicate CTAs.
+        null
       ) : (
         <div className="flex gap-2 pt-2">
           <Textarea

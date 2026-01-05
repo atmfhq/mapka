@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getOrCreateChannel, safeRemoveChannel } from '@/lib/realtimeUtils';
 
 export const REACTION_EMOJIS = ['❤️', '👍', '😂'] as const;
 export type ReactionEmoji = typeof REACTION_EMOJIS[number];
@@ -17,6 +18,13 @@ interface ReactionsMap {
 export const useMessageReactions = (messageIds: string[], userId: string | null) => {
   const [reactionsMap, setReactionsMap] = useState<ReactionsMap>({});
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Use refs to avoid stale closure issues
+  const messageIdsRef = useRef<string[]>(messageIds);
+  messageIdsRef.current = messageIds;
+  
+  const reactionsMapRef = useRef<ReactionsMap>({});
+  reactionsMapRef.current = reactionsMap;
 
   const fetchReactions = useCallback(async () => {
     if (messageIds.length === 0) {
@@ -70,37 +78,52 @@ export const useMessageReactions = (messageIds: string[], userId: string | null)
     fetchReactions();
   }, [fetchReactions]);
 
-  // Subscribe to realtime updates for reactions
+  // Subscribe to realtime updates for reactions - use stable channel name
   useEffect(() => {
-    if (messageIds.length === 0) return;
-
-    const channel = supabase
-      .channel('message-reactions')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'message_reactions',
-        },
-        (payload) => {
-          const msgId = (payload.new as any)?.message_id || (payload.old as any)?.message_id;
-          if (msgId && messageIds.includes(msgId)) {
-            fetchReactions();
-          }
+    const channelName = 'message-reactions-global';
+    
+    // Check if channel already exists to prevent CHANNEL_ERROR
+    const { channel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      console.log('[useMessageReactions] Channel already subscribed:', channelName);
+      return;
+    }
+    
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'message_reactions',
+      },
+      (payload) => {
+        const msgId = (payload.new as any)?.message_id || (payload.old as any)?.message_id;
+        // Use ref to get current messageIds
+        if (msgId && messageIdsRef.current.includes(msgId)) {
+          console.log('[useMessageReactions] 🔔 Reaction change for message:', msgId);
+          fetchReactions();
         }
-      )
-      .subscribe();
+      }
+    );
+    
+    channel.subscribe((status) => {
+      console.log('[useMessageReactions] 📡 Subscription status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('[useMessageReactions] ✅ Subscribed');
+      }
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      safeRemoveChannel(channel);
     };
-  }, [messageIds.join(','), fetchReactions]);
+  }, [fetchReactions]); // Only fetchReactions as dep (stable callback)
 
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!userId) return;
 
-    const currentReactions = reactionsMap[messageId] || [];
+    // Use ref to avoid stale closure
+    const currentReactions = reactionsMapRef.current[messageId] || [];
     const existingReaction = currentReactions.find(r => r.emoji === emoji);
     const hasReacted = existingReaction?.hasReacted || false;
 
@@ -165,7 +188,7 @@ export const useMessageReactions = (messageIds: string[], userId: string | null)
       // Revert on error
       fetchReactions();
     }
-  }, [userId, reactionsMap, fetchReactions]);
+  }, [userId, fetchReactions]); // Use ref for reactionsMap to avoid stale closure
 
   const getReactions = useCallback((messageId: string): Reaction[] => {
     return reactionsMap[messageId] || [];

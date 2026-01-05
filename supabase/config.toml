@@ -5,3 +5,15 @@ verify_jwt = false
 
 [functions.og-share]
 verify_jwt = false
+
+[functions.send-welcome-email]
+verify_jwt = false
+
+[functions.notify-new-comment]
+verify_jwt = false
+
+[functions.notify-event-update]
+verify_jwt = false
+
+[functions.event-reminder]
+verify_jwt = false

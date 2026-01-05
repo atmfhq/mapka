@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Users, Sparkles, X, Loader2, UserMinus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { useFollowingList, useFollowersList, FollowerUser } from '@/hooks/useFol
 import { useToast } from '@/hooks/use-toast';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import ProfileModal from './ProfileModal';
+import { useConnectedUsers } from '@/hooks/useConnectedUsers';
 
 interface ViewportBounds {
   north: number;
@@ -26,16 +27,58 @@ interface ConnectionsDrawerProps {
 }
 
 const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo, onOpenChat }: ConnectionsDrawerProps) => {
-  const { connections, loading, error, refetch } = useConnections(currentUserId);
-  const { following, loading: followingLoading, unfollowUser } = useFollowingList(currentUserId);
-  const { followers, loading: followersLoading } = useFollowersList(currentUserId);
+  const { connections, loading, error, refetch, removeConnection } = useConnections(currentUserId);
+  const { following, loading: followingLoading, unfollowUser, refetch: refetchFollowing } = useFollowingList(currentUserId);
+  const { followers, loading: followersLoading, refetch: refetchFollowers } = useFollowersList(currentUserId);
   const { toast } = useToast();
+  // Use useConnectedUsers to verify connection status (single source of truth)
+  const { connectedUserIds, getInvitationIdForUser } = useConnectedUsers(currentUserId ?? '');
   const [isOpen, setIsOpen] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<ConnectedUser | null>(null);
   const [activeTab, setActiveTab] = useState<string>('connections');
   const [unfollowingId, setUnfollowingId] = useState<string | null>(null);
   const [openedFromConnections, setOpenedFromConnections] = useState(false);
+
+  // Refetch data when drawer opens to ensure fresh data
+  useEffect(() => {
+    if (isOpen) {
+      refetch();
+      refetchFollowing();
+      refetchFollowers();
+    }
+  }, [isOpen, refetch, refetchFollowing, refetchFollowers]);
+
+  // Refetch when tab changes to ensure fresh data
+  useEffect(() => {
+    if (isOpen) {
+      if (activeTab === 'connections') {
+        refetch();
+      } else if (activeTab === 'following') {
+        refetchFollowing();
+      } else if (activeTab === 'followers') {
+        refetchFollowers();
+      }
+    }
+  }, [activeTab, isOpen, refetch, refetchFollowing, refetchFollowers]);
+
+  // Refetch when window regains focus (additional safeguard for stale data)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleFocus = () => {
+      if (activeTab === 'connections') {
+        refetch();
+      } else if (activeTab === 'following') {
+        refetchFollowing();
+      } else if (activeTab === 'followers') {
+        refetchFollowers();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [isOpen, activeTab, refetch, refetchFollowing, refetchFollowers]);
 
   const handleClose = () => {
     setIsOpen(false);
@@ -70,6 +113,9 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
     setUnfollowingId(null);
 
     if (success) {
+      // Refetch to ensure UI is in sync with database
+      refetchFollowing();
+      refetchFollowers();
       toast({
         title: 'Unfollowed',
         description: `You have unfollowed ${userName || 'this user'}`,
@@ -80,6 +126,16 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
         description: 'Failed to unfollow. Please try again.',
         variant: 'destructive',
       });
+    }
+  };
+
+  // Handle disconnect callback - optimistically remove and rely on realtime for sync
+  const handleDisconnect = (disconnectedUserId?: string) => {
+    // Optimistically remove from UI immediately for instant feedback
+    // The realtime subscription will handle the refetch after DB commit completes
+    // We don't manually refetch here to avoid race conditions with stale data
+    if (disconnectedUserId) {
+      removeConnection(disconnectedUserId);
     }
   };
 
@@ -119,11 +175,12 @@ const ConnectionsDrawer = ({ currentUserId, viewportBounds, unreadCount, onFlyTo
             location_lng: selectedUser.location_lng,
           } : null}
           currentUserId={currentUserId}
-          isConnected={true}
-          invitationId={selectedUser?.invitationId ?? undefined}
+          isConnected={selectedUser ? connectedUserIds.has(selectedUser.id) : false}
+          invitationId={selectedUser ? (getInvitationIdForUser(selectedUser.id) || selectedUser.invitationId || undefined) : undefined}
           viewportBounds={viewportBounds}
           onFlyTo={onFlyTo}
           onOpenChat={onOpenChat}
+          onDisconnect={handleDisconnect}
           showBackButton={openedFromConnections}
           onBack={handleBackToConnections}
         />

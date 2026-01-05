@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { getOrCreateChannel, safeRemoveChannel } from '@/lib/realtimeUtils';
 
 interface BannedUser {
   id: string;
@@ -57,24 +58,30 @@ export const useSpotBans = (eventId: string | null, isHost: boolean) => {
   useEffect(() => {
     if (!eventId || !isHost) return;
 
-    const channel = supabase
-      .channel(`spot-bans-${eventId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'spot_bans',
-          filter: `event_id=eq.${eventId}`,
-        },
-        () => {
-          fetchBannedUsers();
-        }
-      )
-      .subscribe();
+    const channelName = `spot-bans-${eventId}`;
+    const { channel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      return;
+    }
+    
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'spot_bans',
+        filter: `event_id=eq.${eventId}`,
+      },
+      () => {
+        fetchBannedUsers();
+      }
+    );
+    
+    channel.subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      safeRemoveChannel(channel);
     };
   }, [eventId, isHost, fetchBannedUsers]);
 

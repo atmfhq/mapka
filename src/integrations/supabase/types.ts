@@ -283,6 +283,7 @@ export type Database = {
           external_link: string | null
           host_id: string
           id: string
+          is_hidden: boolean
           is_official: boolean
           is_private: boolean
           lat: number
@@ -303,6 +304,7 @@ export type Database = {
           external_link?: string | null
           host_id: string
           id?: string
+          is_hidden?: boolean
           is_official?: boolean
           is_private?: boolean
           lat: number
@@ -323,6 +325,7 @@ export type Database = {
           external_link?: string | null
           host_id?: string
           id?: string
+          is_hidden?: boolean
           is_official?: boolean
           is_private?: boolean
           lat?: number
@@ -447,11 +450,13 @@ export type Database = {
       }
       profiles: {
         Row: {
+          account_status: string
           avatar_config: Json | null
           avatar_url: string | null
           bio: string | null
           created_at: string | null
           id: string
+          is_18_plus: boolean
           is_active: boolean
           is_onboarded: boolean | null
           last_bounce_at: string | null
@@ -459,15 +464,18 @@ export type Database = {
           location_lng: number | null
           location_name: string | null
           nick: string | null
+          notification_preferences: Json
           tags: string[] | null
           updated_at: string | null
         }
         Insert: {
+          account_status?: string
           avatar_config?: Json | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string | null
           id: string
+          is_18_plus?: boolean
           is_active?: boolean
           is_onboarded?: boolean | null
           last_bounce_at?: string | null
@@ -475,15 +483,18 @@ export type Database = {
           location_lng?: number | null
           location_name?: string | null
           nick?: string | null
+          notification_preferences?: Json
           tags?: string[] | null
           updated_at?: string | null
         }
         Update: {
+          account_status?: string
           avatar_config?: Json | null
           avatar_url?: string | null
           bio?: string | null
           created_at?: string | null
           id?: string
+          is_18_plus?: boolean
           is_active?: boolean
           is_onboarded?: boolean | null
           last_bounce_at?: string | null
@@ -491,10 +502,63 @@ export type Database = {
           location_lng?: number | null
           location_name?: string | null
           nick?: string | null
+          notification_preferences?: Json
           tags?: string[] | null
           updated_at?: string | null
         }
         Relationships: []
+      }
+      reports: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string
+          reporter_id: string
+          target_event_id: string | null
+          target_shout_id: string | null
+          target_user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason: string
+          reporter_id: string
+          target_event_id?: string | null
+          target_shout_id?: string | null
+          target_user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string
+          reporter_id?: string
+          target_event_id?: string | null
+          target_shout_id?: string | null
+          target_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_target_event_id_fkey"
+            columns: ["target_event_id"]
+            isOneToOne: false
+            referencedRelation: "megaphones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_target_shout_id_fkey"
+            columns: ["target_shout_id"]
+            isOneToOne: false
+            referencedRelation: "shouts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_target_user_id_fkey"
+            columns: ["target_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rpc_rate_limits: {
         Row: {
@@ -612,6 +676,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          is_hidden: boolean
           lat: number
           lng: number
           user_id: string
@@ -620,6 +685,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          is_hidden?: boolean
           lat: number
           lng: number
           user_id: string
@@ -628,6 +694,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          is_hidden?: boolean
           lat?: number
           lng?: number
           user_id?: string
@@ -753,6 +820,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_global_unread_count: {
+        Args: { p_user_id: string };
+        Returns: number;
+      }
       accept_invitation:
         | { Args: { p_invitation_id: string }; Returns: undefined }
         | {
@@ -931,10 +1002,22 @@ export type Database = {
       resolve_megaphone_link: {
         Args: { p_id?: string; p_share_code?: string }
         Returns: {
+          category: string
+          cover_image_url: string | null
+          description: string | null
+          duration_minutes: number
+          external_link: string | null
+          host_id: string
           id: string
+          is_official: boolean | null
+          is_private: boolean | null
           lat: number
           lng: number
+          location_details: string | null
+          max_participants: number | null
+          organizer_display_name: string | null
           share_code: string
+          start_time: string
           title: string
         }[]
       }

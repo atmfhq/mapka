@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { safeRemoveChannel } from '@/lib/realtimeUtils';
 
 interface TypingState {
   [userId: string]: boolean;
@@ -42,33 +43,34 @@ export function useTypingPresence(
     }
 
     const channelName = `typing-${invitationId}`;
+
+    // IMPORTANT: Broadcast typing presence must use a stable channel name shared by both users.
     const channel = supabase.channel(channelName);
+    channel.on('broadcast', { event: 'typing' }, (payload) => {
+      const { userId, isTyping } = payload.payload as { userId: string; isTyping: boolean };
+      
+      if (userId === currentUserId) return; // Ignore own typing events
 
-    channel
-      .on('broadcast', { event: 'typing' }, (payload) => {
-        const { userId, isTyping } = payload.payload as { userId: string; isTyping: boolean };
-        
-        if (userId === currentUserId) return; // Ignore own typing events
+      setTypingUsers(prev => ({
+        ...prev,
+        [userId]: isTyping,
+      }));
 
-        setTypingUsers(prev => ({
-          ...prev,
-          [userId]: isTyping,
-        }));
-
-        // Auto-clear typing after 3 seconds if no update
-        if (isTyping) {
-          if (typingTimeoutRef.current) {
-            clearTimeout(typingTimeoutRef.current);
-          }
-          typingTimeoutRef.current = setTimeout(() => {
-            setTypingUsers(prev => ({
-              ...prev,
-              [userId]: false,
-            }));
-          }, 3000);
+      // Auto-clear typing after 3 seconds if no update
+      if (isTyping) {
+        if (typingTimeoutRef.current) {
+          clearTimeout(typingTimeoutRef.current);
         }
-      })
-      .subscribe();
+        typingTimeoutRef.current = setTimeout(() => {
+          setTypingUsers(prev => ({
+            ...prev,
+            [userId]: false,
+          }));
+        }, 3000);
+      }
+    });
+    
+    channel.subscribe();
 
     channelRef.current = channel;
 
@@ -76,7 +78,7 @@ export function useTypingPresence(
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
-      supabase.removeChannel(channel);
+      safeRemoveChannel(channel);
       channelRef.current = null;
     };
   }, [invitationId, currentUserId]);
@@ -88,8 +90,27 @@ export function useTypingPresence(
     };
   }, [setTyping, invitationId]);
 
+  // Clear typing for a specific user (used when they send a message)
+  const clearTypingForUser = useCallback((userId: string) => {
+    setTypingUsers(prev => {
+      if (prev[userId]) {
+        return {
+          ...prev,
+          [userId]: false,
+        };
+      }
+      return prev;
+    });
+    // Also clear any pending timeout
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+  }, []);
+
   return {
     isOtherUserTyping,
     setTyping,
+    clearTypingForUser,
   };
 }

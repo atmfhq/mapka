@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getOrCreateChannel, safeRemoveChannel } from '@/lib/realtimeUtils';
 
 // Simple binary state - just track IF there are unread messages, not how many
 interface UnreadState {
@@ -137,10 +138,17 @@ export const useChatUnreadCounts = (
   useEffect(() => {
     if (!currentUserId) return;
 
-    const channelName = `unread-events-${currentUserId}-${Date.now()}`;
-    const channel = supabase
-      .channel(channelName)
-      .on(
+    const channelName = `unread-events-${currentUserId}`;
+    
+    // Check if channel already exists to prevent CHANNEL_ERROR
+    const { channel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      console.log('[Realtime] Event messages channel already subscribed:', channelName);
+      return;
+    }
+    
+    channel.on(
         'postgres_changes',
         {
           event: 'INSERT',
@@ -163,12 +171,15 @@ export const useChatUnreadCounts = (
           }
         }
       )
-      .subscribe((status) => {
-        console.log('[Realtime] Event messages channel status:', status);
-      });
+    channel.subscribe((status) => {
+      console.log('[Realtime] Event messages channel status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('[Realtime] ✅ Event messages channel subscribed');
+      }
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      safeRemoveChannel(channel);
     };
   }, [currentUserId]);
 
@@ -176,10 +187,17 @@ export const useChatUnreadCounts = (
   useEffect(() => {
     if (!currentUserId) return;
 
-    const channelName = `unread-dms-${currentUserId}-${Date.now()}`;
-    const channel = supabase
-      .channel(channelName)
-      .on(
+    const channelName = `unread-dms-${currentUserId}`;
+    
+    // Check if channel already exists to prevent CHANNEL_ERROR
+    const { channel: dmChannel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      console.log('[Realtime] DM channel already subscribed:', channelName);
+      return;
+    }
+    
+    dmChannel.on(
         'postgres_changes',
         {
           event: 'INSERT',
@@ -201,12 +219,15 @@ export const useChatUnreadCounts = (
           }
         }
       )
-      .subscribe((status) => {
-        console.log('[Realtime] DM channel status:', status);
-      });
+    dmChannel.subscribe((status) => {
+      console.log('[Realtime] DM channel status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('[Realtime] ✅ DM channel subscribed');
+      }
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      safeRemoveChannel(dmChannel);
     };
   }, [currentUserId]);
 
@@ -214,9 +235,17 @@ export const useChatUnreadCounts = (
   useEffect(() => {
     if (!currentUserId) return;
 
-    const channel = supabase
-      .channel(`unread-invitations-binary-${currentUserId}`)
-      .on(
+    const invChannelName = `unread-invitations-binary-${currentUserId}`;
+    
+    // Check if channel already exists to prevent CHANNEL_ERROR
+    const { channel: invChannel, shouldSubscribe } = getOrCreateChannel(invChannelName);
+    
+    if (!shouldSubscribe) {
+      console.log('[Realtime] Invitation tracking channel already subscribed:', invChannelName);
+      return;
+    }
+    
+    invChannel.on(
         'postgres_changes',
         {
           event: 'UPDATE',
@@ -232,10 +261,12 @@ export const useChatUnreadCounts = (
           }
         }
       )
-      .subscribe();
+    invChannel.subscribe((status) => {
+      console.log('[Realtime] Invitation tracking channel status:', status);
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      safeRemoveChannel(invChannel);
     };
   }, [currentUserId, fetchInitialState]);
 

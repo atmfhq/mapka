@@ -14,6 +14,7 @@ import { useKeyboardAvoidance } from "@/hooks/useKeyboardAvoidance";
 import { ACTIVITIES } from "@/constants/activities";
 import type { Json } from "@/integrations/supabase/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -31,6 +32,7 @@ import {
   Shield,
   Heart,
   Sparkles,
+  Settings,
   AlertTriangle
 } from "lucide-react";
 import { getShortUserId } from "@/utils/userIdDisplay";
@@ -40,6 +42,27 @@ interface AvatarConfig {
   shape?: string;
   eyes?: string;
   mouth?: string;
+}
+
+interface NotificationPreferences {
+  new_comments: boolean;
+  event_updates: boolean;
+  event_reminders: boolean;
+}
+
+const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  new_comments: true,
+  event_updates: true,
+  event_reminders: true,
+};
+
+function normalizeNotificationPreferences(value: unknown): NotificationPreferences {
+  const v = (value && typeof value === "object") ? (value as any) : {};
+  return {
+    new_comments: typeof v.new_comments === "boolean" ? v.new_comments : DEFAULT_NOTIFICATION_PREFERENCES.new_comments,
+    event_updates: typeof v.event_updates === "boolean" ? v.event_updates : DEFAULT_NOTIFICATION_PREFERENCES.event_updates,
+    event_reminders: typeof v.event_reminders === "boolean" ? v.event_reminders : DEFAULT_NOTIFICATION_PREFERENCES.event_reminders,
+  };
 }
 
 const EditProfile = () => {
@@ -60,6 +83,9 @@ const EditProfile = () => {
     eyes: "normal",
     mouth: "smile",
   });
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(
+    DEFAULT_NOTIFICATION_PREFERENCES
+  );
   
   const { user, profile, refreshProfile, signOut } = useAuth();
   const navigate = useNavigate();
@@ -71,6 +97,7 @@ const EditProfile = () => {
     if (profile) {
       setNick(profile.nick || "");
       setBio(profile.bio || "");
+      setNotificationPreferences(normalizeNotificationPreferences((profile as any).notification_preferences));
       
       // Load avatar config
       if (profile.avatar_config) {
@@ -119,6 +146,7 @@ const EditProfile = () => {
           bio: bio.trim() || null,
           avatar_config: avatarConfig as Json,
           tags: tagLabels,
+          notification_preferences: notificationPreferences as unknown as Json,
         })
         .eq("id", user.id);
 
@@ -206,7 +234,7 @@ const EditProfile = () => {
         {/* Edit Form with Tabs */}
         <TacticalCard className="mb-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid grid-cols-3 w-full bg-muted/50 mb-6">
+            <TabsList className="grid grid-cols-4 w-full bg-muted/50 mb-6">
               <TabsTrigger value="identity" className="gap-1.5 text-xs">
                 <Shield className="w-4 h-4" />
                 <span className="hidden sm:inline">Identity</span>
@@ -218,6 +246,10 @@ const EditProfile = () => {
               <TabsTrigger value="appearance" className="gap-1.5 text-xs">
                 <Sparkles className="w-4 h-4" />
                 <span className="hidden sm:inline">Avatar</span>
+              </TabsTrigger>
+              <TabsTrigger value="settings" className="gap-1.5 text-xs">
+                <Settings className="w-4 h-4" />
+                <span className="hidden sm:inline">Settings</span>
               </TabsTrigger>
             </TabsList>
 
@@ -276,7 +308,81 @@ const EditProfile = () => {
               <AvatarBuilder 
                 initialConfig={avatarConfig}
                 onChange={setAvatarConfig}
+                showPreviewLabel={false}
               />
+            </TabsContent>
+
+            {/* Settings Tab */}
+            <TabsContent value="settings" className="space-y-6 animate-fade-in-up">
+              <div className="space-y-2">
+                <h3 className="font-fredoka text-lg font-bold">Email Notifications</h3>
+                <p className="font-nunito text-sm text-muted-foreground">
+                  Control which emails you receive.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-4 p-4 bg-muted/30 rounded-xl border border-border/50">
+                  <div className="space-y-1">
+                    <Label className="font-nunito text-sm font-medium text-foreground">New Comments</Label>
+                    <p className="text-xs text-muted-foreground">
+                      New comments on your shouts and events.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notificationPreferences.new_comments}
+                    onCheckedChange={(checked) =>
+                      setNotificationPreferences((prev) => ({ ...prev, new_comments: checked }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-start justify-between gap-4 p-4 bg-muted/30 rounded-xl border border-border/50">
+                  <div className="space-y-1">
+                    <Label className="font-nunito text-sm font-medium text-foreground">Event Updates</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Changes to events you joined.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notificationPreferences.event_updates}
+                    onCheckedChange={(checked) =>
+                      setNotificationPreferences((prev) => ({ ...prev, event_updates: checked }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-start justify-between gap-4 p-4 bg-muted/30 rounded-xl border border-border/50">
+                  <div className="space-y-1">
+                    <Label className="font-nunito text-sm font-medium text-foreground">Event Reminders</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Reminders 1h before start.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notificationPreferences.event_reminders}
+                    onCheckedChange={(checked) =>
+                      setNotificationPreferences((prev) => ({ ...prev, event_reminders: checked }))
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Delete Account (bottom of Settings) */}
+              <div className="pt-4 border-t border-border/30">
+                <div className="text-center">
+                  <button
+                    onClick={() => {
+                      setDeleteConfirmText("");
+                      setDeleteConfirmOpen(true);
+                    }}
+                    className="text-xs text-muted-foreground hover:text-destructive transition-colors underline-offset-2 hover:underline"
+                    disabled={deletingAccount}
+                  >
+                    {deletingAccount ? "Deleting..." : "Delete my account"}
+                  </button>
+                </div>
+              </div>
             </TabsContent>
           </Tabs>
         </TacticalCard>
@@ -306,22 +412,6 @@ const EditProfile = () => {
             )}
           </Button>
         </div>
-
-        {/* Delete Account - only show on Identity/Interests tabs */}
-        {activeTab !== "appearance" && (
-          <div className="text-center pt-4 border-t border-border/30">
-            <button
-              onClick={() => {
-                setDeleteConfirmText("");
-                setDeleteConfirmOpen(true);
-              }}
-              className="text-xs text-muted-foreground hover:text-destructive transition-colors underline-offset-2 hover:underline"
-              disabled={deletingAccount}
-            >
-              {deletingAccount ? "Deleting..." : "Delete my account"}
-            </button>
-          </div>
-        )}
 
         {/* Delete Confirmation Dialog */}
         <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>

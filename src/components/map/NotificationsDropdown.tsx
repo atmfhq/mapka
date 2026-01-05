@@ -18,6 +18,7 @@ interface NotificationsDropdownProps {
   currentUserId: string;
   onFlyToSpot?: (lat: number, lng: number) => void;
   onOpenMission?: (missionId: string) => void;
+  onOpenShout?: (shoutId: string) => void;
 }
 
 interface SwipeableNotificationProps {
@@ -95,6 +96,7 @@ const NotificationsDropdown = ({
   currentUserId,
   onFlyToSpot,
   onOpenMission,
+  onOpenShout,
 }: NotificationsDropdownProps) => {
   const [open, setOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -104,32 +106,48 @@ const NotificationsDropdown = ({
     markAsRead, 
     markAllAsRead, 
     clearAll, 
+    deleteNotification,
     getResourceInfo 
   } = useDbNotifications(currentUserId);
 
-  const handleNotificationClick = async (notif: typeof notifications[0]) => {
-    // Mark as read in DB
-    await markAsRead(notif.id);
+  const handleNotificationClick = (notif: typeof notifications[0]) => {
+    // Mark as read optimistically (no await - instant UI feedback)
+    markAsRead(notif.id);
+    
+    // Close dropdown immediately for instant feedback
+    setOpen(false);
     
     // Get resource info for flying to location
     const resource = getResourceInfo(notif.resource_id);
     
+    // Navigate immediately (no await before navigation)
     if (resource?.lat && resource?.lng) {
       onFlyToSpot?.(resource.lat, resource.lng);
     }
     
-    // Open the mission/shout based on type
+    // Open the mission/shout based on type (and resolved resource kind)
     if (notif.type === 'friend_event' || notif.type === 'new_participant') {
       onOpenMission?.(notif.resource_id);
-    } else if (notif.type === 'new_comment') {
-      // Comments can be on events or shouts - check resource type
-      onOpenMission?.(notif.resource_id);
-    } else if (notif.type === 'friend_shout') {
-      // For shouts, just fly to location (shout details via marker click)
-      // The fly action is already handled above
+      return;
     }
-    
-    setOpen(false);
+
+    if (notif.type === 'friend_shout') {
+      onOpenShout?.(notif.resource_id);
+      return;
+    }
+
+    if (notif.type === 'new_comment') {
+      // `new_comment` can refer to either a shout or an event.
+      if (resource?.kind === 'shout') {
+        onOpenShout?.(notif.resource_id);
+      } else if (resource?.kind === 'event') {
+        onOpenMission?.(notif.resource_id);
+      } else {
+        // Fallback: try event first (existing behavior), then shout
+        onOpenMission?.(notif.resource_id);
+        onOpenShout?.(notif.resource_id);
+      }
+    }
   };
 
   const getNotificationIcon = (type: string) => {
@@ -183,7 +201,7 @@ const NotificationsDropdown = ({
     >
       <Bell className="w-5 h-5" />
       {hasUnread && (
-        <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-destructive" />
+        <span className="absolute -top-0.5 -right-0.5 z-10 w-3 h-3 rounded-full bg-destructive" />
       )}
     </Button>
   );
@@ -204,9 +222,9 @@ const NotificationsDropdown = ({
             <SwipeableNotification
               key={notif.id}
               id={notif.id}
-              onDismiss={async () => {
-                // Delete notification on swipe
-                await markAsRead(notif.id);
+              onDismiss={() => {
+                // Delete on swipe
+                deleteNotification(notif.id);
               }}
               onClick={() => handleNotificationClick(notif)}
             >
@@ -239,10 +257,10 @@ const NotificationsDropdown = ({
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    markAsRead(notif.id);
+                    deleteNotification(notif.id);
                   }}
                   className="absolute top-2 right-2 p-1 rounded-full opacity-0 group-hover:opacity-100 hover:bg-muted transition-opacity hidden md:flex items-center justify-center"
-                  aria-label="Mark as read"
+                  aria-label="Delete notification"
                 >
                   <X className="w-3 h-3 text-muted-foreground" />
                 </button>

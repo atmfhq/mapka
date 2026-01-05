@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { X, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import UserPopupContent from './UserPopupContent';
+import { useConnectedUsers } from '@/hooks/useConnectedUsers';
 
 interface AvatarConfig {
   skinColor?: string;
@@ -35,9 +36,10 @@ interface ProfileModalProps {
   invitationId?: string;
   viewportBounds?: ViewportBounds | null;
   onOpenChat?: (userId: string) => void;
-  onDisconnect?: () => void;
+  onDisconnect?: (userId?: string) => void;
   onCloseChat?: () => void;
   onNavigate?: (path: string) => void;
+  onOpenAuthModal?: () => void;
   onFlyTo?: (lat: number, lng: number) => void;
   showBackButton?: boolean;
   onBack?: () => void;
@@ -48,18 +50,29 @@ const ProfileModal = ({
   onOpenChange,
   user,
   currentUserId,
-  isConnected,
-  invitationId,
+  isConnected: propIsConnected,
+  invitationId: propInvitationId,
   viewportBounds,
   onOpenChat,
   onDisconnect,
   onCloseChat,
   onNavigate,
+  onOpenAuthModal,
   onFlyTo,
   showBackButton,
   onBack,
 }: ProfileModalProps) => {
   if (!open || !user) return null;
+
+  // RE-VERIFY connection status (single source of truth)
+  // Don't trust the prop - verify against actual database state
+  const { connectedUserIds, getInvitationIdForUser } = useConnectedUsers(currentUserId ?? '');
+  const verifiedIsConnected = currentUserId ? connectedUserIds.has(user.id) : false;
+  const verifiedInvitationId = currentUserId ? (getInvitationIdForUser(user.id) || propInvitationId) : propInvitationId;
+  
+  // Use verified values, fallback to props if verification not available
+  const isConnected = currentUserId ? verifiedIsConnected : propIsConnected;
+  const invitationId = verifiedInvitationId || propInvitationId;
 
   // Check if user is within viewport bounds
   const isUserInViewport = () => {
@@ -141,6 +154,7 @@ const ProfileModal = ({
             onDisconnect={onDisconnect}
             onCloseChat={onCloseChat}
             onNavigate={onNavigate}
+            onOpenAuthModal={onOpenAuthModal}
             showOnMapEnabled={isUserInViewport()}
             onShowOnMap={handleShowOnMap}
           />

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getOrCreateChannel, safeRemoveChannel } from '@/lib/realtimeUtils';
 
 export interface FollowStats {
   followersCount: number;
@@ -103,25 +104,33 @@ export const useFollows = (currentUserId: string | null, targetUserId?: string) 
   useEffect(() => {
     if (!targetUserId) return;
 
-    const channel = supabase
-      .channel(`follows-${targetUserId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'follows',
-          filter: `following_id=eq.${targetUserId}`,
-        },
-        () => {
-          checkFollowStatus();
-          fetchStats(targetUserId);
-        }
-      )
-      .subscribe();
+    const channelName = `follows-${targetUserId}`;
+    
+    // Check if channel already exists to prevent CHANNEL_ERROR
+    const { channel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      return;
+    }
+    
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'follows',
+        filter: `following_id=eq.${targetUserId}`,
+      },
+      () => {
+        checkFollowStatus();
+        fetchStats(targetUserId);
+      }
+    );
+    
+    channel.subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      safeRemoveChannel(channel);
     };
   }, [targetUserId, checkFollowStatus, fetchStats]);
 
@@ -159,22 +168,28 @@ export const useFollowerCount = (userId: string | null) => {
     fetchCount();
 
     // Realtime updates
-    const channel = supabase
-      .channel(`follower-count-${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'follows',
-          filter: `following_id=eq.${userId}`,
-        },
-        fetchCount
-      )
-      .subscribe();
+    const channelName = `follower-count-${userId}`;
+    const { channel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      return;
+    }
+    
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'follows',
+        filter: `following_id=eq.${userId}`,
+      },
+      fetchCount
+    );
+    
+    channel.subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      safeRemoveChannel(channel);
     };
   }, [userId]);
 
@@ -253,22 +268,28 @@ export const useFollowingList = (currentUserId: string | null) => {
   useEffect(() => {
     if (!currentUserId) return;
 
-    const channel = supabase
-      .channel(`following-list-${currentUserId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'follows',
-          filter: `follower_id=eq.${currentUserId}`,
-        },
-        () => fetchFollowing()
-      )
-      .subscribe();
+    const channelName = `following-list-${currentUserId}`;
+    const { channel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      return;
+    }
+    
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'follows',
+        filter: `follower_id=eq.${currentUserId}`,
+      },
+      () => fetchFollowing()
+    );
+    
+    channel.subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      safeRemoveChannel(channel);
     };
   }, [currentUserId, fetchFollowing]);
 
@@ -288,6 +309,10 @@ export const useFollowingList = (currentUserId: string | null) => {
 
     // Optimistically remove from list
     setFollowing(prev => prev.filter(u => u.id !== userIdToUnfollow));
+    
+    // Refetch to ensure UI is in sync with database (handles edge cases)
+    fetchFollowing();
+    
     return true;
   };
 
@@ -366,22 +391,28 @@ export const useFollowersList = (currentUserId: string | null) => {
   useEffect(() => {
     if (!currentUserId) return;
 
-    const channel = supabase
-      .channel(`followers-list-${currentUserId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'follows',
-          filter: `following_id=eq.${currentUserId}`,
-        },
-        () => fetchFollowers()
-      )
-      .subscribe();
+    const channelName = `followers-list-${currentUserId}`;
+    const { channel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      return;
+    }
+    
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'follows',
+        filter: `following_id=eq.${currentUserId}`,
+      },
+      () => fetchFollowers()
+    );
+    
+    channel.subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      safeRemoveChannel(channel);
     };
   }, [currentUserId, fetchFollowers]);
 

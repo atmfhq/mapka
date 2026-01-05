@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getOrCreateChannel, safeRemoveChannel } from '@/lib/realtimeUtils';
 
 interface AvatarConfig {
   skinColor?: string;
@@ -126,39 +127,80 @@ export const useConnectedUsers = (currentUserId: string) => {
     }
   }, [fetchConnectedUsers]);
 
-  // Realtime subscription - uses ref to avoid resubscribing
+  // Use ref to avoid re-subscribing when fetchConnectedUsers changes
   const fetchRef = useRef(fetchConnectedUsers);
-  useEffect(() => { fetchRef.current = fetchConnectedUsers; }, [fetchConnectedUsers]);
+  useEffect(() => {
+    fetchRef.current = fetchConnectedUsers;
+  }, [fetchConnectedUsers]);
 
+  // Real-time subscription for invitation changes - to pick up new connections instantly
+  // GLOBAL subscription pattern - use stable channel name to avoid recreation
   useEffect(() => {
     if (!currentUserId) return;
 
-    const channel = supabase
-      .channel(`connections-${currentUserId}`)
-      .on(
+    // Use stable channel name (with userId for uniqueness, no Date.now())
+    const channelName = `connected-users-global-${currentUserId}`;
+    
+    // Check if channel already exists to prevent CHANNEL_ERROR
+    const { channel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      console.log('[ConnectedUsers] Channel already subscribed:', channelName);
+      return;
+    }
+    
+    console.log('[ConnectedUsers] Setting up GLOBAL realtime subscription:', channelName);
+    
+    channel.on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'invitations' },
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'invitations',
+          // NO FILTER - listen globally, filter in handler
+        },
         (payload) => {
-          const inv = payload.new as { sender_id: string; receiver_id: string };
-          if (inv.sender_id === currentUserId || inv.receiver_id === currentUserId) {
+          const updatedInv = payload.new as {
+            sender_id: string;
+            receiver_id: string;
+            status: string;
+          };
+          const oldInv = payload.old as { status?: string } | null;
+          
+          // CLIENT-SIDE FILTERING: Only process if this invitation involves the current user
+          if (updatedInv.sender_id !== currentUserId && updatedInv.receiver_id !== currentUserId) {
+            return;
+          }
+          
+          // Handle status changes: accepted (new connection) or cancelled (disconnect)
+          const wasAccepted = oldInv?.status === 'accepted';
+          const isNowAccepted = updatedInv.status === 'accepted';
+          const isNowCancelled = updatedInv.status === 'cancelled';
+          
+          // Refetch if:
+          // 1. Status changed to 'accepted' (new connection)
+          // 2. Status changed to 'cancelled' (disconnect)
+          if ((isNowAccepted && !wasAccepted) || (isNowCancelled && wasAccepted)) {
+            console.log('[ConnectedUsers] Invitation status changed, refetching connections list:', {
+              oldStatus: oldInv?.status,
+              newStatus: updatedInv.status,
+            });
             fetchRef.current();
           }
         }
       )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'invitations' },
-        (payload) => {
-          const inv = payload.new as { sender_id: string; receiver_id: string };
-          if (inv.sender_id === currentUserId || inv.receiver_id === currentUserId) {
-            fetchRef.current();
-          }
-        }
-      )
-      .subscribe();
+    channel.subscribe((status) => {
+      console.log('[ConnectedUsers] Subscription status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('[ConnectedUsers] ✅ Successfully subscribed to realtime');
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('[ConnectedUsers] ❌ Channel error - subscription failed');
+      }
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      console.log('[ConnectedUsers] Cleaning up subscription:', channelName);
+      safeRemoveChannel(channel);
     };
   }, [currentUserId]);
 

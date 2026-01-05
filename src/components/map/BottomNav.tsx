@@ -24,6 +24,7 @@ interface BottomNavProps {
   avatarConfig?: AvatarConfig | null;
   onSignOut: () => void;
   onOpenMission?: (missionId: string) => void;
+  onOpenShout?: (shoutId: string) => void;
   chatOpenUserId?: string | null;
   onChatOpenChange?: (open: boolean) => void;
   onOpenChatWithUser?: (userId: string) => void;
@@ -36,6 +37,7 @@ const BottomNav = ({
   avatarConfig,
   onSignOut,
   onOpenMission,
+  onOpenShout,
   chatOpenUserId,
   onChatOpenChange,
   onOpenChatWithUser,
@@ -76,6 +78,7 @@ const BottomNav = ({
                 currentUserId={currentUserId}
                 onFlyToSpot={onFlyTo}
                 onOpenMission={onOpenMission}
+                onOpenShout={onOpenShout}
               />
             </div>
 

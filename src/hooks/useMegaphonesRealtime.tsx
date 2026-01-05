@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getOrCreateChannel, safeRemoveChannel } from '@/lib/realtimeUtils';
 
 interface UseMegaphonesRealtimeOptions {
   enabled?: boolean;
@@ -38,12 +39,22 @@ export const useMegaphonesRealtime = ({
       return;
     }
 
-    const channel = supabase
-      .channel('megaphones-realtime')
-      .on(
+    const channelName = 'megaphones-realtime';
+    
+    // Check if channel already exists to prevent CHANNEL_ERROR
+    const { channel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      console.log('[MegaphonesRealtime] Channel already subscribed:', channelName);
+      channelRef.current = channel;
+      return;
+    }
+    
+    channel.on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'megaphones' },
         (payload) => {
+          console.log('[MegaphonesRealtime] 🔔 Realtime Event Received - INSERT:', payload.new?.id);
           onInsertRef.current?.(payload.new);
         }
       )
@@ -51,6 +62,7 @@ export const useMegaphonesRealtime = ({
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'megaphones' },
         (payload) => {
+          console.log('[MegaphonesRealtime] 🔔 Realtime Event Received - UPDATE:', payload.new?.id);
           onUpdateRef.current?.(payload.new);
         }
       )
@@ -59,18 +71,26 @@ export const useMegaphonesRealtime = ({
         { event: 'DELETE', schema: 'public', table: 'megaphones' },
         (payload) => {
           const deletedId = (payload.old as any)?.id;
+          console.log('[MegaphonesRealtime] 🔔 Realtime Event Received - DELETE:', deletedId);
           if (deletedId) {
             onDeleteRef.current?.(deletedId);
           }
         }
       )
-      .subscribe();
+    channel.subscribe((status) => {
+      console.log('[MegaphonesRealtime] 📡 Channel subscription status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('[MegaphonesRealtime] ✅ Successfully subscribed to realtime');
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('[MegaphonesRealtime] ❌ Channel subscription error');
+      }
+    });
 
     channelRef.current = channel;
 
     return () => {
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+        safeRemoveChannel(channelRef.current);
         channelRef.current = null;
       }
     };

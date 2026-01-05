@@ -27,6 +27,7 @@ interface ChatMessage {
   content: string;
   user_id: string;
   created_at: string;
+  isOptimistic?: boolean; // Flag for optimistic messages
 }
 
 interface AvatarConfig {
@@ -59,8 +60,10 @@ const ChatDrawer = ({
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
   const scrollAnchorRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const isUserAtBottomRef = useRef(true); // Track if user is scrolled to bottom
   
   const { connectedUsers, loading, refetch: refetchConnections, getInvitationIdForUser } = useConnectedUsers(currentUserId);
   const { pendingInvitations, pendingCount, refetch: refetchPending } = useInvitationRealtime(currentUserId);
@@ -95,6 +98,7 @@ const ChatDrawer = ({
     setInternalOpen(value);
     onOpenChange?.(value);
     if (!value) {
+      // Clear active chat when drawer closes so red dot can show for new messages
       setActiveDmChat(null);
       setSelectedUser(null);
       setMessages([]);
@@ -123,9 +127,9 @@ const ChatDrawer = ({
   const { getReactions: getDmReactions, toggleReaction: toggleDmReaction } = useDmMessageReactions(dmMessageIds, currentUserId);
 
   // Typing presence
-  const { isOtherUserTyping, setTyping } = useTypingPresence(invitationId, currentUserId, selectedUser);
+  const { isOtherUserTyping, setTyping, clearTypingForUser } = useTypingPresence(invitationId, currentUserId, selectedUser);
 
-  // Fetch messages for direct chat
+  // Fetch messages for direct chat (only on initial load or conversation switch)
   const fetchMessages = useCallback(async () => {
     if (!invitationId) return;
 
@@ -143,6 +147,11 @@ const ChatDrawer = ({
         user_id: msg.sender_id,
         created_at: msg.created_at,
       })));
+      // After loading, scroll to bottom and mark as at bottom
+      isUserAtBottomRef.current = true;
+      setTimeout(() => {
+        scrollAnchorRef.current?.scrollIntoView({ behavior: 'auto' });
+      }, 100);
     }
     setLoadingMessages(false);
   }, [invitationId]);
@@ -150,10 +159,15 @@ const ChatDrawer = ({
   useEffect(() => {
     if (selectedUser && invitationId) {
       fetchMessages();
+      // Set active DM chat so red dot doesn't show for currently viewed chat
+      setActiveDmChat(invitationId);
+    } else {
+      // Clear active chat when no chat is selected
+      setActiveDmChat(null);
     }
-  }, [selectedUser, invitationId, fetchMessages]);
+  }, [selectedUser, invitationId, fetchMessages, setActiveDmChat]);
 
-  // Realtime subscription for direct messages
+  // Realtime subscription for direct messages - append directly without refetch
   useEffect(() => {
     if (!invitationId) return;
 
@@ -167,8 +181,75 @@ const ChatDrawer = ({
           table: 'direct_messages',
           filter: `invitation_id=eq.${invitationId}`,
         },
-        () => {
-          fetchMessages();
+        (payload) => {
+          const newMsg = payload.new as {
+            id: string;
+            content: string;
+            sender_id: string;
+            created_at: string;
+          };
+
+          // KILL SWITCH: Clear typing indicator immediately when message is received
+          if (newMsg.sender_id !== currentUserId && newMsg.sender_id === selectedUser) {
+            // The other user sent a message - clear their typing indicator immediately
+            clearTypingForUser(newMsg.sender_id);
+          }
+
+          // Check for duplicates - don't add if message already exists
+          setMessages(prev => {
+            // Check if message already exists (could be from optimistic update or already processed)
+            const existingIndex = prev.findIndex(m => m.id === newMsg.id);
+            if (existingIndex !== -1) {
+              // Message already exists - just ensure it's not marked as optimistic
+              return prev.map(m => 
+                m.id === newMsg.id
+                  ? {
+                      id: newMsg.id,
+                      content: newMsg.content,
+                      user_id: newMsg.sender_id,
+                      created_at: newMsg.created_at,
+                    }
+                  : m
+              );
+            }
+            
+            // Check if there's an optimistic message with matching content and sender (race condition handling)
+            const optimisticIndex = prev.findIndex(m => 
+              m.isOptimistic && 
+              m.content === newMsg.content && 
+              m.user_id === newMsg.sender_id &&
+              Math.abs(new Date(m.created_at).getTime() - new Date(newMsg.created_at).getTime()) < 5000 // Within 5 seconds
+            );
+            
+            if (optimisticIndex !== -1) {
+              // Replace optimistic message with real one
+              return prev.map((m, idx) => 
+                idx === optimisticIndex
+                  ? {
+                      id: newMsg.id,
+                      content: newMsg.content,
+                      user_id: newMsg.sender_id,
+                      created_at: newMsg.created_at,
+                    }
+                  : m
+              );
+            }
+            
+            // New message - append it
+            return [...prev, {
+              id: newMsg.id,
+              content: newMsg.content,
+              user_id: newMsg.sender_id,
+              created_at: newMsg.created_at,
+            }];
+          });
+
+          // Auto-scroll if user is at bottom
+          if (isUserAtBottomRef.current) {
+            setTimeout(() => {
+              scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 50);
+          }
         }
       )
       .subscribe();
@@ -176,15 +257,41 @@ const ChatDrawer = ({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [invitationId, fetchMessages]);
+  }, [invitationId, currentUserId, selectedUser, setTyping]);
 
-  // Auto-scroll to bottom
+  // Smart auto-scroll - only scroll if user is at bottom
   useEffect(() => {
-    const timer = setTimeout(() => {
-      scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, 50);
-    return () => clearTimeout(timer);
-  }, [messages, selectedUser]);
+    if (isUserAtBottomRef.current && messages.length > 0) {
+      const timer = setTimeout(() => {
+        scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [messages]);
+
+  // Track scroll position to determine if user is at bottom
+  useEffect(() => {
+    if (!selectedUser || !scrollAreaRef.current) return;
+
+    // Find the viewport element inside ScrollArea
+    const viewport = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+    if (!viewport) return;
+
+    const handleScroll = () => {
+      const isAtBottom = 
+        viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 100; // 100px threshold
+      isUserAtBottomRef.current = isAtBottom;
+    };
+
+    viewport.addEventListener('scroll', handleScroll);
+    
+    // Check initial position
+    handleScroll();
+
+    return () => {
+      viewport.removeEventListener('scroll', handleScroll);
+    };
+  }, [selectedUser]);
 
   const handleSendMessage = async () => {
     const trimmedMessage = newMessage.trim();
@@ -199,15 +306,45 @@ const ChatDrawer = ({
       return;
     }
 
-    setSending(true);
-    const { error } = await supabase.from('direct_messages').insert({
-      invitation_id: invitationId,
-      sender_id: currentUserId,
+    // Generate temporary ID for optimistic update
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
+    const optimisticMessage: ChatMessage = {
+      id: tempId,
       content: trimmedMessage,
-    });
+      user_id: currentUserId,
+      created_at: new Date().toISOString(),
+      isOptimistic: true,
+    };
+
+    // Optimistically add message immediately
+    setMessages(prev => [...prev, optimisticMessage]);
+    setNewMessage('');
+    setSending(true);
+    // Clear typing indicator when we send a message
+    setTyping(false);
+
+    // Scroll to bottom immediately for instant feedback
+    setTimeout(() => {
+      scrollAnchorRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 50);
+
+    // Send to Supabase
+    const { data, error } = await supabase
+      .from('direct_messages')
+      .insert({
+        invitation_id: invitationId,
+        sender_id: currentUserId,
+        content: trimmedMessage,
+      })
+      .select('id, content, sender_id, created_at')
+      .single();
 
     setSending(false);
+
     if (error) {
+      // Rollback optimistic update on error
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      
       if (error.message.includes('row-level security') || error.code === '42501') {
         toast({
           title: 'Connection Terminated',
@@ -223,9 +360,40 @@ const ChatDrawer = ({
           description: error.message,
           variant: 'destructive',
         });
+        // Restore message to input so user can retry
+        setNewMessage(trimmedMessage);
       }
-    } else {
-      setNewMessage('');
+    } else if (data) {
+      // Replace optimistic message with real one (in case realtime didn't fire or hasn't fired yet)
+      setMessages(prev => {
+        const hasOptimistic = prev.some(m => m.id === tempId);
+        if (!hasOptimistic) {
+          // Realtime may have already processed it, check if real message exists
+          const hasReal = prev.some(m => m.id === data.id);
+          if (hasReal) {
+            // Already exists from realtime, no need to add
+            return prev;
+          }
+          // Neither exists, add it (shouldn't happen, but safe fallback)
+          return [...prev, {
+            id: data.id,
+            content: data.content,
+            user_id: data.sender_id,
+            created_at: data.created_at,
+          }];
+        }
+        // Replace optimistic with real
+        return prev.map(m => 
+          m.id === tempId 
+            ? {
+                id: data.id,
+                content: data.content,
+                user_id: data.sender_id,
+                created_at: data.created_at,
+              }
+            : m
+        );
+      });
     }
   };
 
@@ -233,6 +401,8 @@ const ChatDrawer = ({
     if (item.type === 'dm' && item.userId) {
       setSelectedUser(item.userId);
       setMessages([]);
+      // Reset scroll position tracking when switching conversations
+      isUserAtBottomRef.current = true;
       
       if (item.invitationId) {
         setActiveDmChat(item.invitationId);
@@ -257,10 +427,8 @@ const ChatDrawer = ({
       return;
     }
 
-    toast({
-      title: 'Connected!',
-      description: 'You can now start chatting.',
-    });
+    // No toast here - user knows they accepted it, they clicked the button
+    // The sender will get notified via realtime listener
 
     refetchPending();
     // Refetch connections immediately for instant UI update
@@ -417,7 +585,7 @@ const ChatDrawer = ({
         ) : (
           /* DM Chat View */
           <>
-            <ScrollArea className="flex-1 overflow-auto">
+            <ScrollArea ref={scrollAreaRef} className="flex-1 overflow-auto">
               <div className="p-4 space-y-3">
                 {loadingMessages ? (
                   <div className="flex items-center justify-center py-8">

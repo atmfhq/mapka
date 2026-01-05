@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useParams, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useActiveArea } from "@/hooks/useActiveArea";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +11,7 @@ import LoadingScreen from "@/components/LoadingScreen";
 import AuthModal from "@/components/map/AuthModal";
 import OnboardingModal from "@/components/map/OnboardingModal";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface AvatarConfig {
   skinColor?: string;
@@ -23,7 +24,11 @@ const Dashboard = () => {
   const { user, profile, loading, signOut, refreshProfile } = useAuth();
   const { lat: activeAreaLat, lng: activeAreaLng, loading: activeAreaLoading } = useActiveArea();
   const [searchParams, setSearchParams] = useSearchParams();
+  const params = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [chatOpenUserId, setChatOpenUserId] = useState<string | null>(null);
   const [chatOpenEventId, setChatOpenEventId] = useState<string | null>(null);
@@ -37,6 +42,7 @@ const Dashboard = () => {
   const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
   const mapRef = useRef<TacticalMapHandle | null>(null);
   const deepLinkHandledRef = useRef(false);
+  const onboardingModalDismissedRef = useRef(false);
   
   // Auth modal state
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -50,13 +56,22 @@ const Dashboard = () => {
 
   const isGuest = !user;
   
-  // Check for deep link params in URL
-  const eventId = searchParams.get('eventId');
-  const shareCode = searchParams.get('c');
-  const shoutId = searchParams.get('shoutId');
+  // Check for deep link params in URL (query OR path params)
+  const eventId = searchParams.get('eventId') || (params.eventId ?? null);
+  const shareCode = searchParams.get('c') || (params.shareCode ?? null);
+  const shoutId = searchParams.get('shoutId') || (params.shoutId ?? null);
   const hasEventDeepLink = !!(eventId || shareCode);
   const hasShoutDeepLink = !!shoutId;
   const hasDeepLink = hasEventDeepLink || hasShoutDeepLink;
+
+  // Note: OG meta for social crawlers is handled by the `og-share` Edge Function.
+
+  // Normalize legacy share-code path `/m/:shareCode` into query-param deep link to keep existing logic stable.
+  useEffect(() => {
+    if (location.pathname.startsWith("/m/") && shareCode) {
+      navigate(`/?c=${encodeURIComponent(shareCode)}`, { replace: true });
+    }
+  }, [location.pathname, shareCode, navigate]);
 
   // Pre-fetch deep link spot/shout coordinates BEFORE map renders (for correct initial center)
   useEffect(() => {
@@ -127,10 +142,19 @@ const Dashboard = () => {
     }
   }, [profile]);
 
-  // Show onboarding modal for logged-in but not onboarded users
+  // Show onboarding modal for logged-in but not onboarded users or users without age confirmation
+  // Close modal if user is fully onboarded and has confirmed age
   useEffect(() => {
-    if (!loading && user && profile && !profile.is_onboarded) {
-      setShowOnboardingModal(true);
+    if (!loading && user && profile) {
+      const needsOnboarding = !profile.is_onboarded || !profile.is_18_plus;
+      if (!needsOnboarding) {
+        // User is fully onboarded and has confirmed age - close modal and reset dismissal flag
+        setShowOnboardingModal(false);
+        onboardingModalDismissedRef.current = false;
+      } else if (!onboardingModalDismissedRef.current) {
+        // Only open modal if it hasn't been dismissed by user and onboarding is needed
+        setShowOnboardingModal(true);
+      }
     }
   }, [loading, user, profile]);
 
@@ -299,8 +323,10 @@ const Dashboard = () => {
         // Fly camera to the spot location (in case map initialized elsewhere)
         mapRef.current?.flyTo(spot.lat, spot.lng);
         
-        // Open the spot details modal
-        mapRef.current?.openMissionById(spot.id);
+        // Open the spot details modal.
+        // Prefer share code when present (works for guests via RPC), otherwise UUID.
+        const openId = shareCode || eventId || spot.id;
+        mapRef.current?.openMissionById(openId);
       }
       
       // Clear the deep link params after handling
@@ -316,15 +342,32 @@ const Dashboard = () => {
 
   // Handler for opening auth modal (called from GuestNavbar or GuestPromptModal)
   const handleOpenAuthModal = () => {
+    // Prefer explicit spawn intent coordinates (e.g. guest clicked on the map)
+    const spawnIntent = sessionStorage.getItem('spawn_intent_coords');
+    if (spawnIntent) {
+      try {
+        const parsed = JSON.parse(spawnIntent) as { lat?: number; lng?: number };
+        if (typeof parsed.lat === 'number' && typeof parsed.lng === 'number') {
+          setSpawnCoordinates({ lat: parsed.lat, lng: parsed.lng });
+          sessionStorage.removeItem('spawn_intent_coords');
+          setShowAuthModal(true);
+          return;
+        }
+      } catch {
+        // ignore and fall back
+      }
+      sessionStorage.removeItem('spawn_intent_coords');
+    }
+
     // Capture current map center as spawn coordinates
     const mapCenter = mapRef.current?.getCenter?.();
     if (mapCenter) {
       setSpawnCoordinates({ lat: mapCenter.lat, lng: mapCenter.lng });
     } else {
       // Fallback to guest location or active area
-      setSpawnCoordinates({ 
-        lat: guestLocation?.lat ?? activeAreaLat, 
-        lng: guestLocation?.lng ?? activeAreaLng 
+      setSpawnCoordinates({
+        lat: guestLocation?.lat ?? activeAreaLat,
+        lng: guestLocation?.lng ?? activeAreaLng
       });
     }
     setShowAuthModal(true);
@@ -336,6 +379,11 @@ const Dashboard = () => {
 
   const handleOpenMission = (missionId: string) => {
     mapRef.current?.openMissionById(missionId);
+  };
+
+  const handleOpenShout = (shoutId: string) => {
+    // Open shout drawer (used by notifications)
+    mapRef.current?.openShoutById(shoutId);
   };
 
   const handleFlyToQuest = (lat: number, lng: number) => {
@@ -470,6 +518,7 @@ const Dashboard = () => {
           onSignOut={handleSignOut}
           onMissionCreated={handleMissionCreated}
           onOpenMission={handleOpenMission}
+          onOpenShout={handleOpenShout}
           chatOpenUserId={chatOpenUserId}
           chatOpenEventId={chatOpenEventId}
           onChatOpenChange={handleChatOpenChange}
@@ -481,12 +530,13 @@ const Dashboard = () => {
       )}
 
       {/* Bottom Navigation - Mobile only, for logged-in users */}
-      {!isGuest && (
+      {!isGuest && isMobile && (
         <BottomNav
           currentUserId={user.id}
           avatarConfig={profile?.avatar_config as AvatarConfig | null}
           onSignOut={handleSignOut}
           onOpenMission={handleOpenMission}
+          onOpenShout={handleOpenShout}
           chatOpenUserId={chatOpenUserId}
           onChatOpenChange={handleChatOpenChange}
           onOpenChatWithUser={handleOpenChatWithUser}
@@ -520,8 +570,18 @@ const Dashboard = () => {
       {/* Onboarding Modal */}
       <OnboardingModal 
         open={showOnboardingModal} 
-        onOpenChange={setShowOnboardingModal}
+        onOpenChange={(isOpen) => {
+          setShowOnboardingModal(isOpen);
+          // Track if user manually dismissed the modal
+          if (!isOpen) {
+            onboardingModalDismissedRef.current = true;
+          }
+        }}
         spawnCoordinates={spawnCoordinates}
+        onComplete={() => {
+          // Reset dismissal flag on successful completion
+          onboardingModalDismissedRef.current = false;
+        }}
       />
     </div>
   );

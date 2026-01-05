@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { safeRemoveChannel } from '@/lib/realtimeUtils';
 
 /**
  * Realtime broadcast protocol (MUST match sender + receiver).
@@ -216,21 +217,28 @@ export const useProfilesRealtime = ({
   // CRITICAL: Empty dependency array - subscribe exactly once
   useEffect(() => {
     console.log('[Broadcast] Setting up GLOBAL subscription:', REALTIME_CHANNEL);
+    
+    // IMPORTANT: Broadcast must use a STABLE channel name shared across clients.
+    // Do NOT use getOrCreateChannel() here because it creates unique local channel names,
+    // which would put each client in a different broadcast room.
+    const channel = supabase.channel(REALTIME_CHANNEL);
+    channelRef.current = channel;
 
-    const channel = supabase
-      .channel(REALTIME_CHANNEL)
+    // Attach handlers and subscribe
+    channel
       .on('broadcast', { event: EVENT_NAME }, handleBroadcast)
       .on('broadcast', { event: CHAT_EVENT }, handleChatBroadcast)
       .subscribe((status) => {
         console.log('[Broadcast] Global subscription status:', status);
+        if (status === 'SUBSCRIBED') {
+          console.log('[Broadcast] ✅ Subscribed to global channel');
+        }
       });
-
-    channelRef.current = channel;
 
     return () => {
       console.log('[Broadcast] Cleaning up GLOBAL subscription');
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+        safeRemoveChannel(channelRef.current);
         channelRef.current = null;
       }
     };
@@ -276,8 +284,6 @@ export const broadcastProfileUpdate = async (
   lng: number,
   eventType: 'location_update' | 'bounce' | 'status_change' = 'location_update'
 ) => {
-  const channel = supabase.channel(REALTIME_CHANNEL);
-
   const payload: ProfileBroadcastPayload = {
     user_id: profile.id,
     event_type: eventType,
@@ -295,14 +301,17 @@ export const broadcastProfileUpdate = async (
 
   console.log('📡 SENDING Broadcast to', REALTIME_CHANNEL, payload);
 
-  await channel.subscribe((status) => {
+  // IMPORTANT: Broadcast must use the stable global room name.
+  // For one-off sends we create a short-lived channel and clean it up after sending.
+  const channel = supabase.channel(REALTIME_CHANNEL);
+  channel.subscribe((status) => {
     if (status === 'SUBSCRIBED') {
       channel.send({ type: 'broadcast', event: EVENT_NAME, payload });
-
-      // Cleanup after sending
-      setTimeout(() => {
+      try {
         supabase.removeChannel(channel);
-      }, 1000);
+      } catch {
+        // ignore
+      }
     }
   });
 };

@@ -116,6 +116,9 @@ export interface TacticalMapHandle {
   getCenter: () => { lat: number; lng: number } | null;
 }
 
+const isUuid = (value: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+
 // Category colors with distinct, vibrant hues (HSL format)
 const CATEGORY_COLORS: Record<string, string> = {
   sport: '15, 100%, 55%',      // Orange-red
@@ -637,8 +640,6 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   // DATABASE-DRIVEN realtime: postgres_changes for TRUE background updates
   // This fires even when other users move without broadcasting (e.g., via edit profile)
   useEffect(() => {
-    if (!currentUserId) return;
-
     console.log('[DB Realtime] Setting up postgres_changes subscription for profiles');
 
     const channel = supabase
@@ -656,7 +657,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           const recordId = profile?.id || oldRecord?.id;
 
           // Skip own updates
-          if (recordId === currentUserId) return;
+          if (currentUserId && recordId === currentUserId) return;
 
           console.log('[DB Realtime] Profile change:', payload.eventType, recordId);
 
@@ -846,17 +847,41 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   }, [fetchJoinedQuestIds]);
 
   const openMissionById = useCallback(async (missionId: string) => {
-    const { data } = await supabase
-      .from('megaphones')
-      .select('*')
-      .eq('id', missionId)
-      .maybeSingle();
-    
+    // `missionId` can be either UUID or share_code.
+    // Guests can't SELECT from `megaphones` due to RLS (authenticated-only), so use RPC.
+    if (isGuest) {
+      const { data, error } = await supabase.rpc('resolve_megaphone_link', {
+        p_share_code: isUuid(missionId) ? null : missionId,
+        p_id: isUuid(missionId) ? missionId : null,
+      });
+
+      const row = data?.[0];
+      if (error || !row) {
+        console.warn('[Map] Guest cannot resolve megaphone link:', error);
+        return;
+      }
+
+      setSelectedQuest(row);
+      setLobbyOpen(true);
+      return;
+    }
+
+    // Authenticated: query by the correct column to avoid invalid UUID casts.
+    const query = supabase.from('megaphones').select('*');
+    const { data, error } = isUuid(missionId)
+      ? await query.eq('id', missionId).maybeSingle()
+      : await query.eq('share_code', missionId).maybeSingle();
+
+    if (error) {
+      console.warn('[Map] Failed to open megaphone:', error);
+      return;
+    }
+
     if (data) {
       setSelectedQuest(data);
       setLobbyOpen(true);
     }
-  }, []);
+  }, [isGuest]);
 
   // Open shout by ID - used for deep linking
   const openShoutById = useCallback(async (shoutId: string): Promise<boolean> => {
@@ -967,11 +992,17 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
     return { lat: userLat, lng: userLng };
   })());
   const isGuestRef = useRef(isGuest);
+  const onOpenAuthModalRef = useRef(onOpenAuthModal);
   
   // Keep isGuest ref in sync for use in click handler
   useEffect(() => {
     isGuestRef.current = isGuest;
   }, [isGuest]);
+
+  // Keep auth modal opener ref in sync (map click handler is registered once)
+  useEffect(() => {
+    onOpenAuthModalRef.current = onOpenAuthModal;
+  }, [onOpenAuthModal]);
 
   // Initialize map ONCE - do not recreate on coordinate changes
   useEffect(() => {
@@ -1029,16 +1060,20 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
       map.current.on('click', (e) => {
         const target = e.originalEvent.target as HTMLElement;
-        if (target.closest('.user-marker') || target.closest('.megaphone-marker') || target.closest('.quest-marker')) {
+        if (
+          target.closest('.user-marker') ||
+          target.closest('.megaphone-marker') ||
+          target.closest('.quest-marker') ||
+          target.closest('.shout-marker')
+        ) {
           return;
         }
         
-        // Guest clicked on map - save spawn coords and show guest prompt
+        // Guest clicked on map - save spawn coords and open the standard auth modal
         if (isGuestRef.current) {
           const spawnCoords = { lat: e.lngLat.lat, lng: e.lngLat.lng };
           sessionStorage.setItem('spawn_intent_coords', JSON.stringify(spawnCoords));
-          setGuestPromptVariant('create');
-          setGuestPromptOpen(true);
+          onOpenAuthModalRef.current?.();
           return;
         }
         
@@ -2608,6 +2643,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         }}
         shout={selectedShout}
         currentUserId={currentUserId}
+        onOpenAuthModal={onOpenAuthModal}
       />
 
       {/* Guest Prompt Modal - for any user */}
@@ -2624,6 +2660,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         onOpenChange={setLobbyOpen}
         quest={selectedQuest}
         currentUserId={currentUserId}
+        onOpenAuthModal={onOpenAuthModal}
         onDelete={fetchQuests}
         onJoin={(questId) => {
           setJoinedQuestIds(prev => new Set([...prev, questId]));
@@ -2688,6 +2725,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         onCloseChat={onCloseChat}
         onNavigate={navigate}
         onFlyTo={flyTo}
+        onOpenAuthModal={onOpenAuthModal}
       />
 
       {/* About Modal */}

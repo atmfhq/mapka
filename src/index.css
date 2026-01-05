@@ -272,6 +272,15 @@
     min-height: 100dvh;
   }
 
+  /* Hide scrollbars but keep scroll behavior (useful for horizontal avatar strips) */
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari and Opera */
+  }
+
   /* Full screen with safe areas */
   .safe-screen {
     height: 100vh;

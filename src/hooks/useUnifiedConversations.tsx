@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getOrCreateChannel, safeRemoveChannel } from '@/lib/realtimeUtils';
 
 // Export for real-time updates
 export interface LastMessageUpdate {
@@ -165,13 +166,20 @@ export const useUnifiedConversations = (
   useEffect(() => {
     if (!currentUserId) return;
 
-    // Use unique channel name with timestamp to prevent collisions
-    const channelName = `conversations-dm-realtime-${currentUserId}-${Date.now()}`;
+    // Use stable channel name with userId (no Date.now())
+    const channelName = `conversations-dm-realtime-${currentUserId}`;
+    
+    // Check if channel already exists to prevent CHANNEL_ERROR
+    const { channel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      console.log('[UnifiedConversations] DM channel already subscribed:', channelName);
+      return;
+    }
+    
     console.log('[UnifiedConversations] Setting up DM realtime channel:', channelName);
     
-    const channel = supabase
-      .channel(channelName)
-      .on(
+    channel.on(
         'postgres_changes',
         {
           event: 'INSERT',
@@ -198,13 +206,16 @@ export const useUnifiedConversations = (
           setUpdateTrigger(prev => prev + 1);
         }
       )
-      .subscribe((status) => {
-        console.log('[UnifiedConversations] DM channel status:', status);
-      });
+    channel.subscribe((status) => {
+      console.log('[UnifiedConversations] DM channel status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('[UnifiedConversations] ✅ DM channel subscribed');
+      }
+    });
 
     return () => {
       console.log('[UnifiedConversations] Cleaning up DM channel:', channelName);
-      supabase.removeChannel(channel);
+      safeRemoveChannel(channel);
     };
   }, [currentUserId]);
 
@@ -212,10 +223,17 @@ export const useUnifiedConversations = (
   useEffect(() => {
     if (!currentUserId) return;
 
-    const channelName = `conversations-inv-${currentUserId}-${Date.now()}`;
-    const channel = supabase
-      .channel(channelName)
-      .on(
+    const channelName = `conversations-inv-${currentUserId}`;
+    
+    // Check if channel already exists to prevent CHANNEL_ERROR
+    const { channel: invChannel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      console.log('[UnifiedConversations] Invitation channel already subscribed:', channelName);
+      return;
+    }
+    
+    invChannel.on(
         'postgres_changes',
         {
           event: 'UPDATE',
@@ -232,12 +250,15 @@ export const useUnifiedConversations = (
           }
         }
       )
-      .subscribe((status) => {
-        console.log('[UnifiedConversations] Invitation channel status:', status);
-      });
+    invChannel.subscribe((status) => {
+      console.log('[UnifiedConversations] Invitation channel status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('[UnifiedConversations] ✅ Invitation channel subscribed');
+      }
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      safeRemoveChannel(invChannel);
     };
   }, [currentUserId]);
 
@@ -245,10 +266,17 @@ export const useUnifiedConversations = (
   useEffect(() => {
     if (!currentUserId) return;
 
-    const channelName = `conversations-inv-insert-${currentUserId}-${Date.now()}`;
-    const channel = supabase
-      .channel(channelName)
-      .on(
+    const channelName = `conversations-inv-insert-${currentUserId}`;
+    
+    // Check if channel already exists to prevent CHANNEL_ERROR
+    const { channel: invInsertChannel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      console.log('[UnifiedConversations] Invitation INSERT channel already subscribed:', channelName);
+      return;
+    }
+    
+    invInsertChannel.on(
         'postgres_changes',
         {
           event: 'INSERT',
@@ -264,12 +292,15 @@ export const useUnifiedConversations = (
           }
         }
       )
-      .subscribe((status) => {
-        console.log('[UnifiedConversations] Invitation INSERT channel status:', status);
-      });
+    invInsertChannel.subscribe((status) => {
+      console.log('[UnifiedConversations] Invitation INSERT channel status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('[UnifiedConversations] ✅ Invitation INSERT channel subscribed');
+      }
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      safeRemoveChannel(invInsertChannel);
     };
   }, [currentUserId]);
 

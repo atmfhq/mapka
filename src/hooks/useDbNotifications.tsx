@@ -1,5 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getOrCreateChannel, safeRemoveChannel } from '@/lib/realtimeUtils';
+import { useMapRefetch } from './useMapRefetch';
+import { useQueryClient } from '@tanstack/react-query';
+import { queryKeys } from './queryKeys';
 
 interface DbNotification {
   id: string;
@@ -18,6 +22,7 @@ interface DbNotification {
 }
 
 interface ResourceInfo {
+  kind?: 'event' | 'shout';
   title?: string;
   content?: string;
   lat?: number;
@@ -29,6 +34,21 @@ export const useDbNotifications = (currentUserId: string | null) => {
   const [hasUnread, setHasUnread] = useState(false);
   const [loading, setLoading] = useState(true);
   const [resourceMap, setResourceMap] = useState<Record<string, ResourceInfo>>({});
+  const queryClient = useQueryClient();
+  
+  // Get MapRefetch functions to trigger map updates when comments/likes are added
+  // Use refs to avoid dependency issues in useEffect
+  const { triggerShoutRefetch, triggerEventRefetch, triggerCountRefetch } = useMapRefetch();
+  const triggerShoutRefetchRef = useRef(triggerShoutRefetch);
+  const triggerEventRefetchRef = useRef(triggerEventRefetch);
+  const triggerCountRefetchRef = useRef(triggerCountRefetch);
+  
+  // Keep refs in sync
+  useEffect(() => {
+    triggerShoutRefetchRef.current = triggerShoutRefetch;
+    triggerEventRefetchRef.current = triggerEventRefetch;
+    triggerCountRefetchRef.current = triggerCountRefetch;
+  }, [triggerShoutRefetch, triggerEventRefetch, triggerCountRefetch]);
 
   // Fetch notifications from DB
   const fetchNotifications = useCallback(async () => {
@@ -78,36 +98,55 @@ export const useDbNotifications = (currentUserId: string | null) => {
         });
       }
 
-      // Fetch resource info (events/shouts) for deep linking
+      // Fetch resource info (events/shouts) for deep linking.
+      // IMPORTANT: `new_comment` may point to either an event (megaphone) OR a shout.
       const eventIds = notifs
-        .filter(n => n.type === 'friend_event' || n.type === 'new_participant' || n.type === 'new_comment')
+        .filter(n => n.type === 'friend_event' || n.type === 'new_participant')
         .map(n => n.resource_id);
       
       const shoutIds = notifs
         .filter(n => n.type === 'friend_shout')
         .map(n => n.resource_id);
 
+      const maybeCommentResourceIds = notifs
+        .filter(n => n.type === 'new_comment')
+        .map(n => n.resource_id);
+
       const resources: Record<string, ResourceInfo> = {};
 
-      if (eventIds.length > 0) {
-        const { data: events } = await supabase
-          .from('megaphones')
-          .select('id, title, lat, lng')
-          .in('id', eventIds);
-        
-        events?.forEach(e => {
-          resources[e.id] = { title: e.title, lat: e.lat, lng: e.lng };
-        });
+      // Fetch events using RPC to avoid 406 errors (megaphones may be a view)
+      const eventCandidateIds = [...new Set([...eventIds, ...maybeCommentResourceIds])];
+      if (eventCandidateIds.length > 0) {
+        try {
+          // Try batch fetch, but handle errors gracefully
+          const { data: events, error: eventsError } = await supabase
+            .from('megaphones')
+            .select('id, title, lat, lng')
+            .in('id', eventCandidateIds);
+          
+          if (!eventsError && events) {
+            events.forEach(e => {
+              resources[e.id] = { kind: 'event', title: e.title, lat: e.lat, lng: e.lng };
+            });
+          } else if (eventsError) {
+            // If batch fetch fails, try individual fetches with error handling
+            console.warn('[Notifications] Batch megaphones fetch failed, skipping resource info:', eventsError);
+          }
+        } catch (error) {
+          console.warn('[Notifications] Error fetching megaphones for notifications:', error);
+        }
       }
 
-      if (shoutIds.length > 0) {
+      const shoutCandidateIds = [...new Set([...shoutIds, ...maybeCommentResourceIds])];
+      if (shoutCandidateIds.length > 0) {
         const { data: shouts } = await supabase
           .from('shouts')
           .select('id, content, lat, lng')
-          .in('id', shoutIds);
+          .in('id', shoutCandidateIds);
         
         shouts?.forEach(s => {
           resources[s.id] = { 
+            kind: 'shout',
             content: s.content.length > 50 ? s.content.substring(0, 50) + '...' : s.content, 
             lat: s.lat, 
             lng: s.lng 
@@ -131,32 +170,63 @@ export const useDbNotifications = (currentUserId: string | null) => {
     fetchNotifications();
   }, [fetchNotifications]);
 
+  // Use ref to avoid re-subscribing when fetchNotifications changes
+  const fetchNotificationsRef = useRef(fetchNotifications);
+  useEffect(() => {
+    fetchNotificationsRef.current = fetchNotifications;
+  }, [fetchNotifications]);
+
   // Real-time subscription for new notifications
-  // Using server-side filtering with REPLICA IDENTITY FULL (database is now configured)
+  // GLOBAL subscription pattern: stable channel name, client-side filtering
   useEffect(() => {
     if (!currentUserId) return;
 
-    const channelName = 'notif-' + currentUserId;
+    // Use stable channel name (no Date.now() to prevent channel recreation)
+    const channelName = `notifications-global-${currentUserId}`;
+    
+    // Get or create channel - ALWAYS attach handlers, only subscribe if needed
+    const { channel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
     console.log('[Notifications] Setting up realtime subscription:', channelName);
     
-    const channel = supabase
-      .channel(channelName)
-      .on(
+    channel.on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'notifications',
-          filter: 'recipient_id=eq.' + currentUserId,
+          // NO SERVER-SIDE FILTER - use client-side filtering like Chat does
         },
         (payload) => {
           const newNotif = payload.new as DbNotification;
           
-          console.log('🔔 Realtime notification incoming:', payload);
+          // CLIENT-SIDE FILTERING (like Chat does with sender_id check)
+          // Only process notifications for the current user
+          if (newNotif.recipient_id !== currentUserId) {
+            return;
+          }
+          
+          console.log('[Notifications] New notification received via realtime:', newNotif.id, newNotif.type);
           
           // CRITICAL: Set hasUnread to true FIRST (before any state updates)
           // This ensures the red dot appears instantly, even if notification list update is delayed
           setHasUnread(true);
+          
+          // WORKAROUND: Trigger map refetches when engagement notifications are received
+          // This ensures other users see updates even if direct realtime for engagement tables fails
+          // (Supabase Realtime can have issues with complex RLS policies on engagement tables)
+          if (newNotif.type === 'new_comment') {
+            console.log('[Notifications] 🔄 Triggering map refetch for new_comment notification');
+            // Invalidate React Query caches
+            queryClient.invalidateQueries({ queryKey: queryKeys.allShoutCounts() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.allShouts() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.allSpotComments() });
+            queryClient.invalidateQueries({ queryKey: queryKeys.allEvents() });
+            // Use refs to call stable functions
+            triggerShoutRefetchRef.current();
+            triggerEventRefetchRef.current();
+            triggerCountRefetchRef.current();
+          }
           
           // Add to state immediately (prepend to array)
           setNotifications(prev => {
@@ -192,38 +262,53 @@ export const useDbNotifications = (currentUserId: string | null) => {
               }
 
               // Fetch resource info
+              // NOTE: Single-row fetches from megaphones view may fail with 406
+              // We handle errors gracefully and skip resource info if fetch fails
               const resourceId = newNotif.resource_id;
               const type = newNotif.type;
               
               if (type === 'friend_event' || type === 'new_participant' || type === 'new_comment') {
-                const { data: events } = await supabase
-                  .from('megaphones')
-                  .select('id, title, lat, lng')
-                  .eq('id', resourceId)
-                  .single();
-                
-                if (events) {
-                  setResourceMap(prev => ({
-                    ...prev,
-                    [events.id]: { title: events.title, lat: events.lat, lng: events.lng }
-                  }));
+                try {
+                  const { data: events, error: eventsError } = await supabase
+                    .from('megaphones')
+                    .select('id, title, lat, lng')
+                    .eq('id', resourceId)
+                    .maybeSingle();
+                  
+                  // Only update if fetch succeeded (handle 406 gracefully)
+                  if (!eventsError && events) {
+                    setResourceMap(prev => ({
+                      ...prev,
+                      [events.id]: { title: events.title, lat: events.lat, lng: events.lng }
+                    }));
+                  } else if (eventsError) {
+                    // Silently skip - megaphones view may not support single-row fetches
+                    console.warn('[Notifications] Could not fetch megaphone resource info (expected for views):', eventsError.code);
+                  }
+                } catch (err) {
+                  // Silently skip on any error
+                  console.warn('[Notifications] Error fetching megaphone resource:', err);
                 }
               } else if (type === 'friend_shout') {
-                const { data: shout } = await supabase
-                  .from('shouts')
-                  .select('id, content, lat, lng')
-                  .eq('id', resourceId)
-                  .single();
-                
-                if (shout) {
-                  setResourceMap(prev => ({
-                    ...prev,
-                    [shout.id]: { 
-                      content: shout.content.length > 50 ? shout.content.substring(0, 50) + '...' : shout.content, 
-                      lat: shout.lat, 
-                      lng: shout.lng 
-                    }
-                  }));
+                try {
+                  const { data: shout, error: shoutError } = await supabase
+                    .from('shouts')
+                    .select('id, content, lat, lng')
+                    .eq('id', resourceId)
+                    .maybeSingle();
+                  
+                  if (!shoutError && shout) {
+                    setResourceMap(prev => ({
+                      ...prev,
+                      [shout.id]: { 
+                        content: shout.content.length > 50 ? shout.content.substring(0, 50) + '...' : shout.content, 
+                        lat: shout.lat, 
+                        lng: shout.lng 
+                      }
+                    }));
+                  }
+                } catch (err) {
+                  console.warn('[Notifications] Error fetching shout resource:', err);
                 }
               }
             } catch (error) {
@@ -231,19 +316,23 @@ export const useDbNotifications = (currentUserId: string | null) => {
             }
           })();
         }
-      )
-      .subscribe((status) => {
-        console.log('[Notifications] Subscription status:', status);
-        if (status === 'CHANNEL_ERROR') {
-          console.error('[Notifications] Channel error - subscription failed');
-        }
-      });
+      );
+    
+    // Subscribe to the channel
+    channel.subscribe((status) => {
+      console.log('[Notifications] Subscription status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('[Notifications] ✅ Successfully subscribed');
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('[Notifications] Channel error - subscription failed');
+      }
+    });
 
     return () => {
       console.log('[Notifications] Cleaning up subscription:', channelName);
-      supabase.removeChannel(channel);
+      safeRemoveChannel(channel);
     };
-  }, [currentUserId]);
+  }, [currentUserId, queryClient]);
 
   // Mark single notification as read (Optimistic UI)
   const markAsRead = useCallback(async (notificationId: string) => {
@@ -318,6 +407,34 @@ export const useDbNotifications = (currentUserId: string | null) => {
     }
   }, [currentUserId]);
 
+  // Delete a single notification (Optimistic UI) - used by the "X" button
+  const deleteNotification = useCallback(async (notificationId: string) => {
+    if (!currentUserId) return;
+
+    let previousNotifications: DbNotification[] = [];
+
+    // Optimistic: remove from UI immediately
+    setNotifications(prev => {
+      previousNotifications = prev;
+      const next = prev.filter(n => n.id !== notificationId);
+      setHasUnread(next.some(n => !n.is_read));
+      return next;
+    });
+
+    const { error } = await supabase
+      .from('notifications')
+      .delete()
+      .eq('id', notificationId)
+      .eq('recipient_id', currentUserId);
+
+    if (error) {
+      console.error('[Notifications] Delete failed:', error);
+      // Roll back optimistic remove
+      setNotifications(previousNotifications);
+      setHasUnread(previousNotifications.some(n => !n.is_read));
+    }
+  }, [currentUserId]);
+
   // Get resource info for a notification
   const getResourceInfo = useCallback((resourceId: string): ResourceInfo | undefined => {
     return resourceMap[resourceId];
@@ -330,6 +447,7 @@ export const useDbNotifications = (currentUserId: string | null) => {
     markAsRead,
     markAllAsRead,
     clearAll,
+    deleteNotification,
     getResourceInfo,
     refetch: fetchNotifications,
   };

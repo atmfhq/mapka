@@ -97,8 +97,8 @@ const GuestNavbar = ({ onFlyTo, onOpenAuthModal }: GuestNavbarProps) => {
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 pointer-events-none safe-area-top">
-      <div className="container mx-auto px-3 sm:px-4 py-3">
-        <div className="flex items-center gap-3">
+      <div className="w-full px-3 sm:px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
           {/* Search Bar - Floating in top-left */}
           <div 
             ref={searchContainerRef}
@@ -149,9 +149,6 @@ const GuestNavbar = ({ onFlyTo, onOpenAuthModal }: GuestNavbarProps) => {
               </div>
             )}
           </div>
-
-          {/* Spacer */}
-          <div className="flex-1 hidden lg:block" />
 
           {/* Guest Controls - Single Join Button */}
           <div className="flex items-center pointer-events-auto flex-shrink-0">

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getOrCreateChannel, safeRemoveChannel } from '@/lib/realtimeUtils';
 
 export const REACTION_EMOJIS = ['❤️', '👍', '😂'] as const;
 export type ReactionEmoji = typeof REACTION_EMOJIS[number];
@@ -18,9 +19,15 @@ export const useDmMessageReactions = (messageIds: string[], userId: string | nul
   const [reactionsMap, setReactionsMap] = useState<ReactionsMap>({});
   const [isLoading, setIsLoading] = useState(true);
   
-  // Use ref to avoid stale closure issues in toggleReaction
+  // Use refs to avoid stale closure issues
   const reactionsMapRef = useRef<ReactionsMap>({});
   reactionsMapRef.current = reactionsMap;
+  
+  const messageIdsRef = useRef<string[]>(messageIds);
+  messageIdsRef.current = messageIds;
+  
+  const userIdRef = useRef<string | null>(userId);
+  userIdRef.current = userId;
 
   const fetchReactions = useCallback(async () => {
     if (messageIds.length === 0) {
@@ -74,32 +81,46 @@ export const useDmMessageReactions = (messageIds: string[], userId: string | nul
     fetchReactions();
   }, [fetchReactions]);
 
-  // Subscribe to realtime updates for reactions
+  // Subscribe to realtime updates for reactions - use stable channel name
   useEffect(() => {
-    if (messageIds.length === 0) return;
-
-    const channel = supabase
-      .channel('dm-message-reactions')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'dm_message_reactions',
-        },
-        (payload) => {
-          const msgId = (payload.new as any)?.message_id || (payload.old as any)?.message_id;
-          if (msgId && messageIds.includes(msgId)) {
-            fetchReactions();
-          }
+    const channelName = 'dm-message-reactions-global';
+    
+    // Check if channel already exists to prevent CHANNEL_ERROR
+    const { channel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      console.log('[useDmMessageReactions] Channel already subscribed:', channelName);
+      return;
+    }
+    
+    channel.on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'dm_message_reactions',
+      },
+      (payload) => {
+        const msgId = (payload.new as any)?.message_id || (payload.old as any)?.message_id;
+        // Use ref to get current messageIds
+        if (msgId && messageIdsRef.current.includes(msgId)) {
+          console.log('[useDmMessageReactions] 🔔 Reaction change for message:', msgId);
+          fetchReactions();
         }
-      )
-      .subscribe();
+      }
+    );
+    
+    channel.subscribe((status) => {
+      console.log('[useDmMessageReactions] 📡 Subscription status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('[useDmMessageReactions] ✅ Subscribed');
+      }
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      safeRemoveChannel(channel);
     };
-  }, [messageIds.join(','), fetchReactions]);
+  }, [fetchReactions]); // Only fetchReactions as dep (stable callback)
 
   const toggleReaction = useCallback(async (messageId: string, emoji: string) => {
     if (!userId) return;

@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, isToday } from 'date-fns';
-import { Clock, Users, UserPlus, X, Lock, Pencil, Save, CalendarIcon, LogIn, Hourglass, LogOut, Share2, ExternalLink, MapPin, Crown, Star } from 'lucide-react';
+import { Clock, Users, UserPlus, X, Lock, Pencil, Save, CalendarIcon, LogIn, Hourglass, LogOut, Share2, ExternalLink, MapPin, Crown, Star, AlertTriangle, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AspectRatio } from '@/components/ui/aspect-ratio';
 import { Button } from '@/components/ui/button';
@@ -17,12 +17,13 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { buildShareUrl } from '@/utils/share';
 import { useSpotBans } from '@/hooks/useSpotBans';
 import { useSpotComments, useSpotCommentLikes } from '@/hooks/useSpotComments';
 import EntityComments from '@/components/map/EntityComments';
 import EmojiPicker from '@/components/ui/EmojiPicker';
 import ProfileModal from './ProfileModal';
-import DeleteEventConfirmation from './DeleteEventConfirmation';
+import ReportModal from './ReportModal';
 
 interface Quest {
   id: string;
@@ -77,6 +78,7 @@ interface QuestLobbyProps {
   onOpenChange: (open: boolean) => void;
   quest: Quest | null;
   currentUserId: string | null;
+  onOpenAuthModal?: () => void;
   onDelete: () => void;
   onJoin?: (questId: string) => void;
   onLeave?: (questId: string) => void;
@@ -108,6 +110,7 @@ const QuestLobby = ({
   onOpenChange, 
   quest, 
   currentUserId,
+  onOpenAuthModal,
   onDelete,
   onJoin,
   onLeave,
@@ -126,6 +129,8 @@ const QuestLobby = ({
   // Profile modal state - for viewing profiles on top of this modal
   const [selectedProfileForModal, setSelectedProfileForModal] = useState<Profile | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
+
+  const [reportModalOpen, setReportModalOpen] = useState(false);
   
   // Spot bans hook - only used for checking ban status on join
   const { checkIfBanned } = useSpotBans(
@@ -144,8 +149,9 @@ const QuestLobby = ({
   const [editDescription, setEditDescription] = useState('');
   const [editDate, setEditDate] = useState<Date>();
   
-  // Delete confirmation state
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  // Delete confirmation state - inline pattern
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [editTime, setEditTime] = useState('18:00');
   const [editDuration, setEditDuration] = useState(2);
   const [editIcon, setEditIcon] = useState<string>('');
@@ -208,6 +214,8 @@ const QuestLobby = ({
     if (!quest) return;
     
     setIsEditing(false);
+    setShowDeleteConfirm(false);
+    setDeleteConfirmText('');
 
     const fetchData = async () => {
       const { data: hostProfiles } = await supabase
@@ -296,40 +304,8 @@ const QuestLobby = ({
       return;
     }
 
-    // Auto-follow the event host if not already following
-    let followedHost = false;
-    if (quest.host_id !== currentUserId) {
-      // Check if already following
-      const { data: existingFollow } = await supabase
-        .from('follows')
-        .select('id')
-        .eq('follower_id', currentUserId)
-        .eq('following_id', quest.host_id)
-        .maybeSingle();
-
-      if (!existingFollow) {
-        // Auto-follow the host
-        const { error: followError } = await supabase
-          .from('follows')
-          .insert({ follower_id: currentUserId, following_id: quest.host_id });
-
-        if (!followError) {
-          followedHost = true;
-        }
-      }
-    }
-
     setLoading(false);
-
-    // Show appropriate toast based on follow status
-    if (followedHost && host?.nick) {
-      toast({ 
-        title: "Spot joined!", 
-        description: `You joined the event and are now following ${host.nick} for updates.` 
-      });
-    } else {
-      toast({ title: "Spot joined!", description: "You're now part of the group." });
-    }
+    toast({ title: "Spot joined!", description: "You're now part of the group." });
     
     setHasJoined(true);
     onJoin?.(quest.id);
@@ -383,7 +359,10 @@ const QuestLobby = ({
       return;
     }
 
-    toast({ title: "Spot deleted" });
+    const eventType = quest.is_official ? 'Event' : 'Spot';
+    toast({ title: `${eventType} deleted` });
+    setShowDeleteConfirm(false);
+    setDeleteConfirmText('');
     onDelete();
     onOpenChange(false);
   };
@@ -453,6 +432,8 @@ const QuestLobby = ({
 
   const handleClose = () => {
     setIsEditing(false);
+    setShowDeleteConfirm(false);
+    setDeleteConfirmText('');
     onOpenChange(false);
   };
 
@@ -630,7 +611,8 @@ const QuestLobby = ({
                   className="absolute top-3 right-3 w-9 h-9 bg-white hover:bg-white/90 text-foreground rounded-full shadow-lg"
                   onClick={async (e) => {
                     e.stopPropagation();
-                    const shareUrl = `${window.location.origin}/m/${quest.share_code}`;
+                    const id = quest.share_code || quest.id;
+                    const shareUrl = buildShareUrl({ type: "event", id });
                     try {
                       await navigator.clipboard.writeText(shareUrl);
                       toast({
@@ -734,7 +716,7 @@ const QuestLobby = ({
 
             {/* 2. PARTICIPANTS - Avatars (organizer first, no clipping) */}
             <div className="mt-4 px-1">
-              <div className="flex items-center gap-1 overflow-visible">
+              <div className="flex items-center gap-1 w-full max-w-full min-w-0 overflow-x-auto overflow-y-hidden no-scrollbar">
                 {/* Organizer - show display name for official events, avatar for regular */}
                 {quest.is_official && quest.organizer_display_name ? (
                   // Official Event: Show organizer display name badge
@@ -885,6 +867,7 @@ const QuestLobby = ({
                 getLikes={getCommentLikes}
                 toggleLike={toggleCommentLike}
                 onViewUserProfile={handleViewProfileInModal}
+                onOpenAuthModal={onOpenAuthModal}
               />
             </div>
             </div>
@@ -896,7 +879,7 @@ const QuestLobby = ({
                   className="w-full font-fredoka min-h-[52px] text-base"
                   onClick={() => {
                     onOpenChange(false);
-                    navigate('/auth');
+                    onOpenAuthModal?.();
                   }}
                 >
                   <LogIn className="w-5 h-5 mr-2" />
@@ -944,7 +927,8 @@ const QuestLobby = ({
                   e.preventDefault();
                   
                   if (!quest) return;
-                  const shareUrl = `${window.location.origin}/?c=${quest.share_code || quest.id}`;
+                  const id = quest.share_code || quest.id;
+                  const shareUrl = buildShareUrl({ type: "event", id });
                   
                   // Try native share first (mobile)
                   if (navigator.share) {
@@ -979,15 +963,98 @@ const QuestLobby = ({
                 {quest.is_official ? 'Share Event' : 'Share'}
               </Button>
 
-              {/* Delete link - De-emphasized at the very bottom for hosts only */}
+              {/* Delete - Inline Confirmation Pattern */}
               {isHost && (
-                <button
-                  onClick={() => setShowDeleteConfirmation(true)}
-                  disabled={loading}
-                  className="w-full text-center text-sm text-destructive hover:underline disabled:opacity-50 pt-2"
-                >
-                  Delete {quest.is_official ? 'Event' : 'Spot'}
-                </button>
+                <div className="pt-2 border-t border-border/30">
+                  {!showDeleteConfirm ? (
+                    <div className="text-center">
+                      <button
+                        onClick={() => {
+                          setDeleteConfirmText("");
+                          setShowDeleteConfirm(true);
+                        }}
+                        className="text-xs text-muted-foreground hover:text-destructive transition-colors underline-offset-2 hover:underline"
+                        disabled={loading}
+                      >
+                        Delete {quest.is_official ? 'Event' : 'Spot'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3 p-3 bg-destructive/5 border border-destructive/20 rounded-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+                        <p className="text-xs text-muted-foreground">
+                          This will permanently delete the {quest.is_official ? 'official event' : 'spot'} and remove all participants. This cannot be undone.
+                        </p>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="delete-confirm" className="text-xs font-medium text-foreground">
+                          Type <span className="font-mono font-bold text-destructive">delete</span> to confirm
+                        </Label>
+                        <Input
+                          id="delete-confirm"
+                          value={deleteConfirmText}
+                          onChange={(e) => setDeleteConfirmText(e.target.value.toLowerCase())}
+                          placeholder="Type 'delete' here"
+                          className="bg-background border-2 border-border focus:border-destructive h-9 text-sm"
+                          autoComplete="off"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowDeleteConfirm(false);
+                            setDeleteConfirmText("");
+                          }}
+                          className="flex-1"
+                          disabled={loading}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={handleDelete}
+                          disabled={deleteConfirmText !== "delete" || loading}
+                          className="flex-1"
+                        >
+                          {loading ? (
+                            <>
+                              <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                              Deleting...
+                            </>
+                          ) : (
+                            "Confirm"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Report - subtle text link (bottom-most, guests are prompted to login) */}
+              {!isHost && (
+                <div className="pt-2 border-t border-border/30 text-center">
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto px-0 py-0 text-xs text-muted-foreground hover:text-destructive no-underline hover:underline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (isGuest) {
+                        onOpenChange(false);
+                        onOpenAuthModal?.();
+                        return;
+                      }
+                      setReportModalOpen(true);
+                    }}
+                  >
+                    Report {quest.is_official ? 'event' : 'spot'}
+                  </Button>
+                </div>
               )}
             </div>
           </div>
@@ -1009,15 +1076,24 @@ const QuestLobby = ({
         isConnected={false}
         showBackButton={true}
         onBack={() => setProfileModalOpen(false)}
+        onOpenAuthModal={onOpenAuthModal}
         onNavigate={(path) => {
           setProfileModalOpen(false);
           onOpenChange(false);
           navigate(path);
         }}
       />
+
+      <ReportModal
+        open={reportModalOpen}
+        onOpenChange={setReportModalOpen}
+        currentUserId={currentUserId}
+        target={{ type: 'event', id: quest.id, label: quest.title }}
+        onOpenAuthModal={onOpenAuthModal}
+      />
       {/* See All Participants Modal */}
       <Dialog open={showAllParticipants} onOpenChange={setShowAllParticipants}>
-        <DialogContent className="bg-card border-primary/30 max-w-md max-h-[80vh] overflow-hidden">
+        <DialogContent className="bg-card border-primary/30 max-w-md max-h-[80vh] overflow-hidden z-[10010]">
           <DialogHeader>
             <DialogTitle className="font-fredoka text-xl">All Participants</DialogTitle>
           </DialogHeader>
@@ -1082,14 +1158,6 @@ const QuestLobby = ({
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <DeleteEventConfirmation
-        open={showDeleteConfirmation}
-        onOpenChange={setShowDeleteConfirmation}
-        onConfirm={handleDelete}
-        isOfficial={quest?.is_official}
-        loading={loading}
-      />
     </>
   );
 };

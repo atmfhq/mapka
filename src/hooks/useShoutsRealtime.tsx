@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getOrCreateChannel, safeRemoveChannel } from '@/lib/realtimeUtils';
 
 export interface Shout {
   id: string;
@@ -33,6 +34,16 @@ export const useShoutsRealtime = (
   const isFetchingRef = useRef(false);
   const lastFetchLocationRef = useRef<{ lat: number; lng: number } | null>(null);
   const previousShoutIdsRef = useRef<Set<string>>(new Set());
+  
+  // Use refs for location to avoid stale closures in realtime handler
+  const centerLatRef = useRef(centerLat);
+  const centerLngRef = useRef(centerLng);
+  
+  // Keep refs in sync
+  useEffect(() => {
+    centerLatRef.current = centerLat;
+    centerLngRef.current = centerLng;
+  }, [centerLat, centerLng]);
 
   // Stable fetch function that checks for duplicate requests
   const fetchShouts = useCallback(async (lat: number, lng: number, force = false) => {
@@ -100,27 +111,45 @@ export const useShoutsRealtime = (
 
   // Initial fetch + realtime subscription - runs ONCE on mount
   useEffect(() => {
-    // Initial fetch
-    fetchShouts(centerLat, centerLng, true);
+    // Initial fetch using current ref values
+    fetchShouts(centerLatRef.current, centerLngRef.current, true);
 
-    // Subscribe to realtime changes
-    const channel = supabase
-      .channel('shouts-realtime')
-      .on(
+    // Subscribe to realtime changes - use stable channel name
+    const channelName = 'shouts-realtime-global';
+    
+    // Check if channel already exists to prevent CHANNEL_ERROR
+    const { channel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      console.log('[useShoutsRealtime] Channel already subscribed:', channelName);
+      return;
+    }
+    
+    channel.on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'shouts' },
         (payload) => {
           const newShout = payload.new as Shout;
           
-          // Quick client-side distance check
-          const distance = getDistanceMeters(newShout.lat, newShout.lng, centerLat, centerLng);
+          // Quick client-side distance check - USE REFS for current location
+          const distance = getDistanceMeters(
+            newShout.lat, 
+            newShout.lng, 
+            centerLatRef.current, 
+            centerLngRef.current
+          );
+          
+          console.log('[useShoutsRealtime] 🔔 New shout received, distance:', Math.round(distance), 'm');
           
           if (distance <= 5000) {
+            console.log('[useShoutsRealtime] ✅ Adding shout to state');
             setShouts((prev) => {
               if (prev.some(s => s.id === newShout.id)) return prev;
               return [newShout, ...prev];
             });
             previousShoutIdsRef.current.add(newShout.id);
+          } else {
+            console.log('[useShoutsRealtime] ⏭️ Shout too far, ignoring');
           }
         }
       )
@@ -130,15 +159,21 @@ export const useShoutsRealtime = (
         (payload) => {
           const deletedId = payload.old?.id;
           if (deletedId) {
+            console.log('[useShoutsRealtime] 🔔 Shout deleted:', deletedId);
             setShouts((prev) => prev.filter((s) => s.id !== deletedId));
             previousShoutIdsRef.current.delete(deletedId);
           }
         }
       )
-      .subscribe();
+    channel.subscribe((status) => {
+      console.log('[useShoutsRealtime] 📡 Subscription status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('[useShoutsRealtime] ✅ Subscribed');
+      }
+    });
 
     return () => {
-      supabase.removeChannel(channel);
+      safeRemoveChannel(channel);
     };
     // Intentionally only run on mount - location changes handled below
     // eslint-disable-next-line react-hooks/exhaustive-deps
