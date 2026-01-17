@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Dices, Loader2, Sparkles, AlertTriangle, Trash2 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -7,9 +7,21 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import AvatarBuilder from '@/components/avatar/AvatarBuilder';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { useAuth } from '@/hooks/useAuth';
@@ -37,8 +49,13 @@ const OnboardingModal = ({ open, onOpenChange, onComplete, spawnCoordinates }: O
   const [avatarConfig, setAvatarConfig] = useState<AvatarConfig>(() => generateRandomAvatar());
   const [loading, setLoading] = useState(false);
   const [showAvatarBuilder, setShowAvatarBuilder] = useState(false);
+  const [is18PlusConfirmed, setIs18PlusConfirmed] = useState(false);
+  const [wasCompleted, setWasCompleted] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
   
-  const { user, refreshProfile } = useAuth();
+  const { user, refreshProfile, signOut } = useAuth();
   const { toast } = useToast();
 
   const handleSubmit = async () => {
@@ -73,6 +90,7 @@ const OnboardingModal = ({ open, onOpenChange, onComplete, spawnCoordinates }: O
         nick: nick.trim(),
         avatar_config: avatarConfig as Json,
         is_onboarded: true,
+        is_18_plus: true,
       };
 
       // Set initial location if we have spawn coordinates
@@ -88,7 +106,14 @@ const OnboardingModal = ({ open, onOpenChange, onComplete, spawnCoordinates }: O
 
       if (error) throw error;
 
+      // Mark as completed before refreshing profile
+      setWasCompleted(true);
+      
+      // Wait for profile to refresh to ensure state is updated
       await refreshProfile();
+      
+      // Small delay to ensure profile state propagates
+      await new Promise(resolve => setTimeout(resolve, 100));
       
       toast({
         title: 'Welcome to Mapka!',
@@ -108,9 +133,67 @@ const OnboardingModal = ({ open, onOpenChange, onComplete, spawnCoordinates }: O
     }
   };
 
+  // Block modal from closing unless onboarding is completed
+  const handleOpenChange = (isOpen: boolean) => {
+    // Only allow closing if onboarding was successfully completed
+    if (!isOpen && wasCompleted) {
+      // Reset form state
+      setNick('');
+      setIs18PlusConfirmed(false);
+      setShowAvatarBuilder(false);
+      setWasCompleted(false);
+      onOpenChange(false);
+    }
+    // Ignore attempts to close if onboarding is not completed
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    
+    setDeletingAccount(true);
+    try {
+      // Call the security definer RPC function to delete the account
+      const { error } = await supabase.rpc('delete_user_account');
+      
+      if (error) throw error;
+      
+      // Clear local session
+      await signOut();
+      
+      toast({
+        title: "Account Deleted",
+        description: "Your account and all data have been permanently removed.",
+      });
+      
+      // Close modal and navigate to home
+      setWasCompleted(true);
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Account deletion failed:', error);
+      toast({
+        title: "Deletion Failed",
+        description: error.message || "Could not delete account. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingAccount(false);
+      setDeleteConfirmOpen(false);
+      setDeleteConfirmText('');
+    }
+  };
+
+  const handleRandomizeAvatar = () => {
+    setAvatarConfig(generateRandomAvatar());
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-card/95 backdrop-blur-md border-2 border-border max-h-[85vh] overflow-y-auto">
+    <>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent 
+        className="sm:max-w-md bg-card/95 backdrop-blur-md border-2 border-border max-h-[85vh] overflow-y-auto [&>button]:hidden"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
         <DialogHeader className="text-center">
           {/* Logo - Orange Pin Icon */}
           <div className="mx-auto mb-4">
@@ -172,24 +255,60 @@ const OnboardingModal = ({ open, onOpenChange, onComplete, spawnCoordinates }: O
               />
             ) : (
               <div className="flex justify-center">
-                <div 
-                  className="cursor-pointer hover:scale-105 transition-transform"
-                  onClick={() => setShowAvatarBuilder(true)}
-                >
-                  <AvatarDisplay 
-                    config={avatarConfig}
-                    size={80}
-                    showGlow
-                  />
+                <div className="flex flex-col items-center gap-3">
+                  <div 
+                    className="cursor-pointer hover:scale-105 transition-transform"
+                    onClick={() => setShowAvatarBuilder(true)}
+                  >
+                    <AvatarDisplay 
+                      config={avatarConfig}
+                      size={80}
+                      showGlow
+                    />
+                  </div>
+
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={handleRandomizeAvatar}
+                          className="h-9 w-9 rounded-full bg-card/80 backdrop-blur-sm border border-border shadow-hard-sm hover:bg-muted/60"
+                          aria-label="Losuj ponownie"
+                        >
+                          <Dices className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">Losuj ponownie</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </div>
               </div>
             )}
           </div>
 
+          {/* Age Gate Checkbox */}
+          <div className="flex items-start space-x-2 pt-2">
+            <Checkbox
+              id="age-gate"
+              checked={is18PlusConfirmed}
+              onCheckedChange={(checked) => setIs18PlusConfirmed(checked === true)}
+              className="mt-0.5"
+            />
+            <Label
+              htmlFor="age-gate"
+              className="text-sm font-nunito leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              I confirm I am 18 years or older and I accept the community rules.
+            </Label>
+          </div>
+
           {/* Submit Button */}
           <Button
             onClick={handleSubmit}
-            disabled={loading || !nick.trim()}
+            disabled={loading || !nick.trim() || !is18PlusConfirmed}
             className="w-full"
             size="lg"
           >
@@ -206,9 +325,79 @@ const OnboardingModal = ({ open, onOpenChange, onComplete, spawnCoordinates }: O
           <p className="text-center text-muted-foreground text-xs font-nunito">
             Tap anywhere on the map to set your location
           </p>
+
+          {/* Delete Account Button */}
+          <div className="pt-4 border-t border-border/30">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setDeleteConfirmOpen(true)}
+              className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 justify-center gap-2"
+              disabled={loading || deletingAccount}
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Account
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Delete Account Confirmation Dialog */}
+    <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+      <AlertDialogContent className="bg-card border-destructive/30">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="font-fredoka flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-destructive" />
+            Delete Account Permanently?
+          </AlertDialogTitle>
+          <AlertDialogDescription className="space-y-4">
+            <p>
+              This action cannot be undone. This will permanently delete your account, profile, all connections, events you've hosted, and remove all your data from our servers.
+            </p>
+            <div className="space-y-2 pt-2">
+              <Label htmlFor="delete-confirm" className="text-sm font-medium text-foreground">
+                Type <span className="font-mono font-bold text-destructive">delete</span> to confirm
+              </Label>
+              <Input
+                id="delete-confirm"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value.toLowerCase())}
+                placeholder="Type 'delete' here"
+                className="bg-muted/50 border-2 border-border focus:border-destructive"
+                autoComplete="off"
+              />
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel
+            onClick={() => {
+              setDeleteConfirmOpen(false);
+              setDeleteConfirmText('');
+            }}
+          >
+            Cancel
+          </AlertDialogCancel>
+          <Button
+            variant="destructive"
+            onClick={handleDeleteAccount}
+            disabled={deleteConfirmText !== "delete" || deletingAccount}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {deletingAccount ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                Deleting...
+              </>
+            ) : (
+              "Yes, Delete My Account"
+            )}
+          </Button>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 };
 

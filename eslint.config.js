@@ -20,7 +20,9 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
-      "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-unused-vars": "warn",
+      // Warn on console statements except error and warn
+      "no-console": ["warn", { allow: ["warn", "error"] }],
     },
   },
 );

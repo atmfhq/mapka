@@ -1,7 +1,21 @@
-project_id = "hbywzsfecjmkaypbgyuu"
+# TODO: Replace with your new Supabase project ID
+# Get this from Supabase Dashboard -> Project Settings -> General
+project_id = "YOUR_NEW_PROJECT_ID"
 
 [functions.generate-og-image]
 verify_jwt = false
 
 [functions.og-share]
+verify_jwt = false
+
+[functions.send-welcome-email]
+verify_jwt = false
+
+[functions.notify-new-comment]
+verify_jwt = false
+
+[functions.notify-event-update]
+verify_jwt = false
+
+[functions.event-reminder]
 verify_jwt = false

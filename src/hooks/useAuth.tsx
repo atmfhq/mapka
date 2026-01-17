@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 interface AvatarConfig {
   skinColor?: string;
@@ -9,17 +10,25 @@ interface AvatarConfig {
   mouth?: string;
 }
 
+interface NotificationPreferences {
+  new_comments: boolean;
+  event_updates: boolean;
+  event_reminders: boolean;
+}
+
 interface Profile {
   id: string;
   nick: string | null;
   bio: string | null;
   avatar_url: string | null;
   avatar_config: AvatarConfig | null;
+  notification_preferences: NotificationPreferences | null;
   tags: string[] | null;
   location_lat: number | null;
   location_lng: number | null;
   location_name: string | null;
   is_onboarded: boolean | null;
+  is_18_plus: boolean;
   is_active: boolean;
 }
 
@@ -61,11 +70,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       bio: data.bio,
       avatar_url: data.avatar_url,
       avatar_config: data.avatar_config as AvatarConfig | null,
+      notification_preferences: data.notification_preferences as unknown as NotificationPreferences | null,
       tags: data.tags,
       location_lat: data.location_lat,
       location_lng: data.location_lng,
       location_name: data.location_name,
       is_onboarded: data.is_onboarded,
+      is_18_plus: data.is_18_plus ?? false,
       is_active: data.is_active ?? true,
     };
   };
@@ -108,7 +119,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Defer profile fetch to avoid deadlock
         if (session?.user) {
           setTimeout(() => {
-            fetchProfile(session.user.id).then(setProfile);
+            fetchProfile(session.user.id)
+              .then(setProfile)
+              .catch((err) => console.error('[Auth] Error fetching profile:', err));
           }, 0);
         } else {
           setProfile(null);

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getOrCreateChannel, safeRemoveChannel } from '@/lib/realtimeUtils';
 
 interface UseParticipantsRealtimeOptions {
   enabled?: boolean;
@@ -24,11 +25,20 @@ export const useParticipantsRealtime = ({
       return;
     }
 
+    const channelName = 'participants-realtime';
+    
+    // Check if channel already exists to prevent CHANNEL_ERROR
+    const { channel, shouldSubscribe } = getOrCreateChannel(channelName);
+    
+    if (!shouldSubscribe) {
+      console.log('[Participants Realtime] Channel already subscribed:', channelName);
+      channelRef.current = channel;
+      return;
+    }
+    
     console.log('[Participants Realtime] Setting up subscription...');
 
-    const channel = supabase
-      .channel('participants-realtime')
-      .on(
+    channel.on(
         'postgres_changes',
         {
           event: 'INSERT',
@@ -91,16 +101,19 @@ export const useParticipantsRealtime = ({
           }
         }
       )
-      .subscribe((status) => {
-        console.log('[Participants Realtime] Subscription status:', status);
-      });
+    channel.subscribe((status) => {
+      console.log('[Participants Realtime] Subscription status:', status);
+      if (status === 'SUBSCRIBED') {
+        console.log('[Participants Realtime] ✅ Subscribed');
+      }
+    });
 
     channelRef.current = channel;
 
     return () => {
       console.log('[Participants Realtime] Cleaning up subscription');
       if (channelRef.current) {
-        supabase.removeChannel(channelRef.current);
+        safeRemoveChannel(channelRef.current);
         channelRef.current = null;
       }
     };

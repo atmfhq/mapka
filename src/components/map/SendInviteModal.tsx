@@ -140,9 +140,14 @@ const SendInviteModal = ({
               Cancel
             </Button>
             <Button
-              onClick={handleSend}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                handleSend();
+              }}
               disabled={sending}
               className="flex-1 font-fredoka"
+              type="button"
             >
               {sending ? (
                 <>

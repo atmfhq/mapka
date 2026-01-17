@@ -4,6 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import type { Json } from "@/integrations/supabase/types";
 import AvatarBuilder from "@/components/avatar/AvatarBuilder";
 import LocationSearch from "@/components/LocationSearch";
@@ -21,7 +32,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Loader2,
-  Sparkles
+  Sparkles,
+  Trash2
 } from "lucide-react";
 import { generateRandomAvatar } from "@/utils/randomAvatar";
 
@@ -44,8 +56,12 @@ const Onboarding = () => {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [locationName, setLocationName] = useState<string>("");
   const [spawnIntentCoords, setSpawnIntentCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [is18PlusConfirmed, setIs18PlusConfirmed] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deletingAccount, setDeletingAccount] = useState(false);
   
-  const { user, profile, loading: authLoading, refreshProfile } = useAuth();
+  const { user, profile, loading: authLoading, refreshProfile, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const keyboardRef = useKeyboardAvoidance();
@@ -67,9 +83,9 @@ const Onboarding = () => {
     }
   }, []);
 
-  // Redirect already onboarded users to dashboard
+  // Redirect already onboarded users with age confirmation to dashboard
   useEffect(() => {
-    if (!authLoading && profile?.is_onboarded) {
+    if (!authLoading && profile?.is_onboarded && profile?.is_18_plus) {
       navigate("/dashboard", { replace: true });
     }
   }, [authLoading, profile, navigate]);
@@ -120,6 +136,7 @@ const Onboarding = () => {
           location_lng: coords.lng,
           location_name: locationName || null,
           is_onboarded: true,
+          is_18_plus: true,
         })
         .eq("id", user.id);
 
@@ -144,6 +161,40 @@ const Onboarding = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    
+    setDeletingAccount(true);
+    try {
+      // Call the security definer RPC function to delete the account
+      const { error } = await supabase.rpc('delete_user_account');
+      
+      if (error) throw error;
+      
+      // Clear local session
+      await signOut();
+      
+      toast({
+        title: "Account Deleted",
+        description: "Your account and all data have been permanently removed.",
+      });
+      
+      // Navigate to home
+      navigate("/");
+    } catch (error: any) {
+      console.error('Account deletion failed:', error);
+      toast({
+        title: "Deletion Failed",
+        description: error.message || "Could not delete account. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingAccount(false);
+      setDeleteConfirmOpen(false);
+      setDeleteConfirmText('');
     }
   };
 
@@ -271,45 +322,75 @@ const Onboarding = () => {
                   </p>
                 </div>
               </div>
+
+              {/* Age Gate Checkbox */}
+              <div className="flex items-start space-x-2 pt-2">
+                <Checkbox
+                  id="age-gate-mobile"
+                  checked={is18PlusConfirmed}
+                  onCheckedChange={(checked) => setIs18PlusConfirmed(checked === true)}
+                  className="mt-0.5"
+                />
+                <Label
+                  htmlFor="age-gate-mobile"
+                  className="text-sm font-nunito leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
+                  I confirm I am 18 years or older and I accept the community rules.
+                </Label>
+              </div>
             </div>
           )}
         </div>
 
         {/* Footer - Navigation */}
-        <div className="flex-shrink-0 flex justify-between items-center p-5 border-t border-border bg-card safe-area-inset-bottom">
-          {step > 0 ? (
-            <Button variant="ghost" onClick={() => setStep(step - 1)}>
-              <ChevronLeft className="w-4 h-4" />
-              Back
-            </Button>
-          ) : (
-            <div />
-          )}
+        <div className="flex-shrink-0 flex flex-col gap-3 p-5 border-t border-border bg-card safe-area-inset-bottom">
+          <div className="flex justify-between items-center">
+            {step > 0 ? (
+              <Button variant="ghost" onClick={() => setStep(step - 1)}>
+                <ChevronLeft className="w-4 h-4" />
+                Back
+              </Button>
+            ) : (
+              <div />
+            )}
 
-          {step < 2 ? (
-            <Button variant="default" onClick={handleNextStep}>
-              Continue
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          ) : (
-            <Button
-              variant="default"
-              onClick={handleSubmit}
-              disabled={loading || !coords}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <MapPin className="w-4 h-4" />
-                  Enter Map
-                </>
-              )}
-            </Button>
-          )}
+            {step < 2 ? (
+              <Button variant="default" onClick={handleNextStep}>
+                Continue
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button
+                variant="default"
+                onClick={handleSubmit}
+                disabled={loading || !coords || !is18PlusConfirmed}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <MapPin className="w-4 h-4" />
+                    Enter Map
+                  </>
+                )}
+              </Button>
+            )}
+          </div>
+
+          {/* Delete Account Button */}
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => setDeleteConfirmOpen(true)}
+            className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 justify-center gap-2"
+            disabled={loading || deletingAccount}
+          >
+            <Trash2 className="w-4 h-4" />
+            Delete Account
+          </Button>
         </div>
       </div>
     );
@@ -444,48 +525,133 @@ const Onboarding = () => {
                     </p>
                   </div>
                 </div>
+
+                {/* Age Gate Checkbox */}
+                <div className="flex items-start space-x-2 pt-2">
+                  <Checkbox
+                    id="age-gate-desktop"
+                    checked={is18PlusConfirmed}
+                    onCheckedChange={(checked) => setIs18PlusConfirmed(checked === true)}
+                    className="mt-0.5"
+                  />
+                  <Label
+                    htmlFor="age-gate-desktop"
+                    className="text-sm font-nunito leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                  >
+                    I confirm I am 18 years or older and I accept the community rules.
+                  </Label>
+                </div>
               </div>
             )}
           </div>
 
           {/* Footer - Navigation */}
-          <div className="flex justify-between items-center p-5 border-t border-border bg-muted/30">
-            {step > 0 ? (
-              <Button variant="ghost" onClick={() => setStep(step - 1)}>
-                <ChevronLeft className="w-4 h-4" />
-                Back
-              </Button>
-            ) : (
-              <div />
-            )}
+          <div className="flex flex-col gap-3 p-5 border-t border-border bg-muted/30">
+            <div className="flex justify-between items-center">
+              {step > 0 ? (
+                <Button variant="ghost" onClick={() => setStep(step - 1)}>
+                  <ChevronLeft className="w-4 h-4" />
+                  Back
+                </Button>
+              ) : (
+                <div />
+              )}
 
-            {step < 2 ? (
-              <Button variant="default" onClick={handleNextStep}>
-                Continue
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            ) : (
-              <Button
-                variant="default"
-                onClick={handleSubmit}
-                disabled={loading || !coords}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <MapPin className="w-4 h-4" />
-                    Enter Map
-                  </>
-                )}
-              </Button>
-            )}
+              {step < 2 ? (
+                <Button variant="default" onClick={handleNextStep}>
+                  Continue
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              ) : (
+                <Button
+                  variant="default"
+                  onClick={handleSubmit}
+                  disabled={loading || !coords || !is18PlusConfirmed}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <MapPin className="w-4 h-4" />
+                      Enter Map
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+
+            {/* Delete Account Button */}
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setDeleteConfirmOpen(true)}
+              className="w-full text-destructive hover:text-destructive hover:bg-destructive/10 justify-center gap-2"
+              disabled={loading || deletingAccount}
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete Account
+            </Button>
           </div>
         </div>
       </div>
+
+      {/* Delete Account Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent className="bg-card border-destructive/30">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="font-fredoka flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              Delete Account Permanently?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <p>
+                This action cannot be undone. This will permanently delete your account, profile, all connections, events you've hosted, and remove all your data from our servers.
+              </p>
+              <div className="space-y-2 pt-2">
+                <Label htmlFor="delete-confirm-onboarding" className="text-sm font-medium text-foreground">
+                  Type <span className="font-mono font-bold text-destructive">delete</span> to confirm
+                </Label>
+                <Input
+                  id="delete-confirm-onboarding"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value.toLowerCase())}
+                  placeholder="Type 'delete' here"
+                  className="bg-muted/50 border-2 border-border focus:border-destructive"
+                  autoComplete="off"
+                />
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              onClick={() => {
+                setDeleteConfirmOpen(false);
+                setDeleteConfirmText('');
+              }}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteAccount}
+              disabled={deleteConfirmText !== "delete" || deletingAccount}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingAccount ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  Deleting...
+                </>
+              ) : (
+                "Yes, Delete My Account"
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

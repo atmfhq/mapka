@@ -1,8 +1,8 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
-import { componentTagger } from "lovable-tagger";
 import { VitePWA } from "vite-plugin-pwa";
+import { visualizer } from "rollup-plugin-visualizer";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -12,13 +12,40 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     minify: 'esbuild',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Split large vendor libraries into separate chunks
+          'mapbox': ['mapbox-gl'],
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'supabase': ['@supabase/supabase-js'],
+          'ui-vendor': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-popover',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-tooltip',
+            '@radix-ui/react-scroll-area',
+            '@radix-ui/react-select',
+          ],
+          'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          'date-vendor': ['date-fns', 'react-day-picker'],
+        },
+      },
+    },
   },
   esbuild: {
     drop: mode === 'production' ? ['console', 'debugger'] : [],
   },
   plugins: [
     react(),
-    mode === "development" && componentTagger(),
+    // Bundle analyzer - run with `npm run analyze`
+    process.env.ANALYZE && visualizer({
+      open: true,
+      gzipSize: true,
+      brotliSize: true,
+      filename: 'dist/stats.html',
+    }),
     VitePWA({
       registerType: "autoUpdate",
       includeAssets: ["assets/cursors/spawn-cursor.svg", "favicon.ico"],

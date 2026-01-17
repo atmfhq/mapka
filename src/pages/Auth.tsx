@@ -247,6 +247,14 @@ const Auth = () => {
               <p className="text-center text-muted-foreground text-xs mt-6 font-nunito">
                 No password needed! We'll send you a secure login link.
               </p>
+              
+              {/* Terms and Privacy Policy Footer */}
+              <p className="text-center text-muted-foreground text-xs mt-2 font-nunito">
+                By continuing, you agree to our{' '}
+                <a href="#" className="text-primary hover:underline">Terms of Service</a>
+                {' '}and{' '}
+                <a href="#" className="text-primary hover:underline">Privacy Policy</a>.
+              </p>
             </>
           )}
         </div>

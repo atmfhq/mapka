@@ -11,12 +11,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import type { Json } from "@/integrations/supabase/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { 
   X,
   Loader2,
   Save,
   Shield,
   Sparkles,
+  Settings,
   AlertTriangle,
   LogOut
 } from "lucide-react";
@@ -28,6 +30,27 @@ interface AvatarConfig {
   shape?: string;
   eyes?: string;
   mouth?: string;
+}
+
+interface NotificationPreferences {
+  new_comments: boolean;
+  event_updates: boolean;
+  event_reminders: boolean;
+}
+
+const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+  new_comments: true,
+  event_updates: true,
+  event_reminders: true,
+};
+
+function normalizeNotificationPreferences(value: unknown): NotificationPreferences {
+  const v = (value && typeof value === "object") ? (value as any) : {};
+  return {
+    new_comments: typeof v.new_comments === "boolean" ? v.new_comments : DEFAULT_NOTIFICATION_PREFERENCES.new_comments,
+    event_updates: typeof v.event_updates === "boolean" ? v.event_updates : DEFAULT_NOTIFICATION_PREFERENCES.event_updates,
+    event_reminders: typeof v.event_reminders === "boolean" ? v.event_reminders : DEFAULT_NOTIFICATION_PREFERENCES.event_reminders,
+  };
 }
 
 interface EditProfileModalProps {
@@ -52,6 +75,10 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
     eyes: "normal",
     mouth: "smile",
   });
+
+  const [notificationPreferences, setNotificationPreferences] = useState<NotificationPreferences>(
+    DEFAULT_NOTIFICATION_PREFERENCES
+  );
   
   const { user, profile, refreshProfile, signOut } = useAuth();
   const { toast } = useToast();
@@ -61,6 +88,7 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
     if (profile && open) {
       setNick(profile.nick || "");
       setBio(profile.bio || "");
+      setNotificationPreferences(normalizeNotificationPreferences((profile as any).notification_preferences));
       
       // Load avatar config
       if (profile.avatar_config) {
@@ -94,6 +122,7 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
           nick: nick.trim(),
           bio: bio.trim() || null,
           avatar_config: avatarConfig as Json,
+          notification_preferences: notificationPreferences as unknown as Json,
         })
         .eq("id", user.id);
 
@@ -186,7 +215,7 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid grid-cols-2 w-full bg-muted/50 mb-4">
+            <TabsList className="grid grid-cols-3 w-full bg-muted/50 mb-4">
               <TabsTrigger value="identity" className="gap-1.5 text-xs">
                 <Shield className="w-4 h-4" />
                 <span className="hidden sm:inline">Identity</span>
@@ -194,6 +223,10 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
               <TabsTrigger value="appearance" className="gap-1.5 text-xs">
                 <Sparkles className="w-4 h-4" />
                 <span className="hidden sm:inline">Avatar</span>
+              </TabsTrigger>
+              <TabsTrigger value="settings" className="gap-1.5 text-xs">
+                <Settings className="w-4 h-4" />
+                <span className="hidden sm:inline">Settings</span>
               </TabsTrigger>
             </TabsList>
 
@@ -251,8 +284,77 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
                 </Button>
               </div>
 
-              {/* Delete Account - Inline Confirmation */}
-              <div className="pt-2 border-t border-border/30">
+            </TabsContent>
+
+
+            {/* Appearance Tab */}
+            <TabsContent value="appearance" className="animate-fade-in">
+              <AvatarBuilder 
+                initialConfig={avatarConfig}
+                onChange={setAvatarConfig}
+                compact
+                showPreviewLabel={false}
+              />
+            </TabsContent>
+
+            {/* Settings Tab */}
+            <TabsContent value="settings" className="space-y-4 animate-fade-in">
+              <div className="space-y-1">
+                <h4 className="font-nunito font-bold text-foreground">Email Notifications</h4>
+                <p className="text-xs text-muted-foreground">
+                  Control which emails you receive.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-start justify-between gap-4 p-3 bg-muted/30 rounded-xl border border-border/50">
+                  <div className="space-y-0.5">
+                    <Label className="font-nunito text-sm font-medium text-foreground">New Comments</Label>
+                    <p className="text-xs text-muted-foreground">
+                      New comments on your shouts and events.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notificationPreferences.new_comments}
+                    onCheckedChange={(checked) =>
+                      setNotificationPreferences((prev) => ({ ...prev, new_comments: checked }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-start justify-between gap-4 p-3 bg-muted/30 rounded-xl border border-border/50">
+                  <div className="space-y-0.5">
+                    <Label className="font-nunito text-sm font-medium text-foreground">Event Updates</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Changes to events you joined.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notificationPreferences.event_updates}
+                    onCheckedChange={(checked) =>
+                      setNotificationPreferences((prev) => ({ ...prev, event_updates: checked }))
+                    }
+                  />
+                </div>
+
+                <div className="flex items-start justify-between gap-4 p-3 bg-muted/30 rounded-xl border border-border/50">
+                  <div className="space-y-0.5">
+                    <Label className="font-nunito text-sm font-medium text-foreground">Event Reminders</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Reminders 1h before start.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={notificationPreferences.event_reminders}
+                    onCheckedChange={(checked) =>
+                      setNotificationPreferences((prev) => ({ ...prev, event_reminders: checked }))
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Delete Account - Inline Confirmation (bottom of Settings) */}
+              <div className="pt-4 border-t border-border/30">
                 {!showDeleteConfirm ? (
                   <div className="text-center">
                     <button
@@ -319,16 +421,6 @@ const EditProfileModal = ({ open, onOpenChange, onSignOut }: EditProfileModalPro
                   </div>
                 )}
               </div>
-            </TabsContent>
-
-
-            {/* Appearance Tab */}
-            <TabsContent value="appearance" className="animate-fade-in">
-              <AvatarBuilder 
-                initialConfig={avatarConfig}
-                onChange={setAvatarConfig}
-                compact
-              />
             </TabsContent>
           </Tabs>
         </div>

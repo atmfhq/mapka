@@ -27,10 +27,10 @@ const ConversationRow = ({
   return (
     <div
       className={`
-        flex items-center gap-3 p-3 rounded-xl transition-colors cursor-pointer w-full overflow-hidden
+        flex gap-3 p-3 rounded-xl transition-colors cursor-pointer w-full
         ${isPendingInvite 
-          ? 'bg-warning/10 border border-warning/30 hover:bg-warning/20' 
-          : 'hover:bg-muted/50'
+          ? 'bg-warning/10 border border-warning/30 hover:bg-warning/20 items-start' 
+          : 'items-center hover:bg-muted/50'
         }
         ${hasUnread ? 'bg-primary/5' : ''}
       `}
@@ -57,8 +57,8 @@ const ConversationRow = ({
         )}
       </div>
 
-      {/* Content - takes remaining space with overflow handling */}
-      <div className="flex-1 min-w-0 overflow-hidden">
+      {/* Content - takes remaining space, allows buttons to be fully visible */}
+      <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <h4 className={`font-semibold text-sm truncate flex-1 min-w-0 ${hasUnread ? 'text-foreground' : 'text-foreground'}`}>
             {item.title}
@@ -79,9 +79,9 @@ const ConversationRow = ({
           {item.subtitle}
         </p>
         
-        {/* Invite action buttons */}
+        {/* Invite action buttons - fully visible with proper spacing */}
         {isPendingInvite && onAcceptInvite && onDeclineInvite && (
-          <div className="flex gap-2 mt-2">
+          <div className="flex gap-2 mt-3">
             <Button
               size="sm"
               className="flex-1 h-8"

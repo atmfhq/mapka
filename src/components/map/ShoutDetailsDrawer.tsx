@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Heart, X, Send, Trash2, Share2 } from 'lucide-react';
+import { MessageSquare, Heart, X, Send, Trash2, Share2, LogIn, Flag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -12,6 +12,8 @@ import { useShoutComments, type ShoutComment } from '@/hooks/useShoutComments';
 import { formatDistanceToNow } from 'date-fns';
 import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import ProfileModal from './ProfileModal';
+import ReportModal from './ReportModal';
+import { buildShareUrl } from '@/utils/share';
 
 interface AvatarConfig {
   skinColor?: string;
@@ -45,9 +47,10 @@ interface ShoutDetailsDrawerProps {
   onClose: () => void;
   shout: Shout | null;
   currentUserId: string | null;
+  onOpenAuthModal?: () => void;
 }
 
-const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDetailsDrawerProps) => {
+const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId, onOpenAuthModal }: ShoutDetailsDrawerProps) => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [newComment, setNewComment] = useState('');
@@ -60,11 +63,13 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [profileModalOpen, setProfileModalOpen] = useState(false);
 
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+
   // Handle share functionality
   const handleShare = async () => {
     if (!shout) return;
-    
-    const shareUrl = `${window.location.origin}/?shoutId=${shout.id}`;
+
+    const shareUrl = buildShareUrl({ type: "shout", id: shout.id });
     
     try {
       await navigator.clipboard.writeText(shareUrl);
@@ -83,7 +88,11 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
 
   // Handle guest login prompt
   const handleGuestAction = () => {
-    navigate('/auth');
+    // Close the shout drawer first, then open auth (prevents auth modal looking "behind" the drawer)
+    onClose();
+    setTimeout(() => {
+      onOpenAuthModal?.();
+    }, 100);
   };
 
   // Handle viewing a user profile
@@ -276,6 +285,21 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
             </div>
           </div>
           <div className="flex items-center gap-1">
+            {/* Report (flag icon, hidden for own shout) */}
+            {(!currentUserId || shout.user_id !== currentUserId) && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  if (!currentUserId) return handleGuestAction();
+                  setReportModalOpen(true);
+                }}
+                className="rounded-lg hover:bg-muted"
+                title="Report"
+              >
+                <Flag className="w-5 h-5 text-muted-foreground" />
+              </Button>
+            )}
             <Button
               variant="ghost"
               size="icon"
@@ -461,9 +485,10 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
           <div className="p-4 border-t border-border shrink-0">
             <Button
               onClick={handleGuestAction}
-              className="w-full bg-primary hover:bg-primary/90"
+              className="w-full font-fredoka min-h-[52px] text-base"
             >
-              Login to join the conversation
+              <LogIn className="w-5 h-5 mr-2" />
+              Login to Join
             </Button>
           </div>
         )}
@@ -478,11 +503,20 @@ const ShoutDetailsDrawer = ({ isOpen, onClose, shout, currentUserId }: ShoutDeta
         isConnected={false}
         showBackButton={true}
         onBack={() => setProfileModalOpen(false)}
+        onOpenAuthModal={onOpenAuthModal}
         onNavigate={(path) => {
           setProfileModalOpen(false);
           onClose();
           navigate(path);
         }}
+      />
+
+      <ReportModal
+        open={reportModalOpen}
+        onOpenChange={setReportModalOpen}
+        currentUserId={currentUserId}
+        target={{ type: 'shout', id: shout.id, label: `Shout by ${authorProfile?.nick || 'Anonymous'}` }}
+        onOpenAuthModal={onOpenAuthModal}
       />
     </div>
   );

@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { getShortUserId } from '@/utils/userIdDisplay';
 import { useFollows } from '@/hooks/useFollows';
+import ReportModal from './ReportModal';
 
 interface AvatarConfig {
   skinColor?: string;
@@ -29,9 +30,10 @@ interface UserPopupContentProps {
   invitationId?: string;
   onClose: () => void;
   onOpenChat?: (userId: string) => void;
-  onDisconnect?: () => void;
+  onDisconnect?: (userId?: string) => void;
   onCloseChat?: () => void;
   onNavigate?: (path: string) => void;
+  onOpenAuthModal?: () => void;
   showOnMapEnabled?: boolean;
   onShowOnMap?: () => void;
 }
@@ -46,11 +48,13 @@ const UserPopupContent = ({
   onDisconnect, 
   onCloseChat,
   onNavigate,
+  onOpenAuthModal,
   showOnMapEnabled,
   onShowOnMap
 }: UserPopupContentProps) => {
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
 
   const { isFollowing, loading: followLoading, follow, unfollow } = useFollows(currentUserId, user.id);
 
@@ -58,15 +62,39 @@ const UserPopupContent = ({
   const isOwnProfile = currentUserId ? user.id === currentUserId : false;
 
   const handleDisconnect = async () => {
-    if (!invitationId) return;
+    if (!currentUserId || !isConnected) return;
     
     setDisconnecting(true);
     onCloseChat?.();
     
-    const { error } = await supabase
-      .from('invitations')
-      .update({ status: 'cancelled' })
-      .eq('id', invitationId);
+    let error = null;
+
+    // Handle two types of connections:
+    // 1. Invitation-based connections (DM connections) - update status to 'cancelled'
+    // 2. Event-based connections (from connections table) - delete the connection row
+    if (invitationId) {
+      // Invitation-based connection: update status to cancelled
+      const { error: invError } = await supabase
+        .from('invitations')
+        .update({ status: 'cancelled' })
+        .eq('id', invitationId);
+      
+      error = invError;
+    } else {
+      // Connection from connections table: delete the connection
+      // Note: connections table stores user_a_id < user_b_id, so we need to order them
+      const userIds = [currentUserId, user.id].sort();
+      const userA = userIds[0];
+      const userB = userIds[1];
+      
+      const { error: connError } = await supabase
+        .from('connections')
+        .delete()
+        .eq('user_a_id', userA)
+        .eq('user_b_id', userB);
+      
+      error = connError;
+    }
 
     setDisconnecting(false);
     
@@ -78,7 +106,7 @@ const UserPopupContent = ({
       });
     } else {
       toast({ title: 'Connection terminated. You can send a new signal to reconnect.' });
-      onDisconnect?.();
+      onDisconnect?.(user.id);
       onClose();
     }
   };
@@ -152,7 +180,7 @@ const UserPopupContent = ({
               <Button
                 onClick={() => {
                   onClose();
-                  onNavigate?.('/auth');
+                  onOpenAuthModal?.();
                 }}
                 className="w-full font-nunito"
                 size="default"
@@ -212,7 +240,7 @@ const UserPopupContent = ({
                   </Button>
                   <Button
                     onClick={handleDisconnect}
-                    disabled={disconnecting}
+                    disabled={disconnecting || !currentUserId}
                     variant="destructive"
                     className="w-full font-nunito"
                     size="default"
@@ -223,14 +251,31 @@ const UserPopupContent = ({
                 </>
               ) : (
                 <Button
-                  onClick={() => setInviteModalOpen(true)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    setInviteModalOpen(true);
+                  }}
                   className="w-full font-nunito"
                   size="default"
+                  type="button"
                 >
                   <Zap className="w-4 h-4 mr-2" />
                   Send Invite
                 </Button>
               )}
+
+              {/* Report user (subtle text link, bottom-most) */}
+              <div className="pt-2 border-t border-border/30 text-center">
+                <Button
+                  onClick={() => setReportModalOpen(true)}
+                  variant="link"
+                  size="sm"
+                  className="h-auto px-0 py-0 text-xs text-muted-foreground hover:text-destructive no-underline hover:underline"
+                >
+                  Report user
+                </Button>
+              </div>
             </>
           )}
         </div>
@@ -244,6 +289,14 @@ const UserPopupContent = ({
           currentUserId={currentUserId}
         />
       )}
+
+      <ReportModal
+        open={reportModalOpen}
+        onOpenChange={setReportModalOpen}
+        currentUserId={currentUserId}
+        target={{ type: 'user', id: user.id, label: user.nick || getShortUserId(user.id) }}
+        onOpenAuthModal={onOpenAuthModal}
+      />
     </>
   );
 };

@@ -13,6 +13,19 @@ interface ShoutMarkerProps {
   isGuest?: boolean;
 }
 
+// Custom comparison function to ensure re-render when counts change
+const areEqual = (prevProps: ShoutMarkerProps, nextProps: ShoutMarkerProps) => {
+  return (
+    prevProps.content === nextProps.content &&
+    prevProps.createdAt === nextProps.createdAt &&
+    prevProps.likesCount === nextProps.likesCount &&
+    prevProps.commentsCount === nextProps.commentsCount &&
+    prevProps.canHide === nextProps.canHide &&
+    prevProps.isOwn === nextProps.isOwn &&
+    prevProps.isGuest === nextProps.isGuest
+  );
+};
+
 const ShoutMarker = memo(({ content, createdAt, likesCount = 0, commentsCount = 0, onClick, onHide, canHide = false, isOwn = false, isGuest = false }: ShoutMarkerProps) => {
   // Calculate opacity based on age (fades slightly as shout ages over 24 hours)
   const createdTime = new Date(createdAt).getTime();
@@ -80,7 +93,7 @@ const ShoutMarker = memo(({ content, createdAt, likesCount = 0, commentsCount = 
       </div>
     </div>
   );
-});
+}, areEqual);
 
 ShoutMarker.displayName = 'ShoutMarker';
 

@@ -1,3 +1,8 @@
+# Environment files (IMPORTANT: contains secrets)
+.env
+.env.*
+!.env.example
+
 # Logs
 logs
 *.log
