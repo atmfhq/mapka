@@ -1,17 +1,19 @@
-import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback, forwardRef, useImperativeHandle, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { createRoot, Root } from 'react-dom/client';
 import { supabase } from '@/integrations/supabase/client';
-import ProfileModal from './ProfileModal';
-import DeployQuestModal from './DeployQuestModal';
-import DeployOfficialEventModal from './DeployOfficialEventModal';
+// Lazy loaded modals for better initial bundle size
+const ProfileModal = lazy(() => import('./ProfileModal'));
+const DeployQuestModal = lazy(() => import('./DeployQuestModal'));
+const DeployOfficialEventModal = lazy(() => import('./DeployOfficialEventModal'));
+const ShoutModal = lazy(() => import('./ShoutModal'));
+const AboutModal = lazy(() => import('./AboutModal'));
+const GuestPromptModal = lazy(() => import('./GuestPromptModal'));
 import QuestLobby from './QuestLobby';
-import GuestPromptModal from './GuestPromptModal';
 import GuestSpawnTooltip from './GuestSpawnTooltip';
 import MapContextMenu from './MapContextMenu';
-import ShoutModal from './ShoutModal';
 import ShoutDetailsDrawer from './ShoutDetailsDrawer';
 import FloatingParticles from './FloatingParticles';
 import BubbleChat, { ActiveBubble } from './BubbleChat';
@@ -32,7 +34,6 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Compass, Users, UsersRound, Eye, Ghost, CalendarDays, X, Megaphone, MessageSquareOff, Info } from 'lucide-react';
-import AboutModal from './AboutModal';
 import { format, isSameDay, startOfDay, endOfDay } from 'date-fns';
 import { cn } from '@/lib/utils';
 

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rateLimit, timingSafeEqual } from "../_shared/rateLimit.ts";
 
 type WebhookPayload = {
   type?: string; // "INSERT" | "UPDATE" | "DELETE"
@@ -130,11 +131,22 @@ Deno.serve(async (req) => {
       return json({ error: "Method not allowed" }, { status: 405 });
     }
 
-    // --- Security header check (optional)
+    // Rate limiting: 20 requests per minute per IP
+    const rateLimitResponse = rateLimit(req, {
+      maxRequests: 20,
+      windowMs: 60 * 1000,
+      keyPrefix: "notify-event-update",
+    });
+    if (rateLimitResponse) {
+      console.log("[notify-event-update] Rate limited");
+      return rateLimitResponse;
+    }
+
+    // --- Security header check with timing-safe comparison
     const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
     const providedSecret = req.headers.get("x-webhook-secret");
     if (webhookSecret) {
-      const ok = Boolean(providedSecret && providedSecret === webhookSecret);
+      const ok = Boolean(providedSecret && timingSafeEqual(providedSecret, webhookSecret));
       if (!ok) {
         console.error("[notify-event-update] Unauthorized: invalid WEBHOOK_SECRET header");
         return json({ error: "Unauthorized" }, { status: 401 });

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rateLimit, timingSafeEqual } from "../_shared/rateLimit.ts";
 
 type WebhookPayload = {
   type?: string; // "INSERT" | "UPDATE" | "DELETE"
@@ -86,10 +87,21 @@ Deno.serve(async (req) => {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
 
+  // Rate limiting: 20 requests per minute per IP
+  const rateLimitResponse = rateLimit(req, {
+    maxRequests: 20,
+    windowMs: 60 * 1000,
+    keyPrefix: "send-welcome-email",
+  });
+  if (rateLimitResponse) {
+    return rateLimitResponse;
+  }
+
+  // Auth check with timing-safe comparison
   const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
   if (webhookSecret) {
     const provided = req.headers.get("x-webhook-secret");
-    if (!provided || provided !== webhookSecret) {
+    if (!provided || !timingSafeEqual(provided, webhookSecret)) {
       return json({ error: "Unauthorized" }, { status: 401 });
     }
   }

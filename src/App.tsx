@@ -9,7 +9,16 @@ import { useEngagementRealtime } from "@/hooks/useEngagementRealtime";
 
 import Dashboard from "./pages/Dashboard";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes - data stays fresh
+      gcTime: 1000 * 60 * 30, // 30 minutes - keep in cache (formerly cacheTime)
+      refetchOnWindowFocus: false, // Don't refetch on window focus
+      retry: 1, // Only retry failed requests once
+    },
+  },
+});
 
 // Component to initialize global realtime listener - must be inside MapRefetchProvider
 const RealtimeListener = () => {

@@ -1,5 +1,6 @@
 // @ts-nocheck
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { rateLimit, timingSafeEqual } from "../_shared/rateLimit.ts";
 
 type WebhookPayload = unknown;
 
@@ -120,6 +121,17 @@ Deno.serve(async (req) => {
       return json({ error: "Method not allowed" }, { status: 405 });
     }
 
+    // Rate limiting: 10 requests per minute per IP
+    const rateLimitResponse = rateLimit(req, {
+      maxRequests: 10,
+      windowMs: 60 * 1000,
+      keyPrefix: "event-reminder",
+    });
+    if (rateLimitResponse) {
+      console.log("[event-reminder] Rate limited");
+      return rateLimitResponse;
+    }
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -136,11 +148,13 @@ Deno.serve(async (req) => {
     }
 
     // Auth check (either WEBHOOK_SECRET or Bearer SERVICE_ROLE_KEY)
+    // Using timing-safe comparison to prevent timing attacks
     const webhookSecret = Deno.env.get("WEBHOOK_SECRET");
     const providedSecret = req.headers.get("x-webhook-secret");
     const authHeader = req.headers.get("authorization") || req.headers.get("Authorization");
-    const bearerOk = Boolean(authHeader && authHeader === `Bearer ${serviceKey}`);
-    const secretOk = Boolean(webhookSecret && providedSecret && providedSecret === webhookSecret);
+    const expectedBearer = `Bearer ${serviceKey}`;
+    const bearerOk = Boolean(authHeader && timingSafeEqual(authHeader, expectedBearer));
+    const secretOk = Boolean(webhookSecret && providedSecret && timingSafeEqual(providedSecret, webhookSecret));
     if (!(bearerOk || secretOk)) {
       console.error("[event-reminder] Unauthorized");
       return json({ error: "Unauthorized" }, { status: 401 });

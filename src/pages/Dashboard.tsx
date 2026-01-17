@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import { useSearchParams, useParams, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useActiveArea } from "@/hooks/useActiveArea";
@@ -8,8 +8,9 @@ import Navbar from "@/components/map/Navbar";
 import BottomNav from "@/components/map/BottomNav";
 import GuestNavbar from "@/components/map/GuestNavbar";
 import LoadingScreen from "@/components/LoadingScreen";
-import AuthModal from "@/components/map/AuthModal";
-import OnboardingModal from "@/components/map/OnboardingModal";
+// Lazy loaded modals for better initial bundle size
+const AuthModal = lazy(() => import("@/components/map/AuthModal"));
+const OnboardingModal = lazy(() => import("@/components/map/OnboardingModal"));
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -560,29 +561,33 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Auth Modal */}
-      <AuthModal 
-        open={showAuthModal} 
-        onOpenChange={setShowAuthModal}
-        spawnCoordinates={spawnCoordinates}
-      />
+      {/* Auth Modal - Lazy loaded */}
+      <Suspense fallback={null}>
+        <AuthModal
+          open={showAuthModal}
+          onOpenChange={setShowAuthModal}
+          spawnCoordinates={spawnCoordinates}
+        />
+      </Suspense>
 
-      {/* Onboarding Modal */}
-      <OnboardingModal 
-        open={showOnboardingModal} 
-        onOpenChange={(isOpen) => {
-          setShowOnboardingModal(isOpen);
-          // Track if user manually dismissed the modal
-          if (!isOpen) {
-            onboardingModalDismissedRef.current = true;
-          }
-        }}
-        spawnCoordinates={spawnCoordinates}
-        onComplete={() => {
-          // Reset dismissal flag on successful completion
-          onboardingModalDismissedRef.current = false;
-        }}
-      />
+      {/* Onboarding Modal - Lazy loaded */}
+      <Suspense fallback={null}>
+        <OnboardingModal
+          open={showOnboardingModal}
+          onOpenChange={(isOpen) => {
+            setShowOnboardingModal(isOpen);
+            // Track if user manually dismissed the modal
+            if (!isOpen) {
+              onboardingModalDismissedRef.current = true;
+            }
+          }}
+          spawnCoordinates={spawnCoordinates}
+          onComplete={() => {
+            // Reset dismissal flag on successful completion
+            onboardingModalDismissedRef.current = false;
+          }}
+        />
+      </Suspense>
     </div>
   );
 };

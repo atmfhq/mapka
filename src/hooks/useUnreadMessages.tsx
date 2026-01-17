@@ -134,7 +134,8 @@ export const useUnreadMessages = (currentUserId: string | null) => {
         if (error) {
           console.error('Error marking invitation as read:', error);
         }
-      });
+      })
+      .catch((err) => console.error('Unhandled error marking invitation as read:', err));
   }, [currentUserId]);
 
   // Mark event chat as read (fire and forget - background sync)
@@ -160,7 +161,8 @@ export const useUnreadMessages = (currentUserId: string | null) => {
         if (error) {
           console.error('Error marking event as read:', error);
         }
-      });
+      })
+      .catch((err) => console.error('Unhandled error marking event as read:', err));
   }, [currentUserId]);
 
   // Silent refetch for data consistency (called when drawer closes)
@@ -173,7 +175,7 @@ export const useUnreadMessages = (currentUserId: string | null) => {
       if (!error && data !== null) {
         setUnreadCount(data);
       }
-    });
+    }).catch((err) => console.error('Unhandled error in silentRefetch:', err));
   }, [currentUserId]);
 
   return {

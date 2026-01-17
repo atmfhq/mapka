@@ -113,6 +113,7 @@ const ImageWithFallback = memo(({
       <img
         src={src}
         alt={alt}
+        loading="lazy"
         className={cn(
           className,
           isLoading && 'opacity-0'
