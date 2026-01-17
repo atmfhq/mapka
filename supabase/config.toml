@@ -1,4 +1,6 @@
-project_id = "hbywzsfecjmkaypbgyuu"
+# TODO: Replace with your new Supabase project ID
+# Get this from Supabase Dashboard -> Project Settings -> General
+project_id = "YOUR_NEW_PROJECT_ID"
 
 [functions.generate-og-image]
 verify_jwt = false
