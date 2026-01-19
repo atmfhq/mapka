@@ -349,11 +349,12 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const shoutIds = useMemo(() => shouts.map(s => s.id), [shouts]);
   const { getCounts: getShoutCounts } = useShoutCounts(shoutIds);
 
-  // Filter profiles based on is_active (ghost mode) AND is_online (presence) status
-  // Rule: Only show users that are both active AND online, EXCEPT always show current user (themselves)
+  // Filter profiles based on is_active (ghost mode) only
+  // Rule: Only show users that are active (not in ghost mode), EXCEPT always show current user (themselves)
+  // Note: is_online is NOT used for filtering - it's only for stale session cleanup
   const filteredProfiles = useMemo(() => {
     return profiles.filter(profile =>
-      (profile.is_active && profile.is_online !== false) || profile.id === currentUserId
+      profile.is_active || profile.id === currentUserId
     );
   }, [profiles, currentUserId]);
 
@@ -617,8 +618,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         const id = incoming?.id;
         if (!id) return prev;
 
-        // If user went inactive or offline, remove immediately
-        if (incoming.is_active === false || incoming.is_online === false) {
+        // If user went inactive (ghost mode), remove immediately
+        // Note: is_online is NOT used for filtering - only is_active (ghost mode) matters
+        if (incoming.is_active === false) {
           return prev.filter((p) => p.id !== id);
         }
 
@@ -671,9 +673,10 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
           if (!profile) return;
 
-          // Skip users without location, not onboarded, inactive, or offline
+          // Skip users without location, not onboarded, or inactive (ghost mode)
+          // Note: is_online is NOT used for filtering - only is_active (ghost mode) matters
           if (!profile.location_lat || !profile.location_lng || !profile.is_onboarded ||
-              profile.is_active === false || profile.is_online === false) {
+              profile.is_active === false) {
             setProfiles(prev => prev.filter(p => p.id !== profile.id));
             return;
           }

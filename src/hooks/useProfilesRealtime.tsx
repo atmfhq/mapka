@@ -352,7 +352,7 @@ export const broadcastCurrentUserUpdate = async (
       tags: data.tags,
       bio: data.bio,
       is_active: data.is_active,
-      is_online: data.is_online,
+      is_online: true, // ALWAYS true when broadcasting - user is actively using the app
       last_bounce_at: data.last_bounce_at,
     },
     lat,
