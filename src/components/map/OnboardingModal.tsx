@@ -27,6 +27,7 @@ import AvatarDisplay from '@/components/avatar/AvatarDisplay';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { broadcastCurrentUserUpdate } from '@/hooks/useProfilesRealtime';
 import { generateRandomAvatar } from '@/utils/randomAvatar';
 import type { Json } from '@/integrations/supabase/types';
 
@@ -111,7 +112,12 @@ const OnboardingModal = ({ open, onOpenChange, onComplete, spawnCoordinates }: O
       
       // Wait for profile to refresh to ensure state is updated
       await refreshProfile();
-      
+
+      // Broadcast to other users that this user just appeared
+      if (coords?.lat && coords?.lng) {
+        await broadcastCurrentUserUpdate(user.id, coords.lat, coords.lng, 'location_update');
+      }
+
       // Small delay to ensure profile state propagates
       await new Promise(resolve => setTimeout(resolve, 100));
       

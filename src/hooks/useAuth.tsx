@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode 
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
-import { broadcastProfileUpdate } from "@/hooks/useProfilesRealtime";
 
 interface AvatarConfig {
   skinColor?: string;
@@ -211,30 +210,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signOut = async () => {
-    // Broadcast logout to other users so they remove this avatar immediately
-    if (user?.id && profile?.location_lat && profile?.location_lng) {
-      try {
-        await broadcastProfileUpdate(
-          {
-            id: user.id,
-            nick: profile.nick,
-            avatar_config: profile.avatar_config,
-            avatar_url: profile.avatar_url,
-            tags: profile.tags,
-            bio: profile.bio,
-            is_active: false, // This triggers removal on other clients
-          },
-          profile.location_lat,
-          profile.location_lng,
-          'status_change'
-        );
-        console.log('[Auth] Broadcasted logout to other users');
-      } catch (err) {
-        // Ignore errors - we're signing out anyway
-      }
-    }
-
-    // Mark user offline in database
+    // Mark user offline in database (this also clears location, making user disappear from map)
     if (user?.id) {
       try {
         const { error } = await supabase.rpc('mark_user_offline', { p_user_id: user.id });
