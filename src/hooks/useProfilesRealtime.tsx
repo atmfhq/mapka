@@ -16,7 +16,7 @@ const MAX_DISTANCE_METERS = 50_000; // 50km client-side filter
  */
 export interface ProfileBroadcastPayload {
   user_id: string;
-  event_type: 'location_update' | 'bounce' | 'status_change';
+  event_type: 'location_update' | 'bounce' | 'status_change' | 'online_status';
   lat: number;
   lng: number;
   timestamp: string;
@@ -27,6 +27,7 @@ export interface ProfileBroadcastPayload {
   tags?: string[] | null;
   bio?: string | null;
   is_active?: boolean;
+  is_online?: boolean;
   last_bounce_at?: string | null;
 }
 
@@ -37,6 +38,7 @@ export interface ProfileData {
   location_lng: number | null;
   last_bounce_at?: string | null;
   is_active: boolean;
+  is_online?: boolean;
   avatar_config: any;
   avatar_url?: string | null;
   tags: string[] | null;
@@ -146,6 +148,7 @@ export const useProfilesRealtime = ({
       tags,
       bio,
       is_active,
+      is_online,
       last_bounce_at,
     } = payload;
 
@@ -184,10 +187,11 @@ export const useProfilesRealtime = ({
       tags: tags ?? null,
       bio: bio ?? null,
       is_active: is_active ?? true,
+      is_online: is_online ?? true,
       last_bounce_at: last_bounce_at ?? null,
     };
 
-    if (event_type === 'location_update' || event_type === 'status_change') {
+    if (event_type === 'location_update' || event_type === 'status_change' || event_type === 'online_status') {
       onProfileUpdateRef.current?.(profile);
     }
 
@@ -278,11 +282,12 @@ export const broadcastProfileUpdate = async (
     tags?: string[] | null;
     bio?: string | null;
     is_active?: boolean;
+    is_online?: boolean;
     last_bounce_at?: string | null;
   },
   lat: number,
   lng: number,
-  eventType: 'location_update' | 'bounce' | 'status_change' = 'location_update'
+  eventType: 'location_update' | 'bounce' | 'status_change' | 'online_status' = 'location_update'
 ) => {
   const payload: ProfileBroadcastPayload = {
     user_id: profile.id,
@@ -296,6 +301,7 @@ export const broadcastProfileUpdate = async (
     tags: profile.tags,
     bio: profile.bio,
     is_active: profile.is_active ?? true,
+    is_online: profile.is_online ?? true,
     last_bounce_at: profile.last_bounce_at,
   };
 
@@ -324,11 +330,11 @@ export const broadcastCurrentUserUpdate = async (
   userId: string,
   lat: number,
   lng: number,
-  eventType: 'location_update' | 'bounce' | 'status_change' = 'location_update'
+  eventType: 'location_update' | 'bounce' | 'status_change' | 'online_status' = 'location_update'
 ) => {
   const { data } = await supabase
     .from('profiles')
-    .select('nick, avatar_config, avatar_url, tags, bio, is_active, last_bounce_at')
+    .select('nick, avatar_config, avatar_url, tags, bio, is_active, is_online, last_bounce_at')
     .eq('id', userId)
     .single();
 
@@ -346,6 +352,7 @@ export const broadcastCurrentUserUpdate = async (
       tags: data.tags,
       bio: data.bio,
       is_active: data.is_active,
+      is_online: data.is_online,
       last_bounce_at: data.last_bounce_at,
     },
     lat,

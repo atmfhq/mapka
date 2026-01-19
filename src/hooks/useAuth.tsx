@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -39,6 +39,8 @@ interface AuthContextType {
   loading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  markOnline: () => Promise<void>;
+  markOffline: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -87,6 +89,40 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setProfile(profileData);
     }
   };
+
+  // Mark user as online in the database
+  const markOnline = useCallback(async () => {
+    const userId = user?.id;
+    if (!userId) return;
+
+    try {
+      const { error } = await supabase.rpc('mark_user_online', { p_user_id: userId });
+      if (error) {
+        console.warn('[Auth] Could not mark user online:', error.message);
+      } else {
+        console.log('[Auth] Marked user online:', userId);
+      }
+    } catch (err) {
+      console.error('[Auth] Error marking user online:', err);
+    }
+  }, [user?.id]);
+
+  // Mark user as offline in the database
+  const markOffline = useCallback(async () => {
+    const userId = user?.id;
+    if (!userId) return;
+
+    try {
+      const { error } = await supabase.rpc('mark_user_offline', { p_user_id: userId });
+      if (error) {
+        console.warn('[Auth] Could not mark user offline:', error.message);
+      } else {
+        console.log('[Auth] Marked user offline:', userId);
+      }
+    } catch (err) {
+      console.error('[Auth] Error marking user offline:', err);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -161,7 +197,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Handle tab visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        console.log('[Auth] Tab hidden, heartbeat will stop and cleanup will mark offline');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
   const signOut = async () => {
+    // Mark user offline before signing out
+    if (user?.id) {
+      try {
+        const { error } = await supabase.rpc('mark_user_offline', { p_user_id: user.id });
+        if (!error) {
+          console.log('[Auth] Marked user offline before signout');
+        }
+      } catch (err) {
+        // Ignore errors - we're signing out anyway
+      }
+    }
+
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
@@ -169,7 +229,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, session, profile, loading, signOut, refreshProfile, markOnline, markOffline }}>
       {children}
     </AuthContext.Provider>
   );

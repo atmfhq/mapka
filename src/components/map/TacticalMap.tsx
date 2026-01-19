@@ -56,6 +56,7 @@ interface Profile {
   location_lng: number | null;
   bio: string | null;
   is_active: boolean;
+  is_online?: boolean;
   last_bounce_at?: string | null;
 }
 
@@ -348,11 +349,11 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
   const shoutIds = useMemo(() => shouts.map(s => s.id), [shouts]);
   const { getCounts: getShoutCounts } = useShoutCounts(shoutIds);
 
-  // Filter profiles based on is_active status
-  // Rule: Only show active users, EXCEPT always show current user (themselves)
+  // Filter profiles based on is_active (ghost mode) AND is_online (presence) status
+  // Rule: Only show users that are both active AND online, EXCEPT always show current user (themselves)
   const filteredProfiles = useMemo(() => {
-    return profiles.filter(profile => 
-      profile.is_active || profile.id === currentUserId
+    return profiles.filter(profile =>
+      (profile.is_active && profile.is_online !== false) || profile.id === currentUserId
     );
   }, [profiles, currentUserId]);
 
@@ -460,6 +461,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
           ...p,
           avatar_config: p.avatar_config as AvatarConfig | null,
           is_active: p.is_active ?? true,
+          is_online: p.is_online ?? true,
           last_bounce_at: p.last_bounce_at ?? null
         }));
         setProfiles(mappedProfiles);
@@ -615,8 +617,8 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
         const id = incoming?.id;
         if (!id) return prev;
 
-        // If user went inactive, remove immediately
-        if (incoming.is_active === false) {
+        // If user went inactive or offline, remove immediately
+        if (incoming.is_active === false || incoming.is_online === false) {
           return prev.filter((p) => p.id !== id);
         }
 
@@ -669,8 +671,9 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
 
           if (!profile) return;
 
-          // Skip users without location or not onboarded
-          if (!profile.location_lat || !profile.location_lng || !profile.is_onboarded) {
+          // Skip users without location, not onboarded, inactive, or offline
+          if (!profile.location_lat || !profile.location_lng || !profile.is_onboarded ||
+              profile.is_active === false || profile.is_online === false) {
             setProfiles(prev => prev.filter(p => p.id !== profile.id));
             return;
           }
@@ -686,6 +689,7 @@ const TacticalMap = forwardRef<TacticalMapHandle, TacticalMapProps>(({
             location_lng: profile.location_lng,
             bio: profile.bio ?? null,
             is_active: profile.is_active ?? true,
+            is_online: profile.is_online ?? true,
             last_bounce_at: profile.last_bounce_at ?? null,
           };
 

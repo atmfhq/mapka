@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, lazy, Suspense } from "react";
 import { useSearchParams, useParams, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useActiveArea } from "@/hooks/useActiveArea";
+import { useOnlineHeartbeat } from "@/hooks/useOnlineHeartbeat";
 import { supabase } from "@/integrations/supabase/client";
 import TacticalMap, { TacticalMapHandle, ViewportBounds } from "@/components/map/TacticalMap";
 import Navbar from "@/components/map/Navbar";
@@ -22,8 +23,19 @@ interface AvatarConfig {
 }
 
 const Dashboard = () => {
-  const { user, profile, loading, signOut, refreshProfile } = useAuth();
+  const { user, profile, loading, signOut, refreshProfile, markOnline } = useAuth();
   const { lat: activeAreaLat, lng: activeAreaLng, loading: activeAreaLoading } = useActiveArea();
+
+  // Maintain online presence with periodic heartbeats
+  useOnlineHeartbeat(user?.id ?? null);
+
+  // Mark user online when they first load the app (after authentication)
+  useEffect(() => {
+    if (user?.id && !loading) {
+      markOnline();
+    }
+  }, [user?.id, loading, markOnline]);
+
   const [searchParams, setSearchParams] = useSearchParams();
   const params = useParams();
   const location = useLocation();
